@@ -7,6 +7,32 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition Width="200"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0">
+            <Image x:Name="mainPreview"></Image>
+        </StackPanel>
+        <StackPanel Grid.Column="1">
+
+            <WrapPanel>
+                <Label>Raw resolution</Label>
+                <TextBox x:Name="rawWidth" MinWidth="20">2448</TextBox>
+                <Label> x </Label>
+                <TextBox x:Name="rawHeight" MinWidth="20">2048</TextBox>
+                <Label>(set/check resolution first)</Label>
+            </WrapPanel>
+            <Button x:Name="btnLoadRAW" Click="BtnLoadRAW_Click">Load .RAW</Button>
+            
+            <WrapPanel>
+                <CheckBox x:Name="previewDebayer"></CheckBox>
+                <Label ToolTip="does not affect resulting DNG">Preview debayer</Label>
+            </WrapPanel>
+            <WrapPanel>
+                <CheckBox x:Name="previewGamma" IsChecked="True"></CheckBox>
+                <Label ToolTip="does not affect resulting DNG">Preview with 2.2 gamma</Label>
+            </WrapPanel>
+        </StackPanel>
     </Grid>
 </Window>
