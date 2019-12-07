@@ -12,7 +12,22 @@
             <ColumnDefinition Width="200"></ColumnDefinition>
         </Grid.ColumnDefinitions>
         <StackPanel Grid.Column="0">
-            <Image x:Name="mainPreview"></Image>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="50"></RowDefinition>
+                    <RowDefinition Height="*"></RowDefinition>
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0" >
+                    <WrapPanel>
+                        <Label>Current image:</Label>
+                        <TextBox x:Name="currentImagNumber" MinWidth="50" TextAlignment="Right">0</TextBox>
+                        <TextBlock Padding="5 2 5 2"> of </TextBlock>
+                        <TextBlock x:Name="totalImageCount" Padding="5 2 5 2">0</TextBlock>
+                    </WrapPanel>
+                    <Slider VerticalAlignment="Bottom"  Name="slide_currentFile" Value="{Binding ElementName=currentImagNumber,Path=Text,Mode=TwoWay}" Maximum="0" Minimum="0" TickPlacement="BottomRight" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="100" ValueChanged="Slide_currentFile_ValueChanged" ></Slider>
+                </StackPanel>
+                <Image Grid.Row="1" x:Name="mainPreview" MinHeight="300"></Image>
+            </Grid>
         </StackPanel>
         <StackPanel Grid.Column="1">
 
@@ -23,7 +38,9 @@
                 <TextBox x:Name="rawHeight" MinWidth="20">2048</TextBox>
                 <Label>(set/check resolution first)</Label>
             </WrapPanel>
-            <Button x:Name="btnLoadRAW" Click="BtnLoadRAW_Click">Load .RAW</Button>
+            <Button x:Name="btnLoadRAW" Click="BtnLoadRAW_Click">Load single .RAW</Button>
+            <Button x:Name="btnLoadRAWFolder" Click="BtnLoadRAWFolder_Click">Select folder of .RAW files</Button>
+            <Button x:Name="btnLoadTargetFolder" IsEnabled="False">Select target folder</Button>
             
             <WrapPanel>
                 <CheckBox x:Name="previewDebayer"></CheckBox>
