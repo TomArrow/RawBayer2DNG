@@ -24,7 +24,7 @@
                         <TextBlock Padding="5 2 5 2"> of </TextBlock>
                         <TextBlock x:Name="totalImageCount" Padding="5 2 5 2">0</TextBlock>
                     </WrapPanel>
-                    <Slider VerticalAlignment="Bottom"  Name="slide_currentFile" Value="{Binding ElementName=currentImagNumber,Path=Text,Mode=TwoWay}" Maximum="0" Minimum="0" TickPlacement="BottomRight" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="100" ValueChanged="Slide_currentFile_ValueChanged" ></Slider>
+                    <Slider VerticalAlignment="Bottom"  Name="slide_currentFile" Value="{Binding ElementName=currentImagNumber,Path=Text,Mode=TwoWay}" Maximum="0" Minimum="0" TickPlacement="BottomRight" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="1" ValueChanged="Slide_currentFile_ValueChanged" ></Slider>
                 </StackPanel>
                 <Image Grid.Row="1" x:Name="mainPreview" MinHeight="300"></Image>
             </Grid>
@@ -43,12 +43,31 @@
             <Button x:Name="btnLoadTargetFolder" IsEnabled="False">Select target folder</Button>
             
             <WrapPanel>
-                <CheckBox x:Name="previewDebayer"></CheckBox>
+                <CheckBox x:Name="previewDebayer" Click="PreviewDebayer_Click"></CheckBox>
                 <Label ToolTip="does not affect resulting DNG">Preview debayer</Label>
             </WrapPanel>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition></RowDefinition>
+                    <RowDefinition></RowDefinition>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Grid.RowSpan="2">
+                    <TextBlock TextWrapping="Wrap">Bayer Pattern. 0=Red, 1=Green, 2=Blue</TextBlock>
+                </StackPanel>
+                <TextBox x:Name="colorBayerA" Grid.Column="1" Grid.Row="0" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">1</TextBox>
+                <TextBox x:Name="colorBayerB" Grid.Column="2" Grid.Row="0" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">0</TextBox>
+                <TextBox x:Name="colorBayerC" Grid.Column="1" Grid.Row="1" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">2</TextBox>
+                <TextBox x:Name="colorBayerD" Grid.Column="2" Grid.Row="1" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">1</TextBox>
+                
+            </Grid>
             <WrapPanel>
-                <CheckBox x:Name="previewGamma" IsChecked="True"></CheckBox>
-                <Label ToolTip="does not affect resulting DNG">Preview with 2.2 gamma</Label>
+                <CheckBox x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click"></CheckBox>
+                <Label ToolTip="does not affect resulting DNG">Preview with sRGB gamma</Label>
             </WrapPanel>
         </StackPanel>
     </Grid>

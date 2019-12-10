@@ -155,29 +155,64 @@ namespace RawBayer2DNG
         private void Slide_currentFile_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
 
+            ReDraw();
+        }
+
+        private void ReDraw()
+        {
+            if(sourceFolder == null || filesInSourceFolder == null)
+            {
+                return; // Nothing to do here
+            }
+
             int width = int.Parse(rawWidth.Text);
             int height = int.Parse(rawHeight.Text);
+
+            bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
+            bool doPreviewGamma = (bool)previewGamma.IsChecked;
 
             int sliderNumber = (int)slide_currentFile.Value;
             int index = sliderNumber - 1;
             string selectedRawFile = filesInSourceFolder[index];
             if (!File.Exists(selectedRawFile))
             {
-                MessageBox.Show("weirdo error, apparently file "+selectedRawFile+" (no longer?) exists");
+                MessageBox.Show("weirdo error, apparently file " + selectedRawFile + " (no longer?) exists");
                 return;
-            } else
+            }
+            else
             {
+                int subsample = 2;
+
+                int newWidth = (int)Math.Ceiling((double)width / subsample);
+                int newHeight = (int)Math.Ceiling((double)height / subsample);
 
                 byte[] buff = File.ReadAllBytes(selectedRawFile);
-                int byteWidth = width * 2;
+                int byteDepth = 2; // This is for the source
+                int byteWidth = newWidth * 3; // This is for the preview. 3 means RGB
                 int newStride = Helpers.getStride(byteWidth);
-                byte[] newbytes = Helpers.PadLines(buff, height, width, newStride,2);
-                Bitmap manipulatedImage = new Bitmap(width, height, Imaging.PixelFormat.Format16bppGrayScale);
-                Imaging.BitmapData pixelData = manipulatedImage.LockBits(new Rectangle(0, 0, width, height), Imaging.ImageLockMode.WriteOnly, Imaging.PixelFormat.Format16bppGrayScale);
+                //byte[] newbytes = Helpers.PadLines(buff, height, width, newStride,2);
+
+                byte[] newbytes;
+
+                if (doPreviewDebayer) {
+                    byte bayerColorA = (byte)int.Parse(colorBayerA.Text);
+                    byte bayerColorB = (byte)int.Parse(colorBayerB.Text);
+                    byte bayerColorC = (byte)int.Parse(colorBayerC.Text);
+                    byte bayerColorD = (byte)int.Parse(colorBayerD.Text);
+                    byte[,] bayerPattern = { { bayerColorA, bayerColorB },{ bayerColorC, bayerColorD } };
+                    newbytes = Helpers.DrawBayerPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, subsample,doPreviewGamma,bayerPattern);
+                } else
+                {
+
+                    newbytes = Helpers.DrawPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, subsample, doPreviewGamma);
+                }
+
+                Bitmap manipulatedImage = new Bitmap(newWidth, newHeight, Imaging.PixelFormat.Format24bppRgb);
+                Imaging.BitmapData pixelData = manipulatedImage.LockBits(new Rectangle(0, 0, newWidth, newHeight), Imaging.ImageLockMode.WriteOnly, Imaging.PixelFormat.Format24bppRgb);
 
                 //Bitmap im = new Bitmap(width, height, newStride, Imaging.PixelFormat.Format16bppGrayScale,  Marshal.UnsafeAddrOfPinnedArrayElement(newbytes, 0));
 
-                System.Runtime.InteropServices.Marshal.Copy(newbytes, 0, pixelData.Scan0,newbytes.Count());
+                System.Runtime.InteropServices.Marshal.Copy(newbytes, 0, pixelData.Scan0, newbytes.Count());
                 //im.GetPixel(1, 1);
                 //im.GetPixel(2447, 2047);
                 //pixelData.
@@ -185,5 +220,23 @@ namespace RawBayer2DNG
                 mainPreview.Source = Helpers.BitmapToImageSource(manipulatedImage);
             }
         }
+
+        private void PreviewGamma_Click(object sender, RoutedEventArgs e)
+        {
+
+            ReDraw();
+        }
+
+        private void PreviewDebayer_Click(object sender, RoutedEventArgs e)
+        {
+
+            ReDraw();
+        }
+
+        private void ColorBayer_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ReDraw();
+        }
+
     }
 }
