@@ -5,8 +5,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:RawBayer2DNG"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="550" Width="800">
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition></RowDefinition>
+            <RowDefinition Height="20">
+            </RowDefinition>
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition Width="200"></ColumnDefinition>
@@ -38,9 +43,9 @@
                 <TextBox x:Name="rawHeight" MinWidth="20">2048</TextBox>
                 <Label>(set/check resolution first)</Label>
             </WrapPanel>
-            <Button x:Name="btnLoadRAW" Click="BtnLoadRAW_Click">Load single .RAW</Button>
+            <Button x:Name="btnLoadRAW" Click="BtnLoadRAW_Click">Process single .RAW (same folder)</Button>
             <Button x:Name="btnLoadRAWFolder" Click="BtnLoadRAWFolder_Click">Select folder of .RAW files</Button>
-            <Button x:Name="btnLoadTargetFolder" IsEnabled="False">Select target folder</Button>
+            <Button x:Name="btnLoadTargetFolder" Click="BtnLoadTargetFolder_Click">Select target folder</Button>
             
             <WrapPanel>
                 <CheckBox x:Name="previewDebayer" Click="PreviewDebayer_Click"></CheckBox>
@@ -69,6 +74,21 @@
                 <CheckBox x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click"></CheckBox>
                 <Label ToolTip="does not affect resulting DNG">Preview with sRGB gamma</Label>
             </WrapPanel>
+
+            <Button x:Name="btnProcessFolder" Click="BtnProcessFolder_Click" IsEnabled="False">Process loaded folder</Button>
+            <StackPanel>
+                <Label>Info</Label>
+                <WrapPanel>
+                    <Label>Source folder: </Label>
+                    <TextBlock x:Name="txtSrcFolder" TextWrapping="Wrap"></TextBlock>
+                </WrapPanel>
+                <WrapPanel>
+                    <Label>Target folder: </Label>
+                    <TextBlock x:Name="txtTargetFolder" TextWrapping="Wrap"></TextBlock>
+                </WrapPanel>
+            </StackPanel>
         </StackPanel>
+
+        <TextBlock x:Name="txtStatus" Grid.Row="1">Idle.</TextBlock>
     </Grid>
 </Window>

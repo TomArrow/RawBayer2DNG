@@ -56,7 +56,7 @@ namespace RawBayer2DNG
                 {
                     double fullValue = (double)BitConverter.ToUInt16(buff,y * subsample * srcWidth * byteDepth + x * subsample * byteDepth)/(double)UInt16.MaxValue;
                     if(previewGamma) fullValue = fullValue > 0.0031308 ? 1.055 * Math.Pow(fullValue, 1 / 2.4) - 0.055 : 12.92 * fullValue;
-                    fullValue *= 256;
+                    fullValue *= 255;
                     newBytes[y * newStride + x * 3] =(byte)(int)(fullValue);
                     newBytes[y * newStride + x * 3+1] =(byte)(int)(fullValue);
                     newBytes[y * newStride + x * 3+2] =(byte)(int)(fullValue);
@@ -91,17 +91,17 @@ namespace RawBayer2DNG
                     double fullValueB = (double)BitConverter.ToUInt16(buff, y * subsample * srcWidth * byteDepth + (x * subsample + 1) * byteDepth) / (double)UInt16.MaxValue;
                     double fullValueC = (double)BitConverter.ToUInt16(buff, (y * subsample + 1) * srcWidth * byteDepth + x * subsample * byteDepth) / (double)UInt16.MaxValue;
                     double fullValueD = (double)BitConverter.ToUInt16(buff, (y * subsample + 1) * srcWidth * byteDepth + (x * subsample + 1) * byteDepth) / (double)UInt16.MaxValue;
-                    if (previewGamma)
+                    if (previewGamma) // converts linear values to sRGB
                     {
                         fullValueA = fullValueA > 0.0031308 ? 1.055 * Math.Pow(fullValueA, 1 / 2.4) - 0.055 : 12.92 * fullValueA;
                         fullValueB = fullValueB > 0.0031308 ? 1.055 * Math.Pow(fullValueB, 1 / 2.4) - 0.055 : 12.92 * fullValueB;
                         fullValueC = fullValueC > 0.0031308 ? 1.055 * Math.Pow(fullValueC, 1 / 2.4) - 0.055 : 12.92 * fullValueC;
                         fullValueD = fullValueD > 0.0031308 ? 1.055 * Math.Pow(fullValueD, 1 / 2.4) - 0.055 : 12.92 * fullValueD;
                     }
-                    fullValueA *= 256;
-                    fullValueB *= 256;
-                    fullValueC *= 256;
-                    fullValueD *= 256;
+                    fullValueA *= 255;
+                    fullValueB *= 255;
+                    fullValueC *= 255;
+                    fullValueD *= 255;
 
 
                     newBytes[y * newStride + x * 3 + mappedBayer[0, 0]] = (byte)(int)(fullValueA);
