@@ -65,6 +65,85 @@ namespace RawBayer2DNG
             return newBytes;
         }
 
+        static public Bitmap ResizeBitmapNN(Bitmap sourceBMP, int width, int height)
+        {
+            Bitmap result = new Bitmap(width, height);
+            using (Graphics g = Graphics.FromImage(result))
+            {
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+                g.DrawImage(sourceBMP, 0, 0, width, height);
+            }
+            return result;
+        }
+
+        public static byte[] drawRectangle(byte[] image, int width, int height, Rectangle rectangle)
+        {
+            // Top line
+            int bottom = rectangle.Y + rectangle.Height;
+            int i;
+            for(i=rectangle.X; i < rectangle.X+rectangle.Width; i++)
+            {
+                image[rectangle.Y * width * 3 + i * 3] = 255;
+                image[rectangle.Y * width * 3 + i * 3+1] = 255;
+                image[rectangle.Y * width * 3 + i * 3+2] = 255;
+            }
+            //Bottom line
+            for(i=rectangle.X; i < rectangle.X+rectangle.Width; i++)
+            {
+                image[(bottom-1) * width * 3 + i * 3] = 255;
+                image[(bottom - 1) * width * 3 + i * 3+1] = 255;
+                image[(bottom - 1) * width * 3 + i * 3+2] = 255;
+            }
+            //Left line
+            for(i=rectangle.Y; i < rectangle.Y+rectangle.Height; i++)
+            {
+                image[i * width * 3 + rectangle.X * 3] = 255;
+                image[i * width * 3 + rectangle.X*3 + 1] = 255;
+                image[i * width * 3 + rectangle.X*3 + 2] = 255;
+            }
+            //Right line
+            for(i=rectangle.Y; i < rectangle.Y+rectangle.Height; i++)
+            {
+                image[i * width * 3 + (rectangle.X+rectangle.Width-1) * 3] = 255;
+                image[i * width * 3 + (rectangle.X + rectangle.Width-1) * 3 + 1] = 255;
+                image[i * width * 3 + (rectangle.X + rectangle.Width-1) * 3 + 2] = 255;
+            }
+            return image;
+        }
+
+        public static int MinMultipleOfTwo(int input)
+        {
+            return input % 2 > 0 ? input - 1 : input;
+        }
+
+
+        public static byte[] DrawMagnifier(byte[] source,Rectangle rectangle, int sourceWidth,bool previewGamma, int byteDepth,double[] RGBAmplify,byte[,] bayerPattern)
+        {
+            byte[] newbytes = new byte[rectangle.Width * rectangle.Height * 3];
+
+            for(int x = 0; x < rectangle.Width; x++)
+            {
+                for(int y = 0; y < rectangle.Height; y++)
+                {
+                    //0=Red, 1=Green,   2=Blue
+                    byte currentColor = bayerPattern[x % 2, y % 2];
+                    double srcData = (double)BitConverter.ToUInt16(source, (rectangle.Y+y)*sourceWidth*byteDepth + (rectangle.X+x)*byteDepth) / (double)UInt16.MaxValue;
+                    srcData *= RGBAmplify[currentColor];
+                    if (previewGamma) // converts linear values to sRGB
+                    {
+                        srcData = srcData > 0.0031308 ? 1.055 * Math.Pow(srcData, 1 / 2.4) - 0.055 : 12.92 * srcData;
+                    }
+                    srcData = srcData * 255;
+
+                    newbytes[y * rectangle.Width * 3 + x * 3] = (byte)(int)srcData;
+                    newbytes[y * rectangle.Width * 3 + x * 3+1] = (byte)(int)srcData;
+                    newbytes[y * rectangle.Width * 3 + x * 3+2] = (byte)(int)srcData;
+                }
+            }
+
+            return newbytes;
+        }
 
         internal static byte[] DrawBayerPreview(byte[] buff, int height, int width, int srcHeight, int srcWidth, int newStride, int byteDepth, int subsample, bool previewGamma,byte[,] bayerPattern)
         {

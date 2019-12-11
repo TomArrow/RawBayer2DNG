@@ -182,12 +182,12 @@ namespace RawBayer2DNG
         private void Slide_currentFile_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
 
-            ReDraw();
+            ReDrawPreview();
         }
 
         private byte[,] getBayerPattern()
         {
-
+            //0=Red, 1=Green,   2=Blue
             byte bayerColorA = (byte)int.Parse(colorBayerA.Text);
             byte bayerColorB = (byte)int.Parse(colorBayerB.Text);
             byte bayerColorC = (byte)int.Parse(colorBayerC.Text);
@@ -196,7 +196,7 @@ namespace RawBayer2DNG
             return bayerPattern;
         }
 
-        private void ReDraw()
+        private void ReDrawPreview()
         {
             if(sourceFolder == null || filesInSourceFolder == null)
             {
@@ -219,7 +219,7 @@ namespace RawBayer2DNG
             }
             else
             {
-                int subsample = 2;
+                int subsample = 4;
 
                 int newWidth = (int)Math.Ceiling((double)width / subsample);
                 int newHeight = (int)Math.Ceiling((double)height / subsample);
@@ -232,8 +232,8 @@ namespace RawBayer2DNG
 
                 byte[] newbytes;
 
+                byte[,] bayerPattern = getBayerPattern();
                 if (doPreviewDebayer) {
-                    byte[,] bayerPattern = getBayerPattern();
                     newbytes = Helpers.DrawBayerPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, subsample,doPreviewGamma,bayerPattern);
                 } else
                 {
@@ -241,6 +241,30 @@ namespace RawBayer2DNG
                     newbytes = Helpers.DrawPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, subsample, doPreviewGamma);
                 }
 
+                // Draw magnifier rectangle
+                // Position values are in percent from 0 to 1
+                // Explanation: value 0 means left edge at left image border. value 1 means right edge at right image border.
+                int magnifierSrcSizeX = 20;
+                int magnifierSrcSizeY = 20;
+                int magnifierPreviewSizeX = (int)Math.Floor((double)magnifierSrcSizeX/subsample);
+                int magnifierPreviewSizeY = (int)Math.Floor((double)magnifierSrcSizeY/ subsample);
+                double magnifierPositionX = magnifierHorizontalPosition.Value;
+                double magnifierPositionY = magnifierVerticalPosition.Value;
+                Rectangle positionSrc = new Rectangle(
+                    Helpers.MinMultipleOfTwo((int)Math.Floor(magnifierPositionX * (width-magnifierSrcSizeX))),  // Using multiple of two function here to not mess up bayer pattern evaluation
+                    Helpers.MinMultipleOfTwo((int)Math.Floor(magnifierPositionY * (height - magnifierSrcSizeY))),
+                    magnifierSrcSizeX,magnifierSrcSizeY);
+                Rectangle positionPreview = new Rectangle(
+                    (int)Math.Floor((double)positionSrc.X/subsample),
+                    (int)Math.Floor((double)positionSrc.Y / subsample),magnifierPreviewSizeX,magnifierPreviewSizeY
+                    );
+                newbytes = Helpers.drawRectangle(newbytes, newWidth, newHeight, positionPreview);
+
+                double[] RGBamplify = { rAmplify.Value, gAmplify.Value, bAmplify.Value };
+
+
+
+                // Put preview into WPF image tag
                 Bitmap manipulatedImage = new Bitmap(newWidth, newHeight, Imaging.PixelFormat.Format24bppRgb);
                 Imaging.BitmapData pixelData = manipulatedImage.LockBits(new Rectangle(0, 0, newWidth, newHeight), Imaging.ImageLockMode.WriteOnly, Imaging.PixelFormat.Format24bppRgb);
 
@@ -251,25 +275,38 @@ namespace RawBayer2DNG
                 //im.GetPixel(2447, 2047);
                 //pixelData.
                 manipulatedImage.UnlockBits(pixelData);
+
+                // Calculate Magnifier
+                Bitmap magnifierArea = new Bitmap(positionSrc.Width, positionSrc.Height, Imaging.PixelFormat.Format24bppRgb);
+                pixelData = magnifierArea.LockBits(new Rectangle(0, 0, positionSrc.Width, positionSrc.Height), Imaging.ImageLockMode.WriteOnly, Imaging.PixelFormat.Format24bppRgb);
+                newbytes = Helpers.DrawMagnifier(buff,positionSrc,width,doPreviewGamma,byteDepth, RGBamplify, bayerPattern);
+
+                System.Runtime.InteropServices.Marshal.Copy(newbytes, 0, pixelData.Scan0, newbytes.Count());
+                magnifierArea.UnlockBits(pixelData);
+
+                magnifierArea = Helpers.ResizeBitmapNN(magnifierArea, 200, 200);
+
+                // Do the displaying
                 mainPreview.Source = Helpers.BitmapToImageSource(manipulatedImage);
+                Magnifier.Source = Helpers.BitmapToImageSource(magnifierArea);
             }
         }
 
         private void PreviewGamma_Click(object sender, RoutedEventArgs e)
         {
 
-            ReDraw();
+            ReDrawPreview();
         }
 
         private void PreviewDebayer_Click(object sender, RoutedEventArgs e)
         {
 
-            ReDraw();
+            ReDrawPreview();
         }
 
         private void ColorBayer_TextChanged(object sender, TextChangedEventArgs e)
         {
-            ReDraw();
+            ReDrawPreview();
         }
 
         private void BtnLoadTargetFolder_Click(object sender, RoutedEventArgs e)
@@ -304,6 +341,16 @@ namespace RawBayer2DNG
                 }
 
             }
+        }
+
+        private void MagnifierPosition_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            ReDrawPreview();
+        }
+
+        private void Amplify_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            ReDrawPreview();
         }
     }
 }
