@@ -2,6 +2,7 @@
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -21,25 +22,32 @@ using System.Drawing;
 using Imaging = System.Drawing.Imaging;
 using Orientation = BitMiracle.LibTiff.Classic.Orientation;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace RawBayer2DNG
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window,  INotifyPropertyChanged
     {
         
         private const TiffTag TIFFTAG_CFAREPEATPATTERNDIM = (TiffTag)33421;
         private const TiffTag TIFFTAG_CFAPATTERN = (TiffTag)33422;
 
         private static Tiff.TiffExtendProc m_parentExtender;
-
+        private BackgroundWorker worker = new BackgroundWorker();
 
         string sourceFolder = null;
         string targetFolder = null;
         string[] filesInSourceFolder = null;
+        private int currentProgress;
+        private string currentStatus;
+        private static int _counter = 0;
+        private static int _totalFiles = 0;
 
+        // Declare the event
+        public event PropertyChangedEventHandler PropertyChanged;
 
         public static void TagExtender(Tiff tif)
         {
@@ -58,6 +66,16 @@ namespace RawBayer2DNG
 
             if (m_parentExtender != null)
                 m_parentExtender(tif);
+        }
+
+        // Create the OnPropertyChanged method to raise the event
+        protected void OnPropertyChanged(string name)
+        {
+            PropertyChangedEventHandler handler = PropertyChanged;
+            if (handler != null)
+            {
+                handler(this, new PropertyChangedEventArgs(name));
+            }
         }
 
         public MainWindow()
@@ -88,75 +106,87 @@ namespace RawBayer2DNG
         {
             byte[] buff = File.ReadAllBytes(srcFilename);
 
+                char[] bayerSubstitution = {"\x0"[0], "\x1"[0], "\x2"[0]};
 
-            char[] bayerSubstitution = {"\x0"[0], "\x1"[0], "\x2"[0] };
+                string bayerPatternTag = bayerSubstitution[bayerPattern[0, 0]].ToString() +
+                                         bayerSubstitution[bayerPattern[0, 1]] + bayerSubstitution[bayerPattern[1, 0]] +
+                                         bayerSubstitution[bayerPattern[1, 1]];
 
-            string bayerPatternTag = bayerSubstitution[bayerPattern[0, 0]].ToString() + bayerSubstitution[bayerPattern[0, 1]] +bayerSubstitution[bayerPattern[1, 0]]+bayerSubstitution[bayerPattern[1, 1]];
+            int width = 2448;
+            int height = 2048;
 
-            int width = int.Parse(rawWidth.Text);
-            int height = int.Parse(rawHeight.Text);
-            
-            string fileName = targetFilename;
-
-            using (Tiff output = Tiff.Open(fileName, "w"))
+            this.Dispatcher.Invoke(() =>
             {
-                // Basic TIFF functionality
-                output.SetField(TiffTag.IMAGEWIDTH, width);
-                output.SetField(TiffTag.IMAGELENGTH, height);
-                output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                output.SetField(TiffTag.BITSPERSAMPLE, 16);
-                output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
-                output.SetField(TiffTag.ROWSPERSTRIP, height);
-                output.SetField(TiffTag.COMPRESSION, Compression.ADOBE_DEFLATE);
-                output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
-                output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
-                //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
-                //output.SetField(TiffTag.COMPRESSION, Compression.NONE);
+                width = int.Parse(rawWidth.Text);
+                height = int.Parse(rawHeight.Text);
+            });
+
+                string fileName = targetFilename;
+
+                using (Tiff output = Tiff.Open(fileName, "w"))
+                {
+                    // Basic TIFF functionality
+                    output.SetField(TiffTag.IMAGEWIDTH, width);
+                    output.SetField(TiffTag.IMAGELENGTH, height);
+                    output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+                    output.SetField(TiffTag.BITSPERSAMPLE, 16);
+                    output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
+                    output.SetField(TiffTag.ROWSPERSTRIP, height);
+                    // output.SetField(TiffTag.COMPRESSION, Compression.ADOBE_DEFLATE);
+                    output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
+                    output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
+                    //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
+                    output.SetField(TiffTag.COMPRESSION, Compression.NONE);
+
                 output.SetField(TiffTag.PLANARCONFIG, PlanarConfig.CONTIG);
 
-                float[] cam_xyz = { 3.2404542f, -1.5371385f, -0.4985314f, -0.9692660f, 1.8760108f, 0.0415560f, 0.0556434f, -0.2040259f, 1.0572252f }; // my sRGB hack
-                                                                                                                                                      //float[] cam_xyz =  { 0f, 1f,0f,0f,0f,1f,1f,0f,0f }; // my sRGB hack
-                float[] neutral = { 1f, 1f, 1f }; // my sRGB hack
-                int[] bpp = { 8, 8, 8 }; // my sRGB hack
-                short[] bayerpatterndimensions = { 2, 2 }; // my sRGB hack
-                short[] linearizationTable = new short[256];
-                //float[] neutral = { 0.807133f, 1.0f, 0.913289f };
+                    float[] cam_xyz =
+                    {
+                        3.2404542f, -1.5371385f, -0.4985314f, -0.9692660f, 1.8760108f, 0.0415560f, 0.0556434f,
+                        -0.2040259f, 1.0572252f
+                    }; // my sRGB hack
+                    //float[] cam_xyz =  { 0f, 1f,0f,0f,0f,1f,1f,0f,0f }; // my sRGB hack
+                    float[] neutral = {1f, 1f, 1f}; // my sRGB hack
+                    int[] bpp = {8, 8, 8}; // my sRGB hack
+                    short[] bayerpatterndimensions = {2, 2}; // my sRGB hack
+                    short[] linearizationTable = new short[256];
+                    //float[] neutral = { 0.807133f, 1.0f, 0.913289f };
 
-                //DNG 
-                output.SetField(TiffTag.SUBFILETYPE, 0);
-                output.SetField(TiffTag.MAKE, "blah");
-                output.SetField(TiffTag.MODEL, "blah");
-                output.SetField(TiffTag.SOFTWARE, "Blah");
-                output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
-                output.SetField(TiffTag.DNGBACKWARDVERSION, "\x1\x4\x0\x0");
-                output.SetField(TiffTag.UNIQUECAMERAMODEL, "blah");
-                output.SetField(TiffTag.COLORMATRIX1, 9, cam_xyz);
-                output.SetField(TiffTag.ASSHOTNEUTRAL, 3, neutral);
-                output.SetField(TiffTag.CALIBRATIONILLUMINANT1, 21);
-                output.SetField(TiffTag.ORIGINALRAWFILENAME, srcFilename);
-                output.SetField(TiffTag.PHOTOMETRIC, 32803);
-                output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                //output.SetField(TiffTag.EXIF_CFAPATTERN, 4, "\x1\x0\x2\x1");
-                output.SetField(TiffTag.EXIF_CFAPATTERN, 4, bayerPatternTag);
-                output.SetField(TIFFTAG_CFAREPEATPATTERNDIM, bayerpatterndimensions);
-                //output.SetField(TIFFTAG_CFAPATTERN, "\x1\x0\x2\x1"); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
-                output.SetField(TIFFTAG_CFAPATTERN, bayerPatternTag); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
+                    //DNG 
+                    output.SetField(TiffTag.SUBFILETYPE, 0);
+                    output.SetField(TiffTag.MAKE, "Point Grey");
+                    output.SetField(TiffTag.MODEL, "Chameleon3");
+                    output.SetField(TiffTag.SOFTWARE, "FlyCapture2");
+                    output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
+                    output.SetField(TiffTag.DNGBACKWARDVERSION, "\x1\x4\x0\x0");
+                    output.SetField(TiffTag.UNIQUECAMERAMODEL, "USB3");
+                    output.SetField(TiffTag.COLORMATRIX1, 9, cam_xyz);
+                    output.SetField(TiffTag.ASSHOTNEUTRAL, 3, neutral);
+                    output.SetField(TiffTag.CALIBRATIONILLUMINANT1, 21);
+                    output.SetField(TiffTag.ORIGINALRAWFILENAME, srcFilename);
+                    output.SetField(TiffTag.PHOTOMETRIC, 32803);
+                    output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+                    //output.SetField(TiffTag.EXIF_CFAPATTERN, 4, "\x1\x0\x2\x1");
+                    output.SetField(TiffTag.EXIF_CFAPATTERN, 4, bayerPatternTag);
+                    output.SetField(TIFFTAG_CFAREPEATPATTERNDIM, bayerpatterndimensions);
+                    //output.SetField(TIFFTAG_CFAPATTERN, "\x1\x0\x2\x1"); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
+                    output.SetField(TIFFTAG_CFAPATTERN,
+                        bayerPatternTag); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
 
-                // Maybe use later if necessary:
-                //output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                //output.SetField(TiffTag.BITSPERSAMPLE, 3, bpp);
-                //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
-                //output.SetField(TiffTag.WHITELEVEL, 1);
+                    // Maybe use later if necessary:
+                    //output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+                    //output.SetField(TiffTag.BITSPERSAMPLE, 3, bpp);
+                    //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
+                    //output.SetField(TiffTag.WHITELEVEL, 1);
 
-                output.WriteEncodedStrip(0, buff, width * height * 2);
-            }
+                    output.WriteEncodedStrip(0, buff, width * height * 2);
+                }
         } 
 
 
 
         private void BtnLoadRAWFolder_Click(object sender, RoutedEventArgs e)
         {
-
             var fbd = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog();
             bool? result = fbd.ShowDialog();
 
@@ -187,13 +217,16 @@ namespace RawBayer2DNG
 
         private byte[,] getBayerPattern()
         {
-            //0=Red, 1=Green,   2=Blue
-            byte bayerColorA = (byte)int.Parse(colorBayerA.Text);
-            byte bayerColorB = (byte)int.Parse(colorBayerB.Text);
-            byte bayerColorC = (byte)int.Parse(colorBayerC.Text);
-            byte bayerColorD = (byte)int.Parse(colorBayerD.Text);
-            byte[,] bayerPattern = { { bayerColorA, bayerColorB }, { bayerColorC, bayerColorD } };
-            return bayerPattern;
+            return this.Dispatcher.Invoke(() =>
+            {
+                //0=Red, 1=Green,   2=Blue
+                byte bayerColorA = (byte)int.Parse(colorBayerA.Text);
+                byte bayerColorB = (byte)int.Parse(colorBayerB.Text);
+                byte bayerColorC = (byte)int.Parse(colorBayerC.Text);
+                byte bayerColorD = (byte)int.Parse(colorBayerD.Text);
+                byte[,] bayerPattern = { { bayerColorA, bayerColorB }, { bayerColorC, bayerColorD } };
+                return bayerPattern;
+            });
         }
 
         private void ReDrawPreview()
@@ -324,23 +357,90 @@ namespace RawBayer2DNG
 
         private void BtnProcessFolder_Click(object sender, RoutedEventArgs e)
         {
-            byte[,] bayerPattern = getBayerPattern();
-            foreach (string srcFileName in filesInSourceFolder)
+            worker.WorkerReportsProgress = true;
+            worker.WorkerSupportsCancellation = true;
+            worker.DoWork += worker_DoWork;
+            worker.ProgressChanged += worker_ProgressChanged;
+            worker.RunWorkerAsync();
+        }
+
+        public int CurrentProgress
+        {
+            get { return currentProgress; }
+            private set
             {
-                string fileNameWithoutExtension = targetFolder + "\\" + Path.GetFileNameWithoutExtension(srcFileName);
-                string fileName = fileNameWithoutExtension + ".dng";
-
-                if (File.Exists(fileName))
+                if (currentProgress != value)
                 {
-                    // Error: File already exists. No overwriting. Move on.
-                    continue;
-                } else
-                {
-
-                    ProcessRAW(srcFileName, fileName, bayerPattern);
+                    currentProgress = value;
+                    OnPropertyChanged("CurrentProgress");                   
                 }
-
             }
+        }
+
+        public string CurrentStatus
+        {
+            get { return currentStatus; }
+            private set
+            {
+                if (currentStatus != value)
+                {
+                    currentStatus = value;
+                    OnPropertyChanged("CurrentStatus");
+                }
+            }
+        }
+
+        private void worker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            byte[,] bayerPattern = getBayerPattern();
+
+            _totalFiles = filesInSourceFolder.Length;
+            var countLock = new object();
+            CurrentProgress = 0;
+
+            Parallel.ForEach(filesInSourceFolder,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, (currentFile, loopState) =>
+                    // foreach (string srcFileName in filesInSourceFolder)
+                {
+                    if (worker.CancellationPending == true)
+                    {
+                        e.Cancel = true;
+                        return;
+                    }
+
+                    string fileNameWithoutExtension =
+                        targetFolder + "\\" + Path.GetFileNameWithoutExtension(currentFile);
+                    string fileName = fileNameWithoutExtension + ".dng";
+
+                    _counter++;
+                    var percentage = (double)_counter / _totalFiles * 100.0;
+                    lock (countLock) { worker?.ReportProgress((int)percentage); }
+
+                    if (File.Exists(fileName))
+                    {
+                        // Error: File already exists. No overwriting. Move on.
+                        //continue;
+                        return;
+                    }
+
+                    ProcessRAW(currentFile, fileName, bayerPattern);
+                });
+
+            txtStatus.Text = "Finished";
+        }
+
+        private void worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            // pbStatus.Value = e.ProgressPercentage;
+            CurrentProgress = e.ProgressPercentage;
+            txtStatus.Text = $"Processed {_counter} out of {_totalFiles}";
+           
+            //this.Dispatcher.BeginInvoke(new Action(() => { pbStatus.Value = e.ProgressPercentage; }));
+        }
+
+        private void btnCancel_Click(object sender, RoutedEventArgs e)
+        {
+            worker.CancelAsync();
         }
 
         private void MagnifierPosition_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

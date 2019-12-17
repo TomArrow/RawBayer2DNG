@@ -5,7 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:RawBayer2DNG"
         mc:Ignorable="d"
+        DataContext="{Binding RelativeSource={RelativeSource Self}}"
         Title="MainWindow" Height="750" Width="1000">
+
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition></RowDefinition>
@@ -107,6 +110,7 @@
             </WrapPanel>
 
             <Button x:Name="btnProcessFolder" Click="BtnProcessFolder_Click" IsEnabled="False">Process loaded folder</Button>
+            <Button Name="btnCancel" Width="60" Click="btnCancel_Click">Cancel</Button>
             <StackPanel>
                 <Label>Info</Label>
                 <WrapPanel>
@@ -118,9 +122,12 @@
                     <TextBlock x:Name="txtTargetFolder" TextWrapping="Wrap"></TextBlock>
                 </WrapPanel>
             </StackPanel>
+            <ProgressBar x:Name="pbStatus" Height="20" Value="{Binding CurrentProgress, Mode=OneWay}"/>
+
         </StackPanel>
 
 
         <TextBlock x:Name="txtStatus" Grid.Row="1">Idle.</TextBlock>
     </Grid>
 </Window>
+
