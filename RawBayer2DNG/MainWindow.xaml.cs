@@ -45,6 +45,7 @@ namespace RawBayer2DNG
         private string currentStatus;
         private static int _counter = 0;
         private static int _totalFiles = 0;
+        private bool _compressDng = true;
 
         // Declare the event
         public event PropertyChangedEventHandler PropertyChanged;
@@ -106,9 +107,9 @@ namespace RawBayer2DNG
         {
             byte[] buff = File.ReadAllBytes(srcFilename);
 
-                char[] bayerSubstitution = {"\x0"[0], "\x1"[0], "\x2"[0]};
+            char[] bayerSubstitution = {"\x0"[0], "\x1"[0], "\x2"[0]};
 
-                string bayerPatternTag = bayerSubstitution[bayerPattern[0, 0]].ToString() +
+            string bayerPatternTag = bayerSubstitution[bayerPattern[0, 0]].ToString() +
                                          bayerSubstitution[bayerPattern[0, 1]] + bayerSubstitution[bayerPattern[1, 0]] +
                                          bayerSubstitution[bayerPattern[1, 1]];
 
@@ -121,72 +122,76 @@ namespace RawBayer2DNG
                 height = int.Parse(rawHeight.Text);
             });
 
-                string fileName = targetFilename;
+            string fileName = targetFilename;
 
-                using (Tiff output = Tiff.Open(fileName, "w"))
-                {
-                    // Basic TIFF functionality
-                    output.SetField(TiffTag.IMAGEWIDTH, width);
-                    output.SetField(TiffTag.IMAGELENGTH, height);
-                    output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                    output.SetField(TiffTag.BITSPERSAMPLE, 16);
-                    output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
-                    output.SetField(TiffTag.ROWSPERSTRIP, height);
-                    // output.SetField(TiffTag.COMPRESSION, Compression.ADOBE_DEFLATE);
-                    output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
-                    output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
-                    //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
+            using (Tiff output = Tiff.Open(fileName, "w"))
+            {
+                // Basic TIFF functionality
+                output.SetField(TiffTag.IMAGEWIDTH, width);
+                output.SetField(TiffTag.IMAGELENGTH, height);
+                output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+                output.SetField(TiffTag.BITSPERSAMPLE, 16);
+                output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
+                output.SetField(TiffTag.ROWSPERSTRIP, height);
+                output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
+                output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
+                //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
+
+                if (_compressDng)
+                    output.SetField(TiffTag.COMPRESSION, Compression.ADOBE_DEFLATE);
+                else
                     output.SetField(TiffTag.COMPRESSION, Compression.NONE);
 
                 output.SetField(TiffTag.PLANARCONFIG, PlanarConfig.CONTIG);
 
-                    float[] cam_xyz =
-                    {
-                        3.2404542f, -1.5371385f, -0.4985314f, -0.9692660f, 1.8760108f, 0.0415560f, 0.0556434f,
-                        -0.2040259f, 1.0572252f
-                    }; // my sRGB hack
-                    //float[] cam_xyz =  { 0f, 1f,0f,0f,0f,1f,1f,0f,0f }; // my sRGB hack
-                    float[] neutral = {1f, 1f, 1f}; // my sRGB hack
-                    int[] bpp = {8, 8, 8}; // my sRGB hack
-                    short[] bayerpatterndimensions = {2, 2}; // my sRGB hack
-                    short[] linearizationTable = new short[256];
-                    //float[] neutral = { 0.807133f, 1.0f, 0.913289f };
+                float[] cam_xyz =
+                {
+                    3.2404542f, -1.5371385f, -0.4985314f, -0.9692660f, 1.8760108f, 0.0415560f, 0.0556434f,
+                    -0.2040259f, 1.0572252f
+                }; // my sRGB hack
+                //float[] cam_xyz =  { 0f, 1f,0f,0f,0f,1f,1f,0f,0f }; // my sRGB hack
+                float[] neutral = {1f, 1f, 1f}; // my sRGB hack
+                int[] bpp = {8, 8, 8}; // my sRGB hack
+                short[] bayerpatterndimensions = {2, 2}; // my sRGB hack
+                short[] linearizationTable = new short[256];
+                //float[] neutral = { 0.807133f, 1.0f, 0.913289f };
 
-                    //DNG 
-                    output.SetField(TiffTag.SUBFILETYPE, 0);
-                    output.SetField(TiffTag.MAKE, "Point Grey");
-                    output.SetField(TiffTag.MODEL, "Chameleon3");
-                    output.SetField(TiffTag.SOFTWARE, "FlyCapture2");
-                    output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
-                    output.SetField(TiffTag.DNGBACKWARDVERSION, "\x1\x4\x0\x0");
-                    output.SetField(TiffTag.UNIQUECAMERAMODEL, "USB3");
-                    output.SetField(TiffTag.COLORMATRIX1, 9, cam_xyz);
-                    output.SetField(TiffTag.ASSHOTNEUTRAL, 3, neutral);
-                    output.SetField(TiffTag.CALIBRATIONILLUMINANT1, 21);
-                    output.SetField(TiffTag.ORIGINALRAWFILENAME, srcFilename);
-                    output.SetField(TiffTag.PHOTOMETRIC, 32803);
-                    output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                    //output.SetField(TiffTag.EXIF_CFAPATTERN, 4, "\x1\x0\x2\x1");
-                    output.SetField(TiffTag.EXIF_CFAPATTERN, 4, bayerPatternTag);
-                    output.SetField(TIFFTAG_CFAREPEATPATTERNDIM, bayerpatterndimensions);
-                    //output.SetField(TIFFTAG_CFAPATTERN, "\x1\x0\x2\x1"); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
-                    output.SetField(TIFFTAG_CFAPATTERN,
-                        bayerPatternTag); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
+                //DNG 
+                output.SetField(TiffTag.SUBFILETYPE, 0);
+                output.SetField(TiffTag.MAKE, "Point Grey");
+                output.SetField(TiffTag.MODEL, "Chameleon3");
+                output.SetField(TiffTag.SOFTWARE, "FlyCapture2");
+                output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
+                output.SetField(TiffTag.DNGBACKWARDVERSION, "\x1\x4\x0\x0");
+                output.SetField(TiffTag.UNIQUECAMERAMODEL, "USB3");
+                output.SetField(TiffTag.COLORMATRIX1, 9, cam_xyz);
+                output.SetField(TiffTag.ASSHOTNEUTRAL, 3, neutral);
+                output.SetField(TiffTag.CALIBRATIONILLUMINANT1, 21);
+                output.SetField(TiffTag.ORIGINALRAWFILENAME, srcFilename);
+                output.SetField(TiffTag.PHOTOMETRIC, 32803);
+                output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+                //output.SetField(TiffTag.EXIF_CFAPATTERN, 4, "\x1\x0\x2\x1");
+                output.SetField(TiffTag.EXIF_CFAPATTERN, 4, bayerPatternTag);
+                output.SetField(TIFFTAG_CFAREPEATPATTERNDIM, bayerpatterndimensions);
+                //output.SetField(TIFFTAG_CFAPATTERN, "\x1\x0\x2\x1"); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
+                output.SetField(TIFFTAG_CFAPATTERN,
+                    bayerPatternTag); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
 
-                    // Maybe use later if necessary:
-                    //output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                    //output.SetField(TiffTag.BITSPERSAMPLE, 3, bpp);
-                    //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
-                    //output.SetField(TiffTag.WHITELEVEL, 1);
+                // Maybe use later if necessary:
+                //output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+                //output.SetField(TiffTag.BITSPERSAMPLE, 3, bpp);
+                //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
+                //output.SetField(TiffTag.WHITELEVEL, 1);
 
-                    output.WriteEncodedStrip(0, buff, width * height * 2);
-                }
+                output.WriteEncodedStrip(0, buff, width * height * 2);
+            }
         } 
-
-
 
         private void BtnLoadRAWFolder_Click(object sender, RoutedEventArgs e)
         {
+            // reset progress counters
+            CurrentProgress = 0;
+            _counter = 0;
             var fbd = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog();
             bool? result = fbd.ShowDialog();
 
@@ -337,6 +342,22 @@ namespace RawBayer2DNG
             ReDrawPreview();
         }
 
+        private void CompressDNG_Checked(object sender, RoutedEventArgs e)
+        {
+            HandleCompression(sender as CheckBox);
+        }
+
+        private void CompressDNG_Unchecked(object sender, RoutedEventArgs e)
+        {
+            HandleCompression(sender as CheckBox);
+        }
+
+        void HandleCompression(CheckBox checkBox)
+        {
+            // Use IsChecked.
+            _compressDng = checkBox.IsChecked.Value;
+        }
+
         private void ColorBayer_TextChanged(object sender, TextChangedEventArgs e)
         {
             ReDrawPreview();
@@ -357,6 +378,9 @@ namespace RawBayer2DNG
 
         private void BtnProcessFolder_Click(object sender, RoutedEventArgs e)
         {
+            // reset progress counters
+            currentProgress = 0;
+            _counter = 0;
             worker.WorkerReportsProgress = true;
             worker.WorkerSupportsCancellation = true;
             worker.DoWork += worker_DoWork;
@@ -426,7 +450,7 @@ namespace RawBayer2DNG
                     ProcessRAW(currentFile, fileName, bayerPattern);
                 });
 
-            txtStatus.Text = "Finished";
+            worker?.ReportProgress(100);
         }
 
         private void worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
@@ -435,6 +459,8 @@ namespace RawBayer2DNG
             CurrentProgress = e.ProgressPercentage;
             txtStatus.Text = $"Processed {_counter} out of {_totalFiles}";
            
+            if(currentProgress == 100) txtStatus.Text = "Processing complete.";
+
             //this.Dispatcher.BeginInvoke(new Action(() => { pbStatus.Value = e.ProgressPercentage; }));
         }
 

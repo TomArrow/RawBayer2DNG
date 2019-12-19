@@ -108,7 +108,10 @@
                 <CheckBox x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click"></CheckBox>
                 <Label ToolTip="does not affect resulting DNG">Preview with sRGB gamma</Label>
             </WrapPanel>
-
+            <WrapPanel>
+                <CheckBox x:Name="compressDNG" IsChecked="True" Checked="CompressDNG_Checked" Unchecked="CompressDNG_Unchecked"></CheckBox>
+                <Label ToolTip="does not affect resulting DNG">Compress DNG Output</Label>
+            </WrapPanel>
             <Button x:Name="btnProcessFolder" Click="BtnProcessFolder_Click" IsEnabled="False">Process loaded folder</Button>
             <Button Name="btnCancel" Width="60" Click="btnCancel_Click">Cancel</Button>
             <StackPanel>
