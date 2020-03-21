@@ -3,6 +3,7 @@ using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -422,8 +423,14 @@ namespace RawBayer2DNG
             var countLock = new object();
             CurrentProgress = 0;
 
+            int threads;
+            int.TryParse(ConfigurationManager.AppSettings["MaxThreads"], out threads);
+
+            if(threads == 0)
+                threads = Environment.ProcessorCount > 1 ? Environment.ProcessorCount - 1 : Environment.ProcessorCount;
+
             Parallel.ForEach(filesInSourceFolder,
-                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, (currentFile, loopState) =>
+                new ParallelOptions { MaxDegreeOfParallelism = threads }, (currentFile, loopState) =>
                     // foreach (string srcFileName in filesInSourceFolder)
                 {
                     if (worker.CancellationPending == true)
