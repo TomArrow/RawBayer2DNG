@@ -46,7 +46,7 @@ namespace RawBayer2DNG
         private string currentStatus;
         private static int _counter = 0;
         private static int _totalFiles = 0;
-        private bool _compressDng = true;
+        private bool _compressDng = false;
 
         // Declare the event
         public event PropertyChangedEventHandler PropertyChanged;
@@ -86,6 +86,16 @@ namespace RawBayer2DNG
             // Register the custom tag handler
             Tiff.TiffExtendProc extender = TagExtender;
             m_parentExtender = Tiff.SetTagExtender(extender);
+
+            // load saved settings
+            rawWidth.Text = Properties.Settings.Default.Width.ToString();
+            rawHeight.Text = Properties.Settings.Default.Height.ToString();
+            txtMaxThreads.Text = "Threads (Max " + Environment.ProcessorCount + "): ";
+            colorBayerA.Text = Properties.Settings.Default.colorBayerA.ToString();
+            colorBayerB.Text = Properties.Settings.Default.colorBayerB.ToString();
+            colorBayerC.Text = Properties.Settings.Default.colorBayerC.ToString();
+            colorBayerD.Text = Properties.Settings.Default.colorBayerD.ToString();
+            Threads.Text = Properties.Settings.Default.MaxThreads.ToString();
         }
 
         private void BtnLoadRAW_Click(object sender, RoutedEventArgs e)
@@ -217,7 +227,6 @@ namespace RawBayer2DNG
 
         private void Slide_currentFile_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-
             ReDrawPreview();
         }
 
@@ -389,6 +398,22 @@ namespace RawBayer2DNG
             worker.RunWorkerAsync();
         }
 
+        private void btnSaveSettings_Click(object sender, RoutedEventArgs e)
+        {
+            Properties.Settings.Default.Width = int.Parse(rawWidth.Text);
+            Properties.Settings.Default.Height = int.Parse(rawHeight.Text);
+
+            if (int.Parse(Threads.Text) > Environment.ProcessorCount) Threads.Text = Environment.ProcessorCount.ToString();
+            Properties.Settings.Default.MaxThreads = int.Parse(Threads.Text);
+
+            Properties.Settings.Default.colorBayerA = int.Parse(colorBayerA.Text);
+            Properties.Settings.Default.colorBayerB = int.Parse(colorBayerB.Text);
+            Properties.Settings.Default.colorBayerC = int.Parse(colorBayerC.Text);
+            Properties.Settings.Default.colorBayerD = int.Parse(colorBayerD.Text);
+
+            Properties.Settings.Default.Save();
+        }
+
         public int CurrentProgress
         {
             get { return currentProgress; }
@@ -423,11 +448,10 @@ namespace RawBayer2DNG
             var countLock = new object();
             CurrentProgress = 0;
 
-            int threads;
-            int.TryParse(ConfigurationManager.AppSettings["MaxThreads"], out threads);
+            int threads = Properties.Settings.Default.MaxThreads;
 
             if(threads == 0)
-                threads = Environment.ProcessorCount > 1 ? Environment.ProcessorCount - 1 : Environment.ProcessorCount;
+                threads = Environment.ProcessorCount > 1 ? Environment.ProcessorCount / 2 : Environment.ProcessorCount;
 
             Parallel.ForEach(filesInSourceFolder,
                 new ParallelOptions { MaxDegreeOfParallelism = threads }, (currentFile, loopState) =>
