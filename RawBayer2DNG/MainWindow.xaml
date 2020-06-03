@@ -112,8 +112,12 @@
                 <CheckBox x:Name="compressDNG" IsChecked="False" Checked="CompressDNG_Checked" Unchecked="CompressDNG_Unchecked"></CheckBox>
                 <Label ToolTip="does not affect resulting DNG">Compress DNG Output</Label>
             </WrapPanel>
-            <TextBlock x:Name="txtMaxThreads">(max: )</TextBlock>
-            <TextBox x:Name="Threads" MinWidth="20">4</TextBox>
+
+            <WrapPanel>
+                <TextBlock x:Name="txtMaxThreads">(max: )</TextBlock><TextBox x:Name="Threads">4</TextBox>
+            </WrapPanel>
+            <Label>Rename to (optional):</Label>
+            <TextBox x:Name="Rename" MinWidth="50"></TextBox>
             
             <Button x:Name="btnSaveSettings" Click="btnSaveSettings_Click" IsEnabled="True">Save Settings</Button>
             <Button x:Name="btnProcessFolder" Click="BtnProcessFolder_Click" IsEnabled="False">Process loaded folder</Button>

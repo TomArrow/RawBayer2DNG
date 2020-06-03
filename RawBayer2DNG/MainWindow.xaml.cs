@@ -47,6 +47,7 @@ namespace RawBayer2DNG
         private static int _counter = 0;
         private static int _totalFiles = 0;
         private bool _compressDng = false;
+        private string _newFileName;
 
         // Declare the event
         public event PropertyChangedEventHandler PropertyChanged;
@@ -104,7 +105,6 @@ namespace RawBayer2DNG
             ofd.Filter = "Raw bayer files (.raw)|*.raw";
             if(ofd.ShowDialog() == true)
             {
-
                 string fileNameWithoutExtension = Path.GetDirectoryName(ofd.FileName) + "\\" + Path.GetFileNameWithoutExtension(ofd.FileName);
                 string fileName = fileNameWithoutExtension + ".dng";
 
@@ -210,12 +210,14 @@ namespace RawBayer2DNG
             {
                 sourceFolder = fbd.SelectedPath;
                 txtSrcFolder.Text = sourceFolder;
-                if(targetFolder == null)
+                txtStatus.Text = "Source folder set to " + sourceFolder;
+                if (targetFolder == null)
                 {
                     targetFolder = sourceFolder;
                     txtTargetFolder.Text = targetFolder;
                 }
                 filesInSourceFolder = Directory.GetFiles(fbd.SelectedPath,"*.raw");
+                Array.Sort(filesInSourceFolder, new AlphanumComparatorFast());
                 currentImagNumber.Text = "1";
                 totalImageCount.Text = filesInSourceFolder.Count().ToString();
                 slide_currentFile.Maximum = filesInSourceFolder.Count();
@@ -370,7 +372,8 @@ namespace RawBayer2DNG
 
         private void ColorBayer_TextChanged(object sender, TextChangedEventArgs e)
         {
-            ReDrawPreview();
+            if(! string.IsNullOrWhiteSpace(((System.Windows.Controls.TextBox)sender).Text))
+                ReDrawPreview();
         }
 
         private void BtnLoadTargetFolder_Click(object sender, RoutedEventArgs e)
@@ -382,7 +385,7 @@ namespace RawBayer2DNG
             {
                 targetFolder = fbd.SelectedPath;
                 txtTargetFolder.Text = targetFolder;
-                txtStatus.Text = "Target fodler set to " + targetFolder;
+                txtStatus.Text = "Target folder set to " + targetFolder;
             }
         }
 
@@ -391,6 +394,7 @@ namespace RawBayer2DNG
             // reset progress counters
             currentProgress = 0;
             _counter = 0;
+            _newFileName = Rename.Text;
             worker.WorkerReportsProgress = true;
             worker.WorkerSupportsCancellation = true;
             worker.DoWork += worker_DoWork;
@@ -445,6 +449,26 @@ namespace RawBayer2DNG
             byte[,] bayerPattern = getBayerPattern();
 
             _totalFiles = filesInSourceFolder.Length;
+
+            // create lookup table: <inputfile, outputfile> 
+            var dic = new Dictionary<string, string>();
+
+            int index = 0;
+            foreach (var inputfile in filesInSourceFolder)
+            {
+                string fileNameWithoutExtension =
+                    targetFolder + "\\" + Path.GetFileNameWithoutExtension(inputfile);
+                string outputFile = fileNameWithoutExtension + ".dng";
+
+                if (!String.IsNullOrWhiteSpace(_newFileName))
+                {
+                    string serializer = index.ToString().PadLeft(6, '0');
+                    outputFile = targetFolder + "\\" + _newFileName + "_" + serializer + ".dng";
+                }
+                dic.Add(inputfile, outputFile);
+                index++;
+            }
+
             var countLock = new object();
             CurrentProgress = 0;
 
@@ -453,7 +477,7 @@ namespace RawBayer2DNG
             if(threads == 0)
                 threads = Environment.ProcessorCount > 1 ? Environment.ProcessorCount / 2 : Environment.ProcessorCount;
 
-            Parallel.ForEach(filesInSourceFolder,
+            Parallel.ForEach(dic,
                 new ParallelOptions { MaxDegreeOfParallelism = threads }, (currentFile, loopState) =>
                     // foreach (string srcFileName in filesInSourceFolder)
                 {
@@ -463,22 +487,19 @@ namespace RawBayer2DNG
                         return;
                     }
 
-                    string fileNameWithoutExtension =
-                        targetFolder + "\\" + Path.GetFileNameWithoutExtension(currentFile);
-                    string fileName = fileNameWithoutExtension + ".dng";
-
                     _counter++;
                     var percentage = (double)_counter / _totalFiles * 100.0;
                     lock (countLock) { worker?.ReportProgress((int)percentage); }
 
-                    if (File.Exists(fileName))
+                    // check to see if output file already exists
+                    if (File.Exists(currentFile.Value))
                     {
                         // Error: File already exists. No overwriting. Move on.
                         //continue;
                         return;
                     }
 
-                    ProcessRAW(currentFile, fileName, bayerPattern);
+                    ProcessRAW(currentFile.Key, currentFile.Value, bayerPattern);
                 });
 
             worker?.ReportProgress(100);
