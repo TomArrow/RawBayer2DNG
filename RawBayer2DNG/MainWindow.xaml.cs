@@ -42,6 +42,8 @@ namespace RawBayer2DNG
         string sourceFolder = null;
         string targetFolder = null;
         string[] filesInSourceFolder = null;
+        private bool reverseFileOrder = false;
+        private bool filesAreReversed = false;
         private int currentProgress;
         private string currentStatus;
         private static int _counter = 0;
@@ -218,6 +220,14 @@ namespace RawBayer2DNG
                 }
                 filesInSourceFolder = Directory.GetFiles(fbd.SelectedPath,"*.raw");
                 Array.Sort(filesInSourceFolder, new AlphanumComparatorFast());
+
+                // Option to reverse file order when running film in reverse!
+                if (reverseFileOrder)
+                {
+                    Array.Reverse(filesInSourceFolder);
+                    filesAreReversed = true;
+                }
+
                 currentImagNumber.Text = "1";
                 totalImageCount.Text = filesInSourceFolder.Count().ToString();
                 slide_currentFile.Maximum = filesInSourceFolder.Count();
@@ -529,6 +539,26 @@ namespace RawBayer2DNG
         private void Amplify_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             ReDrawPreview();
+        }
+
+        private void ReverseOrder_OnChecked(object sender, RoutedEventArgs e)
+        {
+            reverseFileOrder = true;
+            if (!filesAreReversed)
+            {
+                Array.Reverse(filesInSourceFolder);
+                filesAreReversed = true;
+            }                
+        }
+
+        private void ReverseOrder_OnUnchecked(object sender, RoutedEventArgs e)
+        {
+            reverseFileOrder = false;
+            if (filesAreReversed)
+            {
+                Array.Reverse(filesInSourceFolder);
+                filesAreReversed = false;
+            }
         }
     }
 }
