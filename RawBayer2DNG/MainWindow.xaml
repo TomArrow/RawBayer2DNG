@@ -125,7 +125,12 @@
             </WrapPanel>
             <Label>Rename to (optional):</Label>
             <TextBox x:Name="Rename" MinWidth="50"></TextBox>
-            
+
+            <WrapPanel>
+                <CheckBox x:Name="ReverseOrder" IsChecked="False" Checked="ReverseOrder_OnChecked" Unchecked="ReverseOrder_OnUnchecked"></CheckBox>
+                <Label>Process Files in Reverse</Label>
+            </WrapPanel>
+
             <Button x:Name="btnSaveSettings" Click="btnSaveSettings_Click" IsEnabled="True">Save Settings</Button>
             <Button x:Name="btnProcessFolder" Click="BtnProcessFolder_Click" IsEnabled="False">Process loaded folder</Button>
             <Button Name="btnCancel" Width="60" Click="btnCancel_Click">Cancel</Button>
