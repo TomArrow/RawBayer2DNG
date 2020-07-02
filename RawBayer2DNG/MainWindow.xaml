@@ -85,6 +85,13 @@
                 <CheckBox x:Name="previewDebayer" Click="PreviewDebayer_Click"></CheckBox>
                 <Label ToolTip="does not affect resulting DNG">Preview debayer</Label>
             </WrapPanel>
+            <WrapPanel>
+                <Label>Input format:</Label>
+                <StackPanel>
+                    <RadioButton IsChecked="True" x:Name="formatRadio_rg16" Checked="FormatRadio_Checked">BayerRG16</RadioButton>
+                    <RadioButton x:Name="formatRadio_rg12p" Checked="FormatRadio_Checked">BayerRG12p</RadioButton>
+                </StackPanel>
+            </WrapPanel>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition></RowDefinition>
@@ -110,7 +117,7 @@
             </WrapPanel>
             <WrapPanel>
                 <CheckBox x:Name="compressDNG" IsChecked="False" Checked="CompressDNG_Checked" Unchecked="CompressDNG_Unchecked"></CheckBox>
-                <Label ToolTip="does not affect resulting DNG">Compress DNG Output</Label>
+                <Label ToolTip="lossless compression">Compress DNG Output</Label>
             </WrapPanel>
 
             <WrapPanel>

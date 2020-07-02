@@ -103,20 +103,29 @@ namespace RawBayer2DNG
         {
             OpenFileDialog ofd = new OpenFileDialog();
             ofd.Filter = "Raw bayer files (.raw)|*.raw";
-            if(ofd.ShowDialog() == true)
+
+            FORMAT inputFormat = getInputFormat();
+
+            if (ofd.ShowDialog() == true)
             {
                 string fileNameWithoutExtension = Path.GetDirectoryName(ofd.FileName) + "\\" + Path.GetFileNameWithoutExtension(ofd.FileName);
                 string fileName = fileNameWithoutExtension + ".dng";
 
                 byte[,] bayerPattern = getBayerPattern();
 
-                ProcessRAW(ofd.FileName, fileName, bayerPattern);
+                ProcessRAW(ofd.FileName, fileName, bayerPattern, inputFormat);
             }
         }
 
-        private void ProcessRAW( string srcFilename,string targetFilename, byte[,] bayerPattern)
+        private void ProcessRAW( string srcFilename,string targetFilename, byte[,] bayerPattern,FORMAT inputFormat)
         {
             byte[] buff = File.ReadAllBytes(srcFilename);
+
+            // Convert to 16 bit if necessary
+            if (inputFormat == FORMAT.BAYERRG12p)
+            {
+                buff = convert12pto16bit(buff);
+            }
 
             char[] bayerSubstitution = {"\x0"[0], "\x1"[0], "\x2"[0]};
 
@@ -246,6 +255,47 @@ namespace RawBayer2DNG
             });
         }
 
+        private enum FORMAT { BAYERRG16, BAYERRG12p };
+
+        private FORMAT getInputFormat()
+        {
+            return this.Dispatcher.Invoke(() =>
+            {
+                FORMAT inputFormat = FORMAT.BAYERRG16;
+
+                if ((bool)formatRadio_rg16.IsChecked)
+                {
+                    inputFormat = FORMAT.BAYERRG16;
+                }
+                else if ((bool)formatRadio_rg12p.IsChecked)
+                {
+                    inputFormat = FORMAT.BAYERRG12p;
+                }
+                return inputFormat;
+            });
+        }
+
+        private byte[] convert12pto16bit(byte[] input)
+        {
+            long inputlength = input.Length * 8;
+            long outputLength = inputlength / 12 * 16;
+            long inputlengthBytes = inputlength / 8;
+            long outputLengthBytes = outputLength / 8;
+
+            byte[] output = new byte[outputLengthBytes];
+
+            // For each 3 bytes in input, we write 4 bytes in output
+            for(long i=0, o = 0; i < inputlengthBytes; i += 3,o += 4){
+
+                output[o+1] = (byte)( ( input[i] & 0b1111_0000 ) >> 4 |  ( (input[i + 1] & 0b0000_1111)<<4)    );
+                output[o] = (byte)((input[i] & 0b0000_1111)<< 4);
+                output[o + 3] = (byte)input[i+2];
+                output[o + 2] = (byte) ((input[i+1] & 0b1111_0000));
+            }
+
+            return output;
+        }
+
         private void ReDrawPreview()
         {
             if(sourceFolder == null || filesInSourceFolder == null)
@@ -258,6 +308,8 @@ namespace RawBayer2DNG
 
             bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
             bool doPreviewGamma = (bool)previewGamma.IsChecked;
+
+            FORMAT inputFormat = getInputFormat();
 
             int sliderNumber = (int)slide_currentFile.Value;
             int index = sliderNumber - 1;
@@ -275,6 +327,12 @@ namespace RawBayer2DNG
                 int newHeight = (int)Math.Ceiling((double)height / subsample);
 
                 byte[] buff = File.ReadAllBytes(selectedRawFile);
+
+                // Convert to 16 bit if necessary
+                if (inputFormat == FORMAT.BAYERRG12p) {
+                    buff = convert12pto16bit(buff);
+                }
+
                 int byteDepth = 2; // This is for the source
                 int byteWidth = newWidth * 3; // This is for the preview. 3 means RGB
                 int newStride = Helpers.getStride(byteWidth);
@@ -448,6 +506,8 @@ namespace RawBayer2DNG
         {
             byte[,] bayerPattern = getBayerPattern();
 
+            FORMAT inputFormat = getInputFormat();
+
             _totalFiles = filesInSourceFolder.Length;
 
             // create lookup table: <inputfile, outputfile> 
@@ -499,7 +559,7 @@ namespace RawBayer2DNG
                         return;
                     }
 
-                    ProcessRAW(currentFile.Key, currentFile.Value, bayerPattern);
+                    ProcessRAW(currentFile.Key, currentFile.Value, bayerPattern,inputFormat);
                 });
 
             worker?.ReportProgress(100);
@@ -527,6 +587,12 @@ namespace RawBayer2DNG
         }
 
         private void Amplify_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            ReDrawPreview();
+        }
+
+
+        private void FormatRadio_Checked(object sender, RoutedEventArgs e)
         {
             ReDrawPreview();
         }
