@@ -99,6 +99,13 @@ namespace RawBayer2DNG
             colorBayerC.Text = Properties.Settings.Default.colorBayerC.ToString();
             colorBayerD.Text = Properties.Settings.Default.colorBayerD.ToString();
             Threads.Text = Properties.Settings.Default.MaxThreads.ToString();
+
+            // If 12 bit setting was saved, restore it now (If not it will default to 16 bit)
+            if (Properties.Settings.Default.Format == 1)
+            {
+                formatRadio_rg12p.IsChecked = true;
+                formatRadio_rg16.IsChecked = false;
+            }
         }
 
         private void BtnLoadRAW_Click(object sender, RoutedEventArgs e)
@@ -119,7 +126,7 @@ namespace RawBayer2DNG
             }
         }
 
-        private void ProcessRAW( string srcFilename,string targetFilename, byte[,] bayerPattern,FORMAT inputFormat)
+        private void ProcessRAW( string srcFilename,string targetFilename, byte[,] bayerPattern, FORMAT inputFormat)
         {
             byte[] buff = File.ReadAllBytes(srcFilename);
 
@@ -483,6 +490,8 @@ namespace RawBayer2DNG
             Properties.Settings.Default.colorBayerC = int.Parse(colorBayerC.Text);
             Properties.Settings.Default.colorBayerD = int.Parse(colorBayerD.Text);
 
+            Properties.Settings.Default.Format = (int)getInputFormat(); // save selected input format 
+
             Properties.Settings.Default.Save();
         }
 
@@ -569,7 +578,7 @@ namespace RawBayer2DNG
                         return;
                     }
 
-                    ProcessRAW(currentFile.Key, currentFile.Value, bayerPattern,inputFormat);
+                    ProcessRAW(currentFile.Key, currentFile.Value, bayerPattern, inputFormat);
                 });
 
             worker?.ReportProgress(100);
