@@ -634,5 +634,16 @@ namespace RawBayer2DNG
                 filesAreReversed = false;
             }
         }
+
+        private void Threads_OnTextChanged(object sender, KeyEventArgs e)
+        {
+            int.TryParse(Threads.Text, out var newThreads);
+
+            if (newThreads > 0)
+            {
+                Properties.Settings.Default.MaxThreads = newThreads;
+                Properties.Settings.Default.Save();
+            }
+        }
     }
 }

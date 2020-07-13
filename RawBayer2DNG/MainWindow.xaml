@@ -121,7 +121,7 @@
             </WrapPanel>
 
             <WrapPanel>
-                <TextBlock x:Name="txtMaxThreads">(max: )</TextBlock><TextBox x:Name="Threads">4</TextBox>
+                <TextBlock x:Name="txtMaxThreads">(max: )</TextBlock><TextBox KeyUp="Threads_OnTextChanged" x:Name="Threads">4</TextBox>
             </WrapPanel>
             <Label>Rename to (optional):</Label>
             <TextBox x:Name="Rename" MinWidth="50"></TextBox>
