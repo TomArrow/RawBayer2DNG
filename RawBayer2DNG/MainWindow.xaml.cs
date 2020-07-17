@@ -222,9 +222,15 @@ namespace RawBayer2DNG
             CurrentProgress = 0;
             _counter = 0;
             var fbd = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog();
+            //  save path as a setting - We typically capture to the same folder every time.
+            if (!string.IsNullOrWhiteSpace(Properties.Settings.Default.InputFolder) && Directory.Exists(Properties.Settings.Default.InputFolder))
+            {
+                fbd.SelectedPath = Properties.Settings.Default.InputFolder;
+            }
+
             bool? result = fbd.ShowDialog();
 
-            if (result == true && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+            if (result == true && !string.IsNullOrWhiteSpace(fbd.SelectedPath) && Directory.Exists(fbd.SelectedPath))
             {
                 sourceFolder = fbd.SelectedPath;
                 txtSrcFolder.Text = sourceFolder;
@@ -250,6 +256,9 @@ namespace RawBayer2DNG
                 slide_currentFile.Minimum = 1;
                 slide_currentFile.Value = 1;
                 btnProcessFolder.IsEnabled = true;
+
+                Properties.Settings.Default.InputFolder = sourceFolder;
+                Properties.Settings.Default.Save();
             }
         }
 
@@ -454,13 +463,22 @@ namespace RawBayer2DNG
         private void BtnLoadTargetFolder_Click(object sender, RoutedEventArgs e)
         {
             var fbd = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog();
+
+            // save path as a setting - We typically capture & output to the same folder every time.
+            if (!string.IsNullOrWhiteSpace(Properties.Settings.Default.OutputFolder) && Directory.Exists(Properties.Settings.Default.OutputFolder))
+            {
+                fbd.SelectedPath = Properties.Settings.Default.OutputFolder;
+            }
+
             bool? result = fbd.ShowDialog();
 
-            if (result == true && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+            if (result == true && !string.IsNullOrWhiteSpace(fbd.SelectedPath) && Directory.Exists(fbd.SelectedPath))
             {
                 targetFolder = fbd.SelectedPath;
                 txtTargetFolder.Text = targetFolder;
                 txtStatus.Text = "Target folder set to " + targetFolder;
+                Properties.Settings.Default.OutputFolder = targetFolder;
+                Properties.Settings.Default.Save();
             }
         }
 
