@@ -126,94 +126,131 @@ namespace RawBayer2DNG
             }
         }
 
-        private void ProcessRAW( string srcFilename,string targetFilename, byte[,] bayerPattern, FORMAT inputFormat)
+        private byte[] convert12pto16bit(byte[] input)
         {
-            byte[] buff = File.ReadAllBytes(srcFilename);
+            long inputlength = input.Length * 8;
+            // long outputLength = inputlength / 12 * 16;
+            long inputlengthBytes = inputlength / 8;
+            // long outputLengthBytes = outputLength / 8;
 
-            // Convert to 16 bit if necessary
-            if (inputFormat == FORMAT.BAYERRG12p)
+            MemoryStream outputstream = new MemoryStream();
+
+            // For each 3 bytes in input, we write 4 bytes in output
+            for (long i = 0, o = 0; i < inputlengthBytes; i += 3, o += 4)
             {
-                buff = convert12pto16bit(buff);
+                outputstream.WriteByte((byte)((input[i] & 0b0000_1111) << 4));
+                outputstream.WriteByte((byte)((input[i] & 0b1111_0000) >> 4 | ((input[i + 1] & 0b0000_1111) << 4)));
+                outputstream.WriteByte((byte)((input[i + 1] & 0b1111_0000)));
+                outputstream.WriteByte((byte)input[i + 2]);
             }
 
-            char[] bayerSubstitution = {"\x0"[0], "\x1"[0], "\x2"[0]};
+            return outputstream.ToArray();
+        }
 
-            string bayerPatternTag = bayerSubstitution[bayerPattern[0, 0]].ToString() +
-                                         bayerSubstitution[bayerPattern[0, 1]] + bayerSubstitution[bayerPattern[1, 0]] +
-                                         bayerSubstitution[bayerPattern[1, 1]];
-
-            int width = 2448;
-            int height = 2048;
-
-            this.Dispatcher.Invoke(() =>
+        private void ProcessRAW( string srcFilename,string targetFilename, byte[,] bayerPattern, FORMAT inputFormat)
+        {
+            using (Stream f = new FileStream(srcFilename, FileMode.Open))
             {
-                width = int.Parse(rawWidth.Text);
-                height = int.Parse(rawHeight.Text);
-            });
+                int offset = 0;
 
-            string fileName = targetFilename;
+                long len = f.Length;
+                byte[] buff = new byte[len];
 
-            using (Tiff output = Tiff.Open(fileName, "w"))
-            {
-                // Basic TIFF functionality
-                output.SetField(TiffTag.IMAGEWIDTH, width);
-                output.SetField(TiffTag.IMAGELENGTH, height);
-                output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                output.SetField(TiffTag.BITSPERSAMPLE, 16);
-                output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
-                output.SetField(TiffTag.ROWSPERSTRIP, height);
-                output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
-                output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
-                //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
+                int readLen = 1024;
 
-                if (_compressDng)
-                    output.SetField(TiffTag.COMPRESSION, Compression.ADOBE_DEFLATE);
-                else
-                    output.SetField(TiffTag.COMPRESSION, Compression.NONE);
-
-                output.SetField(TiffTag.PLANARCONFIG, PlanarConfig.CONTIG);
-
-                float[] cam_xyz =
+                while (offset != len)
                 {
+                    if (offset + readLen > len)
+                    {
+                        readLen = (int)len - offset;
+                    }
+                    offset += f.Read(buff, offset, readLen);
+                }
+
+                if (inputFormat == FORMAT.BAYERRG12p)
+                {
+                    buff = convert12pto16bit(buff);
+                }
+
+                char[] bayerSubstitution = { "\x0"[0], "\x1"[0], "\x2"[0] };
+
+                string bayerPatternTag = bayerSubstitution[bayerPattern[0, 0]].ToString() +
+                                             bayerSubstitution[bayerPattern[0, 1]] + bayerSubstitution[bayerPattern[1, 0]] +
+                                             bayerSubstitution[bayerPattern[1, 1]];
+
+                int width = 2448;
+                int height = 2048;
+
+                this.Dispatcher.Invoke(() =>
+                {
+                    width = int.Parse(rawWidth.Text);
+                    height = int.Parse(rawHeight.Text);
+                });
+
+                string fileName = targetFilename;
+
+                using (Tiff output = Tiff.Open(fileName, "w"))
+                {
+                    // Basic TIFF functionality
+                    output.SetField(TiffTag.IMAGEWIDTH, width);
+                    output.SetField(TiffTag.IMAGELENGTH, height);
+                    output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+                    output.SetField(TiffTag.BITSPERSAMPLE, 16);
+                    output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
+                    output.SetField(TiffTag.ROWSPERSTRIP, height);
+                    output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
+                    output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
+                    //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
+
+                    if (_compressDng)
+                        output.SetField(TiffTag.COMPRESSION, Compression.ADOBE_DEFLATE);
+                    else
+                        output.SetField(TiffTag.COMPRESSION, Compression.NONE);
+
+                    output.SetField(TiffTag.PLANARCONFIG, PlanarConfig.CONTIG);
+
+                    float[] cam_xyz =
+                    {
                     3.2404542f, -1.5371385f, -0.4985314f, -0.9692660f, 1.8760108f, 0.0415560f, 0.0556434f,
                     -0.2040259f, 1.0572252f
                 }; // my sRGB hack
-                //float[] cam_xyz =  { 0f, 1f,0f,0f,0f,1f,1f,0f,0f }; // my sRGB hack
-                float[] neutral = {1f, 1f, 1f}; // my sRGB hack
-                int[] bpp = {8, 8, 8}; // my sRGB hack
-                short[] bayerpatterndimensions = {2, 2}; // my sRGB hack
-                short[] linearizationTable = new short[256];
-                //float[] neutral = { 0.807133f, 1.0f, 0.913289f };
+                   //float[] cam_xyz =  { 0f, 1f,0f,0f,0f,1f,1f,0f,0f }; // my sRGB hack
+                    float[] neutral = { 1f, 1f, 1f }; // my sRGB hack
+                    int[] bpp = { 8, 8, 8 }; // my sRGB hack
+                    short[] bayerpatterndimensions = { 2, 2 }; // my sRGB hack
+                    short[] linearizationTable = new short[256];
+                    //float[] neutral = { 0.807133f, 1.0f, 0.913289f };
 
-                //DNG 
-                output.SetField(TiffTag.SUBFILETYPE, 0);
-                output.SetField(TiffTag.MAKE, "Point Grey");
-                output.SetField(TiffTag.MODEL, "Chameleon3");
-                output.SetField(TiffTag.SOFTWARE, "FlyCapture2");
-                output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
-                output.SetField(TiffTag.DNGBACKWARDVERSION, "\x1\x4\x0\x0");
-                output.SetField(TiffTag.UNIQUECAMERAMODEL, "USB3");
-                output.SetField(TiffTag.COLORMATRIX1, 9, cam_xyz);
-                output.SetField(TiffTag.ASSHOTNEUTRAL, 3, neutral);
-                output.SetField(TiffTag.CALIBRATIONILLUMINANT1, 21);
-                output.SetField(TiffTag.ORIGINALRAWFILENAME, srcFilename);
-                output.SetField(TiffTag.PHOTOMETRIC, 32803);
-                output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                //output.SetField(TiffTag.EXIF_CFAPATTERN, 4, "\x1\x0\x2\x1");
-                output.SetField(TiffTag.EXIF_CFAPATTERN, 4, bayerPatternTag);
-                output.SetField(TIFFTAG_CFAREPEATPATTERNDIM, bayerpatterndimensions);
-                //output.SetField(TIFFTAG_CFAPATTERN, "\x1\x0\x2\x1"); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
-                output.SetField(TIFFTAG_CFAPATTERN,
-                    bayerPatternTag); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
+                    //DNG 
+                    output.SetField(TiffTag.SUBFILETYPE, 0);
+                    output.SetField(TiffTag.MAKE, "Point Grey");
+                    output.SetField(TiffTag.MODEL, "Chameleon3");
+                    output.SetField(TiffTag.SOFTWARE, "FlyCapture2");
+                    output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
+                    output.SetField(TiffTag.DNGBACKWARDVERSION, "\x1\x4\x0\x0");
+                    output.SetField(TiffTag.UNIQUECAMERAMODEL, "USB3");
+                    output.SetField(TiffTag.COLORMATRIX1, 9, cam_xyz);
+                    output.SetField(TiffTag.ASSHOTNEUTRAL, 3, neutral);
+                    output.SetField(TiffTag.CALIBRATIONILLUMINANT1, 21);
+                    output.SetField(TiffTag.ORIGINALRAWFILENAME, srcFilename);
+                    output.SetField(TiffTag.PHOTOMETRIC, 32803);
+                    output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+                    //output.SetField(TiffTag.EXIF_CFAPATTERN, 4, "\x1\x0\x2\x1");
+                    output.SetField(TiffTag.EXIF_CFAPATTERN, 4, bayerPatternTag);
+                    output.SetField(TIFFTAG_CFAREPEATPATTERNDIM, bayerpatterndimensions);
+                    //output.SetField(TIFFTAG_CFAPATTERN, "\x1\x0\x2\x1"); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
+                    output.SetField(TIFFTAG_CFAPATTERN,
+                        bayerPatternTag); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
 
-                // Maybe use later if necessary:
-                //output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                //output.SetField(TiffTag.BITSPERSAMPLE, 3, bpp);
-                //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
-                //output.SetField(TiffTag.WHITELEVEL, 1);
+                    // Maybe use later if necessary:
+                    //output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+                    //output.SetField(TiffTag.BITSPERSAMPLE, 3, bpp);
+                    //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
+                    //output.SetField(TiffTag.WHITELEVEL, 1);
 
-                output.WriteEncodedStrip(0, buff, width * height * 2);
-            }
+                    output.WriteEncodedStrip(0, buff, width * height * 2);
+                }
+            }            
         } 
 
         private void BtnLoadRAWFolder_Click(object sender, RoutedEventArgs e)
@@ -299,27 +336,6 @@ namespace RawBayer2DNG
                 }
                 return inputFormat;
             });
-        }
-
-        private byte[] convert12pto16bit(byte[] input)
-        {
-            long inputlength = input.Length * 8;
-            long outputLength = inputlength / 12 * 16;
-            long inputlengthBytes = inputlength / 8;
-            long outputLengthBytes = outputLength / 8;
-
-            byte[] output = new byte[outputLengthBytes];
-
-            // For each 3 bytes in input, we write 4 bytes in output
-            for(long i=0, o = 0; i < inputlengthBytes; i += 3,o += 4){
-
-                output[o+1] = (byte)( ( input[i] & 0b1111_0000 ) >> 4 |  ( (input[i + 1] & 0b0000_1111)<<4)    );
-                output[o] = (byte)((input[i] & 0b0000_1111)<< 4);
-                output[o + 3] = (byte)input[i+2];
-                output[o + 2] = (byte) ((input[i+1] & 0b1111_0000));
-            }
-
-            return output;
         }
 
         private void ReDrawPreview()
