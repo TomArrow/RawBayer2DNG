@@ -70,16 +70,24 @@
         </StackPanel>
         <StackPanel Grid.Column="2">
 
-            <WrapPanel>
-                <Label>Raw resolution</Label>
-                <TextBox x:Name="rawWidth" MinWidth="20">2448</TextBox>
-                <Label>x</Label>
-                <TextBox x:Name="rawHeight" MinWidth="20">2048</TextBox>
-                <Label>(set/check resolution first)</Label>
-            </WrapPanel>
-            <Button x:Name="btnLoadRAW" Click="BtnLoadRAW_Click">Process single .RAW (same folder)</Button>
-            <Button x:Name="btnLoadRAWFolder" Click="BtnLoadRAWFolder_Click">Select folder of .RAW files</Button>
-            <Button x:Name="btnLoadTargetFolder" Click="BtnLoadTargetFolder_Click">Select target folder</Button>
+            <TabControl>
+                <TabItem Header=".dng">
+                    <StackPanel>
+
+                        <WrapPanel>
+                            <Label>Raw resolution</Label>
+                            <TextBox x:Name="rawWidth" MinWidth="20">2448</TextBox>
+                            <Label>x</Label>
+                            <TextBox x:Name="rawHeight" MinWidth="20">2048</TextBox>
+                            <Label>(set/check resolution first)</Label>
+                        </WrapPanel>
+                        <Button x:Name="btnLoadRAW" Click="BtnLoadRAW_Click">Process single .RAW (same folder)</Button>
+                        <Button x:Name="btnLoadRAWFolder" Click="BtnLoadRAWFolder_Click">Select folder of .RAW files</Button>
+                        <Button x:Name="btnLoadTargetFolder" Click="BtnLoadTargetFolder_Click">Select target folder</Button>
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header="Streampix .seq" IsEnabled="False"></TabItem>
+            </TabControl>
 
             <WrapPanel>
                 <CheckBox x:Name="previewDebayer" Click="PreviewDebayer_Click"></CheckBox>
