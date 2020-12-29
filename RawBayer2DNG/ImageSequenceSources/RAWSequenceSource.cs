@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace RawBayer2DNG.ImageSequenceSources
 {
-    class DNGSequenceSource : ImageSequenceSource
+    class RAWSequenceSource : ImageSequenceSource
     {
 
         public int width;
@@ -16,9 +16,9 @@ namespace RawBayer2DNG.ImageSequenceSources
         public string[] paths;
         public RAWDATAFORMAT rawDataFormat;
 
-        ImageSequenceSourceType sourceType = ImageSequenceSourceType.DNG;
+        ImageSequenceSourceType sourceType = ImageSequenceSourceType.RAW;
 
-        public DNGSequenceSource(RAWDATAFORMAT theRawDataFormat,int theWidth, int theHeight, byte[,] theBayerPattern, string[] thePaths)
+        public RAWSequenceSource(RAWDATAFORMAT theRawDataFormat,int theWidth, int theHeight, byte[,] theBayerPattern, string[] thePaths)
         {
             rawDataFormat = theRawDataFormat;
             width = theWidth;

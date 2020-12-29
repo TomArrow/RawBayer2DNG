@@ -30,7 +30,7 @@ namespace RawBayer2DNG
 {
 
 
-    public enum RAWDATAFORMAT { BAYERRG16, BAYERRG12p };
+    public enum RAWDATAFORMAT {INVALID, BAYERRG16, BAYERRG12p, BAYERRG12PADDEDTO16 };
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -136,22 +136,37 @@ namespace RawBayer2DNG
         private byte[] convert12pto16bit(byte[] input)
         {
             long inputlength = input.Length * 8;
-            // long outputLength = inputlength / 12 * 16;
+            long outputLength = inputlength / 12 * 16;
             long inputlengthBytes = inputlength / 8;
-            // long outputLengthBytes = outputLength / 8;
+            long outputLengthBytes = outputLength / 8;
 
-            MemoryStream outputstream = new MemoryStream();
+            byte[] output = new byte[outputLengthBytes];
 
             // For each 3 bytes in input, we write 4 bytes in output
             for (long i = 0, o = 0; i < inputlengthBytes; i += 3, o += 4)
             {
-                outputstream.WriteByte((byte)((input[i] & 0b0000_1111) << 4));
-                outputstream.WriteByte((byte)((input[i] & 0b1111_0000) >> 4 | ((input[i + 1] & 0b0000_1111) << 4)));
-                outputstream.WriteByte((byte)((input[i + 1] & 0b1111_0000)));
-                outputstream.WriteByte((byte)input[i + 2]);
+
+                output[o + 1] = (byte)((input[i] & 0b1111_0000) >> 4 | ((input[i + 1] & 0b0000_1111) << 4));
+                output[o] = (byte)((input[i] & 0b0000_1111) << 4);
+                output[o + 3] = (byte)input[i + 2];
+                output[o + 2] = (byte)((input[i + 1] & 0b1111_0000));
             }
 
-            return outputstream.ToArray();
+            return output;
+        }
+        private byte[] convert12paddedto16to16bit(byte[] input)
+        {
+            int inputlengthBytes = input.Length;
+
+            int tmpValue;
+            for (long i = 0; i < inputlengthBytes; i += 2)
+            {
+                tmpValue = ((input[i] | input[i + 1]<<8)<<4) & UInt16.MaxValue;// combine into one 16 bit int and shift 4 bits to the left
+                input[i] = (byte)( tmpValue & byte.MaxValue);
+                input[i + 1] = (byte)((tmpValue >> 8) & byte.MaxValue);
+            }
+
+            return input;
         }
 
         private void ProcessRAW( byte[] rawImageData,string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, string sourceFileNameForTIFFTag = "")
@@ -161,6 +176,10 @@ namespace RawBayer2DNG
             if (inputFormat == RAWDATAFORMAT.BAYERRG12p)
             {
                 rawImageData = convert12pto16bit(rawImageData);
+            }
+            if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYERRG12PADDEDTO16)
+            {
+                rawImageData = convert12paddedto16to16bit(rawImageData);
             }
 
             char[] bayerSubstitution = { "\x0"[0], "\x1"[0], "\x2"[0] };
@@ -174,8 +193,15 @@ namespace RawBayer2DNG
 
             this.Dispatcher.Invoke(() =>
             {
-                width = int.Parse(rawWidth.Text);
-                height = int.Parse(rawHeight.Text);
+                // backwards compatibility fuckery. trying not to break what already worked.
+                if(imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
+                {
+
+                    (imageSequenceSource as RAWSequenceSource).width = int.Parse(rawWidth.Text);
+                    (imageSequenceSource as RAWSequenceSource).height = int.Parse(rawHeight.Text);
+                }
+                width = imageSequenceSource.getWidth();
+                height = imageSequenceSource.getHeight();
             });
 
             string fileName = targetFilename;
@@ -277,7 +303,7 @@ namespace RawBayer2DNG
                 width = int.Parse(rawWidth.Text);
                 height = int.Parse(rawHeight.Text);
 
-                imageSequenceSource = new DNGSequenceSource(getInputFormat(), width, height, getBayerPattern(), filesInSourceFolder);
+                imageSequenceSource = new RAWSequenceSource(getInputFormat(), width, height, getBayerPattern(), filesInSourceFolder);
 
                 // Option to reverse file order when running film in reverse!
                 if (reverseFileOrder)
@@ -339,23 +365,23 @@ namespace RawBayer2DNG
 
         private void ReDrawPreview()
         {
-            if(sourceFolder == null || filesInSourceFolder == null)
+            if (imageSequenceSource == null)
             {
                 return; // Nothing to do here
             }
 
-            // Do this to not break compatibility with the old algorithm and allow changes on the fly
+            // Do this to not break functionality with the old algorithm and allow changes on the fly
             // Might change/remove in the future.
-            if(imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.DNG)
+            if(imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
             {
 
                 int width = int.Parse(rawWidth.Text);
                 int height = int.Parse(rawHeight.Text);
-                ((DNGSequenceSource)imageSequenceSource).width = width;
-                ((DNGSequenceSource)imageSequenceSource).height = height;
+                ((RAWSequenceSource)imageSequenceSource).width = width;
+                ((RAWSequenceSource)imageSequenceSource).height = height;
                 RAWDATAFORMAT inputFormat = getInputFormat();
 
-                ((DNGSequenceSource)imageSequenceSource).rawDataFormat = inputFormat;
+                ((RAWSequenceSource)imageSequenceSource).rawDataFormat = inputFormat;
             }
 
             bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
@@ -386,6 +412,9 @@ namespace RawBayer2DNG
                 if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYERRG12p) {
                     buff = convert12pto16bit(buff);
                 }
+                if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYERRG12PADDEDTO16) {
+                    buff = convert12paddedto16to16bit(buff);
+                }
 
                 int byteDepth = 2; // This is for the source
                 int byteWidth = newWidth * 3; // This is for the preview. 3 means RGB
@@ -394,7 +423,7 @@ namespace RawBayer2DNG
 
                 byte[] newbytes;
 
-                byte[,] bayerPattern = getBayerPattern();
+                byte[,] bayerPattern = imageSequenceSource.getBayerPattern();
                 if (doPreviewDebayer) {
                     newbytes = Helpers.DrawBayerPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, subsample,doPreviewGamma,bayerPattern);
                 } else
@@ -570,11 +599,11 @@ namespace RawBayer2DNG
         private void worker_DoWork(object sender, DoWorkEventArgs e)
         {
             // Fallback to not break functionality for now
-            if (imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.DNG)
+            if (imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
             {
 
-                ((DNGSequenceSource)imageSequenceSource).bayerPattern = getBayerPattern();
-                ((DNGSequenceSource)imageSequenceSource).rawDataFormat = getInputFormat();
+                ((RAWSequenceSource)imageSequenceSource).bayerPattern = getBayerPattern();
+                ((RAWSequenceSource)imageSequenceSource).rawDataFormat = getInputFormat();
             }
 
 
@@ -700,6 +729,75 @@ namespace RawBayer2DNG
                 Properties.Settings.Default.MaxThreads = newThreads;
                 Properties.Settings.Default.Save();
             }
+        }
+
+        private void btnLoadStreamPixSeq_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Filter = "Streampix .seq files (.seq)|*.seq";
+
+            bool isUsable = true;
+
+            if (ofd.ShowDialog() == true)
+            {
+
+                imageSequenceSource = new StreampixSequenceSource(ofd.FileName);
+                streampix_fileInfo_txt.Text = "Header version: " + (imageSequenceSource as StreampixSequenceSource).version.ToString()
+                    + "\nDescription: " + (imageSequenceSource as StreampixSequenceSource).description
+                    + "\nImage count: " + imageSequenceSource.getImageCount()
+                    + "\nWrapper bit depth: " + (imageSequenceSource as StreampixSequenceSource).bitDepth
+                    + "\nData bit depth: " + (imageSequenceSource as StreampixSequenceSource).bitDepthReal
+                    + "\nBayer pattern: " + bayerPatternToString((imageSequenceSource as StreampixSequenceSource).bayerPattern)
+                    + "\nImage width: " + (imageSequenceSource as StreampixSequenceSource).width
+                    + "\nImage height: " + (imageSequenceSource as StreampixSequenceSource).height;
+
+                if((imageSequenceSource as StreampixSequenceSource).compression != 0)
+                {
+                    MessageBox.Show("Only uncompressed Streampix sequences are supported.");
+                    isUsable = false;
+                }
+                if((imageSequenceSource as StreampixSequenceSource).imageFormat != StreampixSequenceSource.ImageFormat.MONO_BAYER)
+                {
+                    MessageBox.Show("Only raw Bayer Streampix sequences are supported.");
+                    isUsable = false;
+                }
+                
+                if(imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.INVALID)
+                {
+                    MessageBox.Show("Only 16 bit Streampix sequences with 16 or 12 bits real data bit depth are supported.");
+                    isUsable = false;
+                }
+
+                if (!isUsable)
+                {
+
+                    imageSequenceSource = null; 
+                } else
+                {
+
+                    if (targetFolder == null)
+                    {
+                        targetFolder = Path.GetDirectoryName(ofd.FileName);
+                        txtTargetFolder.Text = targetFolder;
+                    }
+                    currentImagNumber.Text = "1";
+                    totalImageCount.Text = imageSequenceSource.getImageCount().ToString();
+                    slide_currentFile.Maximum = imageSequenceSource.getImageCount();
+                    slide_currentFile.Minimum = 1;
+                    slide_currentFile.Value = 1;
+                    btnProcessFolder.IsEnabled = true;
+                }
+
+            }
+        }
+
+        string[] bayerPatternColorsAsString = { "R", "G", "B" };
+        private string bayerPatternToString(byte[,] aBayerPattern)
+        {
+            return bayerPatternColorsAsString[aBayerPattern[0, 0]]
+                + bayerPatternColorsAsString[aBayerPattern[0, 1]]
+                + bayerPatternColorsAsString[aBayerPattern[1, 0]]
+                + bayerPatternColorsAsString[aBayerPattern[1, 1]];
         }
     }
 }

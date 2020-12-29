@@ -83,42 +83,53 @@
                         </WrapPanel>
                         <Button x:Name="btnLoadRAW" Click="BtnLoadRAW_Click">Process single .RAW (same folder)</Button>
                         <Button x:Name="btnLoadRAWFolder" Click="BtnLoadRAWFolder_Click">Select folder of .RAW files</Button>
-                        <Button x:Name="btnLoadTargetFolder" Click="BtnLoadTargetFolder_Click">Select target folder</Button>
+
+                        <WrapPanel>
+                            <Label>Input format:</Label>
+                            <StackPanel>
+                                <RadioButton IsChecked="True" x:Name="formatRadio_rg16" Checked="FormatRadio_Checked">BayerRG16</RadioButton>
+                                <RadioButton x:Name="formatRadio_rg12p" Checked="FormatRadio_Checked">BayerRG12p</RadioButton>
+                            </StackPanel>
+                        </WrapPanel>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition></RowDefinition>
+                                <RowDefinition></RowDefinition>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Grid.RowSpan="2">
+                                <TextBlock TextWrapping="Wrap">Bayer Pattern. 0=Red, 1=Green, 2=Blue</TextBlock>
+                            </StackPanel>
+                            <TextBox x:Name="colorBayerA" Grid.Column="1" Grid.Row="0" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">1</TextBox>
+                            <TextBox x:Name="colorBayerB" Grid.Column="2" Grid.Row="0" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">0</TextBox>
+                            <TextBox x:Name="colorBayerC" Grid.Column="1" Grid.Row="1" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">2</TextBox>
+                            <TextBox x:Name="colorBayerD" Grid.Column="2" Grid.Row="1" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">1</TextBox>
+
+                        </Grid>
+                    </StackPanel>
+                    
+                </TabItem>
+                <TabItem Header="Streampix .seq">
+
+                    <StackPanel>
+
+                        <Button x:Name="btnLoadStreamPixSeq" Click="btnLoadStreamPixSeq_Click">Load Streampix .seq file</Button>
+                        <Label>Sequence metadata:</Label>
+                        <TextBlock TextWrapping="Wrap" x:Name="streampix_fileInfo_txt">[no file loaded]</TextBlock>
                     </StackPanel>
                 </TabItem>
-                <TabItem Header="Streampix .seq" IsEnabled="False"></TabItem>
             </TabControl>
 
+            
             <WrapPanel>
                 <CheckBox x:Name="previewDebayer" Click="PreviewDebayer_Click"></CheckBox>
                 <Label ToolTip="does not affect resulting DNG">Preview debayer</Label>
             </WrapPanel>
-            <WrapPanel>
-                <Label>Input format:</Label>
-                <StackPanel>
-                    <RadioButton IsChecked="True" x:Name="formatRadio_rg16" Checked="FormatRadio_Checked">BayerRG16</RadioButton>
-                    <RadioButton x:Name="formatRadio_rg12p" Checked="FormatRadio_Checked">BayerRG12p</RadioButton>
-                </StackPanel>
-            </WrapPanel>
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition></RowDefinition>
-                    <RowDefinition></RowDefinition>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition></ColumnDefinition>
-                    <ColumnDefinition></ColumnDefinition>
-                    <ColumnDefinition></ColumnDefinition>
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Grid.RowSpan="2">
-                    <TextBlock TextWrapping="Wrap">Bayer Pattern. 0=Red, 1=Green, 2=Blue</TextBlock>
-                </StackPanel>
-                <TextBox x:Name="colorBayerA" Grid.Column="1" Grid.Row="0" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">1</TextBox>
-                <TextBox x:Name="colorBayerB" Grid.Column="2" Grid.Row="0" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">0</TextBox>
-                <TextBox x:Name="colorBayerC" Grid.Column="1" Grid.Row="1" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">2</TextBox>
-                <TextBox x:Name="colorBayerD" Grid.Column="2" Grid.Row="1" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">1</TextBox>
-
-            </Grid>
+            
             <WrapPanel>
                 <CheckBox x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click"></CheckBox>
                 <Label ToolTip="does not affect resulting DNG">Preview with sRGB gamma</Label>
@@ -129,7 +140,7 @@
             </WrapPanel>
 
             <WrapPanel>
-                <TextBlock x:Name="txtMaxThreads">(max: )</TextBlock><TextBox KeyUp="Threads_OnTextChanged" x:Name="Threads">4</TextBox>
+                <TextBlock x:Name="txtMaxThreads">Threads (max: )</TextBlock><TextBox KeyUp="Threads_OnTextChanged" x:Name="Threads">4</TextBox>
             </WrapPanel>
             <Label>Rename to (optional):</Label>
             <TextBox x:Name="Rename" MinWidth="50"></TextBox>
@@ -139,6 +150,7 @@
                 <Label>Process Files in Reverse</Label>
             </WrapPanel>
 
+            <Button x:Name="btnLoadTargetFolder" Click="BtnLoadTargetFolder_Click">Select target folder</Button>
             <Button x:Name="btnSaveSettings" Click="btnSaveSettings_Click" IsEnabled="True">Save Settings</Button>
             <Button x:Name="btnProcessFolder" Click="BtnProcessFolder_Click" IsEnabled="False">Process loaded folder</Button>
             <Button Name="btnCancel" Width="60" Click="btnCancel_Click">Cancel</Button>
