@@ -24,9 +24,14 @@ using Imaging = System.Drawing.Imaging;
 using Orientation = BitMiracle.LibTiff.Classic.Orientation;
 using System.Runtime.InteropServices;
 using System.Threading;
+using RawBayer2DNG.ImageSequenceSources;
 
 namespace RawBayer2DNG
 {
+
+
+    public enum RAWDATAFORMAT { BAYERRG16, BAYERRG12p };
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -50,6 +55,8 @@ namespace RawBayer2DNG
         private static int _totalFiles = 0;
         private bool _compressDng = false;
         private string _newFileName;
+
+        ImageSequenceSource imageSequenceSource;
 
         // Declare the event
         public event PropertyChangedEventHandler PropertyChanged;
@@ -113,7 +120,7 @@ namespace RawBayer2DNG
             OpenFileDialog ofd = new OpenFileDialog();
             ofd.Filter = "Raw bayer files (.raw)|*.raw";
 
-            FORMAT inputFormat = getInputFormat();
+            RAWDATAFORMAT inputFormat = getInputFormat();
 
             if (ofd.ShowDialog() == true)
             {
@@ -122,7 +129,7 @@ namespace RawBayer2DNG
 
                 byte[,] bayerPattern = getBayerPattern();
 
-                ProcessRAW(ofd.FileName, fileName, bayerPattern, inputFormat);
+                ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, Path.GetFileNameWithoutExtension(ofd.FileName));
             }
         }
 
@@ -147,14 +154,13 @@ namespace RawBayer2DNG
             return outputstream.ToArray();
         }
 
-        private void ProcessRAW( string srcFilename,string targetFilename, byte[,] bayerPattern, FORMAT inputFormat)
+        private void ProcessRAW( byte[] rawImageData,string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, string sourceFileNameForTIFFTag = "")
         {
 
-            byte[] buff = File.ReadAllBytes(srcFilename);
 
-            if (inputFormat == FORMAT.BAYERRG12p)
+            if (inputFormat == RAWDATAFORMAT.BAYERRG12p)
             {
-                buff = convert12pto16bit(buff);
+                rawImageData = convert12pto16bit(rawImageData);
             }
 
             char[] bayerSubstitution = { "\x0"[0], "\x1"[0], "\x2"[0] };
@@ -217,7 +223,7 @@ namespace RawBayer2DNG
                 output.SetField(TiffTag.COLORMATRIX1, 9, cam_xyz);
                 output.SetField(TiffTag.ASSHOTNEUTRAL, 3, neutral);
                 output.SetField(TiffTag.CALIBRATIONILLUMINANT1, 21);
-                output.SetField(TiffTag.ORIGINALRAWFILENAME, srcFilename);
+                output.SetField(TiffTag.ORIGINALRAWFILENAME, sourceFileNameForTIFFTag);
                 output.SetField(TiffTag.PHOTOMETRIC, 32803);
                 output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
                 //output.SetField(TiffTag.EXIF_CFAPATTERN, 4, "\x1\x0\x2\x1");
@@ -233,7 +239,7 @@ namespace RawBayer2DNG
                 //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
                 //output.SetField(TiffTag.WHITELEVEL, 1);
 
-                output.WriteEncodedStrip(0, buff, width * height * 2);
+                output.WriteEncodedStrip(0, rawImageData, width * height * 2);
             }
                       
         } 
@@ -265,6 +271,14 @@ namespace RawBayer2DNG
                 filesInSourceFolder = Directory.GetFiles(fbd.SelectedPath,"*.raw");
                 Array.Sort(filesInSourceFolder, new AlphanumComparatorFast());
 
+
+                int width = 2448;
+                int height = 2048;
+                width = int.Parse(rawWidth.Text);
+                height = int.Parse(rawHeight.Text);
+
+                imageSequenceSource = new DNGSequenceSource(getInputFormat(), width, height, getBayerPattern(), filesInSourceFolder);
+
                 // Option to reverse file order when running film in reverse!
                 if (reverseFileOrder)
                 {
@@ -273,14 +287,15 @@ namespace RawBayer2DNG
                 }
 
                 currentImagNumber.Text = "1";
-                totalImageCount.Text = filesInSourceFolder.Count().ToString();
-                slide_currentFile.Maximum = filesInSourceFolder.Count();
+                totalImageCount.Text = imageSequenceSource.getImageCount().ToString();
+                slide_currentFile.Maximum = imageSequenceSource.getImageCount();
                 slide_currentFile.Minimum = 1;
                 slide_currentFile.Value = 1;
                 btnProcessFolder.IsEnabled = true;
 
                 Properties.Settings.Default.InputFolder = sourceFolder;
                 Properties.Settings.Default.Save();
+
             }
         }
 
@@ -303,21 +318,20 @@ namespace RawBayer2DNG
             });
         }
 
-        private enum FORMAT { BAYERRG16, BAYERRG12p };
 
-        private FORMAT getInputFormat()
+        private RAWDATAFORMAT getInputFormat()
         {
             return this.Dispatcher.Invoke(() =>
             {
-                FORMAT inputFormat = FORMAT.BAYERRG16;
+                RAWDATAFORMAT inputFormat = RAWDATAFORMAT.BAYERRG16;
 
                 if ((bool)formatRadio_rg16.IsChecked)
                 {
-                    inputFormat = FORMAT.BAYERRG16;
+                    inputFormat = RAWDATAFORMAT.BAYERRG16;
                 }
                 else if ((bool)formatRadio_rg12p.IsChecked)
                 {
-                    inputFormat = FORMAT.BAYERRG12p;
+                    inputFormat = RAWDATAFORMAT.BAYERRG12p;
                 }
                 return inputFormat;
             });
@@ -330,33 +344,46 @@ namespace RawBayer2DNG
                 return; // Nothing to do here
             }
 
-            int width = int.Parse(rawWidth.Text);
-            int height = int.Parse(rawHeight.Text);
+            // Do this to not break compatibility with the old algorithm and allow changes on the fly
+            // Might change/remove in the future.
+            if(imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.DNG)
+            {
+
+                int width = int.Parse(rawWidth.Text);
+                int height = int.Parse(rawHeight.Text);
+                ((DNGSequenceSource)imageSequenceSource).width = width;
+                ((DNGSequenceSource)imageSequenceSource).height = height;
+                RAWDATAFORMAT inputFormat = getInputFormat();
+
+                ((DNGSequenceSource)imageSequenceSource).rawDataFormat = inputFormat;
+            }
 
             bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
             bool doPreviewGamma = (bool)previewGamma.IsChecked;
 
-            FORMAT inputFormat = getInputFormat();
 
             int sliderNumber = (int)slide_currentFile.Value;
             int index = sliderNumber - 1;
-            string selectedRawFile = filesInSourceFolder[index];
-            if (!File.Exists(selectedRawFile))
+            //string selectedRawFile = filesInSourceFolder[index];
+            if (!imageSequenceSource.imageExists(index))
             {
-                MessageBox.Show("weirdo error, apparently file " + selectedRawFile + " (no longer?) exists");
+                MessageBox.Show("weirdo error, apparently image " + imageSequenceSource.getImageName(index) + " (no longer?) exists");
                 return;
             }
             else
             {
                 int subsample = 4;
 
+                int width = imageSequenceSource.getWidth();
+                int height = imageSequenceSource.getHeight();
+
                 int newWidth = (int)Math.Ceiling((double)width / subsample);
                 int newHeight = (int)Math.Ceiling((double)height / subsample);
 
-                byte[] buff = File.ReadAllBytes(selectedRawFile);
+                byte[] buff = imageSequenceSource.getRawImageData(index);
 
                 // Convert to 16 bit if necessary
-                if (inputFormat == FORMAT.BAYERRG12p) {
+                if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYERRG12p) {
                     buff = convert12pto16bit(buff);
                 }
 
@@ -542,20 +569,30 @@ namespace RawBayer2DNG
 
         private void worker_DoWork(object sender, DoWorkEventArgs e)
         {
-            byte[,] bayerPattern = getBayerPattern();
+            // Fallback to not break functionality for now
+            if (imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.DNG)
+            {
 
-            FORMAT inputFormat = getInputFormat();
+                ((DNGSequenceSource)imageSequenceSource).bayerPattern = getBayerPattern();
+                ((DNGSequenceSource)imageSequenceSource).rawDataFormat = getInputFormat();
+            }
 
-            _totalFiles = filesInSourceFolder.Length;
+
+            byte[,] bayerPattern = imageSequenceSource.getBayerPattern();
+            RAWDATAFORMAT inputFormat = imageSequenceSource.getRawDataFormat();
+
+            _totalFiles = imageSequenceSource.getImageCount();
 
             // create lookup table: <inputfile, outputfile> 
-            var dic = new Dictionary<string, string>();
+            var dic = new Dictionary<int, string>();
 
             int index = 0;
-            foreach (var inputfile in filesInSourceFolder)
+
+            
+            for (int i=0;i<_totalFiles;i++)
             {
                 string fileNameWithoutExtension =
-                    targetFolder + "\\" + Path.GetFileNameWithoutExtension(inputfile);
+                    targetFolder + "\\" + Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(i));
                 string outputFile = fileNameWithoutExtension + ".dng";
 
                 if (!String.IsNullOrWhiteSpace(_newFileName))
@@ -563,7 +600,7 @@ namespace RawBayer2DNG
                     string serializer = index.ToString().PadLeft(6, '0');
                     outputFile = targetFolder + "\\" + _newFileName + "_" + serializer + ".dng";
                 }
-                dic.Add(inputfile, outputFile);
+                dic.Add(i, outputFile);
                 index++;
             }
 
@@ -576,7 +613,7 @@ namespace RawBayer2DNG
                 threads = Environment.ProcessorCount > 1 ? Environment.ProcessorCount / 2 : Environment.ProcessorCount;
 
             Parallel.ForEach(dic,
-                new ParallelOptions { MaxDegreeOfParallelism = threads }, (currentFile, loopState) =>
+                new ParallelOptions { MaxDegreeOfParallelism = threads }, (currentImage, loopState) =>
                     // foreach (string srcFileName in filesInSourceFolder)
                 {
                     if (worker.CancellationPending == true)
@@ -590,14 +627,14 @@ namespace RawBayer2DNG
                     lock (countLock) { worker?.ReportProgress((int)percentage); }
 
                     // check to see if output file already exists
-                    if (File.Exists(currentFile.Value))
+                    if (File.Exists(currentImage.Value))
                     {
                         // Error: File already exists. No overwriting. Move on.
                         //continue;
                         return;
                     }
 
-                    ProcessRAW(currentFile.Key, currentFile.Value, bayerPattern, inputFormat);
+                    ProcessRAW(imageSequenceSource.getRawImageData(currentImage.Key), currentImage.Value, bayerPattern, inputFormat, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
                 });
 
             worker?.ReportProgress(100);

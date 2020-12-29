@@ -11,16 +11,20 @@ namespace RawBayer2DNG
 
         public enum ImageSequenceSourceType { INVALID, DNG, STREAMPIX_SEQ };
 
-        private ImageSequenceSourceType sourceType = ImageSequenceSourceType.INVALID; 
+        private ImageSequenceSourceType sourceType = ImageSequenceSourceType.INVALID;
 
+        abstract public RAWDATAFORMAT getRawDataFormat();
         abstract public int getWidth();
         abstract public int getHeight();
-        abstract public byte[] getBayerPattern();
+        abstract public byte[,] getBayerPattern();
         abstract public byte[] getRawImageData(int index);
+        abstract public bool imageExists(int index);
         abstract public int getImageCount();
+        abstract public string getImageName(int index);
         public ImageSequenceSourceType getSourceType()
         {
             return sourceType;
         }
+
     }
 }

@@ -12,17 +12,24 @@ namespace RawBayer2DNG.ImageSequenceSources
 
         public int width;
         public int height;
-        public byte[] bayerPattern;
+        public byte[,] bayerPattern;
         public string[] paths;
+        public RAWDATAFORMAT rawDataFormat;
 
         ImageSequenceSourceType sourceType = ImageSequenceSourceType.DNG;
 
-        public DNGSequenceSource(int theWidth, int theHeight, byte[] theBayerPattern, string[] thePaths)
+        public DNGSequenceSource(RAWDATAFORMAT theRawDataFormat,int theWidth, int theHeight, byte[,] theBayerPattern, string[] thePaths)
         {
+            rawDataFormat = theRawDataFormat;
             width = theWidth;
             height = theHeight;
             bayerPattern = theBayerPattern;
             paths = thePaths;
+        }
+
+        override public RAWDATAFORMAT getRawDataFormat()
+        {
+            return rawDataFormat;
         }
 
         override public int getWidth()
@@ -33,13 +40,33 @@ namespace RawBayer2DNG.ImageSequenceSources
         {
             return height;
         }
-        override public byte[] getBayerPattern()
+        override public byte[,] getBayerPattern()
         {
             return bayerPattern;
         }
         override public byte[] getRawImageData(int index)
         {
             return File.ReadAllBytes(paths[index]);
+        }
+        public override bool imageExists(int index)
+        {
+            if(index < paths.Length)
+            {
+                return File.Exists(paths[index]);
+            } else
+            {
+                return false;
+            }
+        }
+        override public string getImageName(int index)
+        {
+            if (imageExists(index))
+            {
+                return paths[index];
+            } else
+            {
+                return "undefined file [index " + index + "]";
+            }
         }
         override public int getImageCount()
         {
