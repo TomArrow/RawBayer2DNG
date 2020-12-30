@@ -48,6 +48,21 @@ namespace RawBayer2DNG
             return input;
         }
 
+        public static byte[] convert16bitIntermediateTo12paddedto16bit(byte[] input)
+        {
+            int inputlengthBytes = input.Length;
+
+            int tmpValue;
+            for (long i = 0; i < inputlengthBytes; i += 2)
+            {
+                tmpValue = ((input[i] | input[i + 1] << 8) >> 4) & UInt16.MaxValue;// combine into one 16 bit int and shift 4 bits to the left
+                input[i] = (byte)(tmpValue & byte.MaxValue);
+                input[i + 1] = (byte)((tmpValue >> 8) & byte.MaxValue);
+            }
+
+            return input;
+        }
+
 
         // Guessing...
         public static byte[] convert16BitIntermediateToTiffPacked12BitOutput(byte[] input)

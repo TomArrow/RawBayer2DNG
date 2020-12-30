@@ -127,16 +127,16 @@
             
             <CheckBox ToolTip="does not affect resulting DNG" x:Name="previewDebayer" Click="PreviewDebayer_Click" Margin="2">Preview debayer</CheckBox>
             <CheckBox ToolTip="does not affect resulting DNG" x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click" Margin="2">Preview with sRGB gamma</CheckBox>
-            <CheckBox ToolTip="lossless compression" x:Name="compressDNG" IsChecked="False" Checked="CompressDNG_Checked" Unchecked="CompressDNG_Unchecked" Margin="2">Compress DNG Output</CheckBox>
             <GroupBox Header="DNG output data format">
                 <StackPanel>
                     <WrapPanel>
-                        <RadioButton x:Name="output_12bitPacked_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">12 bit packed</RadioButton>
-                        <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsEnabled="False" IsChecked="False" Checked="outputDataFormat_radio_Checked">12 bit dark-capsuled in 16bit</RadioButton>
-                        <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="True" Checked="outputDataFormat_radio_Checked">12 bit bright-capsuled in 16bit</RadioButton>
+                        <RadioButton x:Name="output_12bitPacked_radio" IsChecked="True" Checked="outputDataFormat_radio_Checked">12 bit packed</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">12 bit dark-capsuled in 16bit</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">12 bit bright-capsuled in 16bit</RadioButton>
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>
+            <CheckBox ToolTip="lossless compression" x:Name="compressDNG" IsChecked="False" Checked="CompressDNG_Checked" Unchecked="CompressDNG_Unchecked" Margin="2">Compress DNG (16 bit formats)</CheckBox>
 
             <WrapPanel>
                 <TextBlock x:Name="txtMaxThreads">Threads (max: )</TextBlock><TextBox KeyUp="Threads_OnTextChanged" x:Name="Threads">4</TextBox>

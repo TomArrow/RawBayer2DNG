@@ -203,15 +203,20 @@ namespace RawBayer2DNG
                 output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
 
 
+                output.SetField(TiffTag.BITSPERSAMPLE, 16);
+
                 //int totalRawDataSize = width * height * 2;
                 //
                 if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT)
                 {
-                    output.SetField(TiffTag.BITSPERSAMPLE, 16);
                 } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED)
                 {
                     output.SetField(TiffTag.BITSPERSAMPLE, 12);
                     rawImageData = DataFormatConverter.convert16BitIntermediateToTiffPacked12BitOutput(rawImageData);
+                }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
+                {
+                    rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
+                    output.SetField(TiffTag.BASELINEEXPOSURE, 4);
                 }
 
 
@@ -222,10 +227,15 @@ namespace RawBayer2DNG
                 output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
                 //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
 
-                if (_compressDng)
+                if (_compressDng && outputFormat != DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED)
+                { // Sadly combining the ADOBE_DEFLATE compression with 12 bit packing breaks the resulting file.
                     output.SetField(TiffTag.COMPRESSION, Compression.ADOBE_DEFLATE);
+                }
                 else
+                {
                     output.SetField(TiffTag.COMPRESSION, Compression.NONE);
+                }
+                    
 
                 output.SetField(TiffTag.PLANARCONFIG, PlanarConfig.CONTIG);
 
@@ -243,7 +253,7 @@ namespace RawBayer2DNG
 
                 //DNG 
                 output.SetField(TiffTag.SUBFILETYPE, 0);
-                output.SetField(TiffTag.MAKE, "Point Grey");
+                output.SetField(TiffTag.MAKE, "Point Grey"); 
                 output.SetField(TiffTag.MODEL, "Chameleon3");
                 output.SetField(TiffTag.SOFTWARE, "FlyCapture2");
                 output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
