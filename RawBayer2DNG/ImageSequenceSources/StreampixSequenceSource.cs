@@ -132,10 +132,10 @@ namespace RawBayer2DNG.ImageSequenceSources
 
                 if(bitDepthReal == bitDepth && bitDepth == 16)
                 {
-                    rawDataFormat = RAWDATAFORMAT.BAYERRG16;
+                    rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
                 } else if (bitDepthReal==12 && bitDepth == 16)
                 {
-                    rawDataFormat = RAWDATAFORMAT.BAYERRG12PADDEDTO16;
+                    rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
                 } else
                 {
                     rawDataFormat = RAWDATAFORMAT.INVALID;

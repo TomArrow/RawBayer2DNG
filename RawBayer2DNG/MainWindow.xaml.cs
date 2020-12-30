@@ -30,7 +30,14 @@ namespace RawBayer2DNG
 {
 
 
-    public enum RAWDATAFORMAT {INVALID, BAYERRG16, BAYERRG12p, BAYERRG12PADDEDTO16 };
+    public enum RAWDATAFORMAT {INVALID,
+        BAYER12BITDARKCAPSULEDIN16BIT, // 12 bit in a 16 bit wrapper, but such that the image ends up dark.
+        BAYER12BITBRIGHTCAPSULEDIN16BIT, // 12 bit in a 16 bit wrapper, but such that the image ends up bright
+
+        // 12 bit packed, with the "12p" standard from FLIR cameras. The other standard is "12packed", which is currently not implemented in this tool.
+        // It's like this: AAAAAAAA AAAABBBB BBBBBBBB
+        BAYERRG12p
+    };
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -55,6 +62,19 @@ namespace RawBayer2DNG
         private static int _totalFiles = 0;
         private bool _compressDng = false;
         private string _newFileName;
+
+
+        public enum DNGOUTPUTDATAFORMAT
+        {
+            INVALID,
+            BAYER12BITDARKCAPSULEDIN16BIT,
+            BAYER12BITBRIGHTCAPSULEDIN16BIT,
+            BAYER12BITTIFFPACKED
+        };
+
+        DNGOUTPUTDATAFORMAT dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+
+
 
         ImageSequenceSource imageSequenceSource;
 
@@ -133,41 +153,7 @@ namespace RawBayer2DNG
             }
         }
 
-        private byte[] convert12pto16bit(byte[] input)
-        {
-            long inputlength = input.Length * 8;
-            long outputLength = inputlength / 12 * 16;
-            long inputlengthBytes = inputlength / 8;
-            long outputLengthBytes = outputLength / 8;
-
-            byte[] output = new byte[outputLengthBytes];
-
-            // For each 3 bytes in input, we write 4 bytes in output
-            for (long i = 0, o = 0; i < inputlengthBytes; i += 3, o += 4)
-            {
-
-                output[o + 1] = (byte)((input[i] & 0b1111_0000) >> 4 | ((input[i + 1] & 0b0000_1111) << 4));
-                output[o] = (byte)((input[i] & 0b0000_1111) << 4);
-                output[o + 3] = (byte)input[i + 2];
-                output[o + 2] = (byte)((input[i + 1] & 0b1111_0000));
-            }
-
-            return output;
-        }
-        private byte[] convert12paddedto16to16bit(byte[] input)
-        {
-            int inputlengthBytes = input.Length;
-
-            int tmpValue;
-            for (long i = 0; i < inputlengthBytes; i += 2)
-            {
-                tmpValue = ((input[i] | input[i + 1]<<8)<<4) & UInt16.MaxValue;// combine into one 16 bit int and shift 4 bits to the left
-                input[i] = (byte)( tmpValue & byte.MaxValue);
-                input[i + 1] = (byte)((tmpValue >> 8) & byte.MaxValue);
-            }
-
-            return input;
-        }
+        
 
         private void ProcessRAW( byte[] rawImageData,string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, string sourceFileNameForTIFFTag = "")
         {
@@ -175,11 +161,11 @@ namespace RawBayer2DNG
 
             if (inputFormat == RAWDATAFORMAT.BAYERRG12p)
             {
-                rawImageData = convert12pto16bit(rawImageData);
+                rawImageData = DataFormatConverter.convert12pInputto16bit(rawImageData);
             }
-            if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYERRG12PADDEDTO16)
+            if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
             {
-                rawImageData = convert12paddedto16to16bit(rawImageData);
+                rawImageData = DataFormatConverter.convert12paddedto16Inputto16bit(rawImageData);
             }
 
             char[] bayerSubstitution = { "\x0"[0], "\x1"[0], "\x2"[0] };
@@ -190,6 +176,8 @@ namespace RawBayer2DNG
 
             int width = 2448;
             int height = 2048;
+
+            DNGOUTPUTDATAFORMAT outputFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
 
             this.Dispatcher.Invoke(() =>
             {
@@ -202,6 +190,7 @@ namespace RawBayer2DNG
                 }
                 width = imageSequenceSource.getWidth();
                 height = imageSequenceSource.getHeight();
+                outputFormat = dngOutputDataFormat;
             });
 
             string fileName = targetFilename;
@@ -212,7 +201,21 @@ namespace RawBayer2DNG
                 output.SetField(TiffTag.IMAGEWIDTH, width);
                 output.SetField(TiffTag.IMAGELENGTH, height);
                 output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                output.SetField(TiffTag.BITSPERSAMPLE, 16);
+
+
+                //int totalRawDataSize = width * height * 2;
+                //
+                if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT)
+                {
+                    output.SetField(TiffTag.BITSPERSAMPLE, 16);
+                } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED)
+                {
+                    output.SetField(TiffTag.BITSPERSAMPLE, 12);
+                    rawImageData = DataFormatConverter.convert16BitIntermediateToTiffPacked12BitOutput(rawImageData);
+                }
+
+
+
                 output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
                 output.SetField(TiffTag.ROWSPERSTRIP, height);
                 output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
@@ -265,7 +268,7 @@ namespace RawBayer2DNG
                 //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
                 //output.SetField(TiffTag.WHITELEVEL, 1);
 
-                output.WriteEncodedStrip(0, rawImageData, width * height * 2);
+                output.WriteEncodedStrip(0, rawImageData, rawImageData.Length);
             }
                       
         } 
@@ -349,11 +352,11 @@ namespace RawBayer2DNG
         {
             return this.Dispatcher.Invoke(() =>
             {
-                RAWDATAFORMAT inputFormat = RAWDATAFORMAT.BAYERRG16;
+                RAWDATAFORMAT inputFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
 
                 if ((bool)formatRadio_rg16.IsChecked)
                 {
-                    inputFormat = RAWDATAFORMAT.BAYERRG16;
+                    inputFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
                 }
                 else if ((bool)formatRadio_rg12p.IsChecked)
                 {
@@ -410,10 +413,10 @@ namespace RawBayer2DNG
 
                 // Convert to 16 bit if necessary
                 if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYERRG12p) {
-                    buff = convert12pto16bit(buff);
+                    buff = DataFormatConverter.convert12pInputto16bit(buff);
                 }
-                if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYERRG12PADDEDTO16) {
-                    buff = convert12paddedto16to16bit(buff);
+                if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT) {
+                    buff = DataFormatConverter.convert12paddedto16Inputto16bit(buff);
                 }
 
                 int byteDepth = 2; // This is for the source
@@ -798,6 +801,26 @@ namespace RawBayer2DNG
                 + bayerPatternColorsAsString[aBayerPattern[0, 1]]
                 + bayerPatternColorsAsString[aBayerPattern[1, 0]]
                 + bayerPatternColorsAsString[aBayerPattern[1, 1]];
+        }
+
+        private void outputDataFormat_radio_Checked(object sender, RoutedEventArgs e)
+        {
+            FrameworkElement element = e.Source as FrameworkElement;
+            string elementName = element.Name;
+
+            switch (elementName)
+            {
+                case "output_12bitPacked_radio":
+                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED;
+                    break;
+                case "output_16bitDarkCapsuled_radio":
+                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
+                    break;
+                case "output_16bitBrightCapsuled_radio":
+                default:
+                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+                    break;
+            }
         }
     }
 }
