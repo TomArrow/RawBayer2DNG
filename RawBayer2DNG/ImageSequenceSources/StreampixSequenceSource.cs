@@ -48,7 +48,7 @@ namespace RawBayer2DNG.ImageSequenceSources
             BGR10_PPACKED_PHOENIX = 124, 
             RGB10_PPACKED_PHOENIX = 125, 
             MONO_PPACKED = 131, 
-            MONO_BAYER_PPACKED = 132, 
+            MONO_BAYER_PPACKED = 132, // Or this
             MONO_PPACKED_8448 = 133, 
             MONO_BAYER_PPACKED_8448 = 134,
             GVSP_BGR10V1_PACKED = 135, 
@@ -130,12 +130,15 @@ namespace RawBayer2DNG.ImageSequenceSources
                 UInt32 imageBytesAlignment = reader.ReadUInt32(); // Not quite sure what this one does tbh
 
 
-                if(bitDepthReal == bitDepth && bitDepth == 16)
+                if (bitDepthReal == bitDepth && bitDepth == 16)
                 {
                     rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
-                } else if (bitDepthReal==12 && bitDepth == 16)
+                } else if (bitDepthReal == 12 && bitDepth == 16)
                 {
                     rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
+                } else if (bitDepthReal == 12 && bitDepth == 12 && imageFormat == ImageFormat.MONO_BAYER_PPACKED) {
+                    rawDataFormat = RAWDATAFORMAT.BAYERRG12p;
+
                 } else
                 {
                     rawDataFormat = RAWDATAFORMAT.INVALID;

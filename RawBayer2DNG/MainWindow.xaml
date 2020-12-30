@@ -139,10 +139,10 @@
             <CheckBox ToolTip="lossless compression" x:Name="compressDNG" IsChecked="False" Checked="CompressDNG_Checked" Unchecked="CompressDNG_Unchecked" Margin="2">Compress DNG (16 bit formats)</CheckBox>
 
             <WrapPanel>
-                <TextBlock x:Name="txtMaxThreads">Threads (max: )</TextBlock><TextBox KeyUp="Threads_OnTextChanged" x:Name="Threads">4</TextBox>
+                <TextBlock x:Name="txtMaxThreads">Threads (max: )</TextBlock><TextBox KeyUp="Threads_OnTextChanged" x:Name="Threads" MinWidth="30" TextAlignment="Right">4</TextBox>
             </WrapPanel>
-            <Label>Rename to (optional):</Label>
-            <TextBox x:Name="Rename" MinWidth="50"></TextBox>
+            <Label Padding="0" Margin="2">Rename to (optional):</Label>
+            <TextBox x:Name="Rename" MinWidth="50" Margin="2"></TextBox>
 
             <WrapPanel>
                 <CheckBox x:Name="ReverseOrder" IsChecked="False" Checked="ReverseOrder_OnChecked" Unchecked="ReverseOrder_OnUnchecked"></CheckBox>
@@ -151,7 +151,7 @@
 
             <Button x:Name="btnLoadTargetFolder" Click="BtnLoadTargetFolder_Click">Select target folder</Button>
             <Button x:Name="btnSaveSettings" Click="btnSaveSettings_Click" IsEnabled="True">Save Settings</Button>
-            <Button x:Name="btnProcessFolder" Click="BtnProcessFolder_Click" IsEnabled="False">Process loaded folder</Button>
+            <Button x:Name="btnProcessFolder" Click="BtnProcessFolder_Click" IsEnabled="False">Process loaded sequence</Button>
             <Button Name="btnCancel" Width="60" Click="btnCancel_Click">Cancel</Button>
             <StackPanel>
                 <Label>Info</Label>

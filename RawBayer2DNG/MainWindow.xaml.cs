@@ -35,7 +35,7 @@ namespace RawBayer2DNG
         BAYER12BITBRIGHTCAPSULEDIN16BIT, // 12 bit in a 16 bit wrapper, but such that the image ends up bright
 
         // 12 bit packed, with the "12p" standard from FLIR cameras. The other standard is "12packed", which is currently not implemented in this tool.
-        // It's like this: AAAAAAAA AAAABBBB BBBBBBBB
+        // It's like this: AAAAAAAA AAAABBBB BBBBBBBB, with the BBBB in the second bit being the first bytes (not the last) of the second sample
         BAYERRG12p
     };
 
@@ -769,7 +769,7 @@ namespace RawBayer2DNG
                     MessageBox.Show("Only uncompressed Streampix sequences are supported.");
                     isUsable = false;
                 }
-                if((imageSequenceSource as StreampixSequenceSource).imageFormat != StreampixSequenceSource.ImageFormat.MONO_BAYER)
+                if((imageSequenceSource as StreampixSequenceSource).imageFormat != StreampixSequenceSource.ImageFormat.MONO_BAYER && (imageSequenceSource as StreampixSequenceSource).imageFormat != StreampixSequenceSource.ImageFormat.MONO_BAYER_PPACKED)
                 {
                     MessageBox.Show("Only raw Bayer Streampix sequences are supported.");
                     isUsable = false;
@@ -777,7 +777,7 @@ namespace RawBayer2DNG
                 
                 if(imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.INVALID)
                 {
-                    MessageBox.Show("Only 16 bit Streampix sequences with 16 or 12 bits real data bit depth are supported.");
+                    MessageBox.Show("Only 16 bit Streampix sequences with 16 or 12 bits real data bit depth and a special packed 12 bits format are supported.");
                     isUsable = false;
                 }
 
