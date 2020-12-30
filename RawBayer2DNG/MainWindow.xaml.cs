@@ -26,6 +26,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using RawBayer2DNG.ImageSequenceSources;
 using System.Text.RegularExpressions;
+using System.Numerics;
 
 namespace RawBayer2DNG
 {
@@ -284,16 +285,26 @@ namespace RawBayer2DNG
                       
         }
 
+        private int getSetCount()
+        {
+            ShotSettings shotSettings = getShotSettings();
+            return (int)Math.Floor(((double)imageSequenceSource.getImageCount() - (double)shotSettings.delay) / (double)shotSettings.shots.Length);
+            
+        }
+
         private void loadedSequenceGUIUpdate(string sourceName = "")
         {
+
 
 
             txtSrcFolder.Text = sourceName;
             txtStatus.Text = "Source set to " + sourceName;
 
+            int setCount = getSetCount();
+
             currentImagNumber.Text = "1";
-            totalImageCount.Text = imageSequenceSource.getImageCount().ToString();
-            slide_currentFile.Maximum = imageSequenceSource.getImageCount();
+            totalImageCount.Text = setCount.ToString();
+            slide_currentFile.Maximum = setCount;
             slide_currentFile.Minimum = 1;
             slide_currentFile.Value = 1;
             btnProcessFolder.IsEnabled = true;
@@ -388,6 +399,161 @@ namespace RawBayer2DNG
             });
         }
 
+        // returns buffer with HDR merge already performed.
+        // Expects 16 bit linear input.
+        private byte[] HDRMerge(byte[][] buffers, ShotSettings shotSettings)
+        {
+
+            float clippingPoint = shotSettings.clippingPoint;
+            float featherMultiplier = shotSettings.featherMultiplier;
+
+            float featherBottomIntensity = clippingPoint;
+            float featherRange = 0;
+            if (featherMultiplier != 1)
+            {
+                featherBottomIntensity *= featherMultiplier;
+                featherRange = clippingPoint - featherBottomIntensity;
+            }
+
+            byte[] outputBuffer = new byte[buffers[0].Length];
+
+            int singleBufferLength = buffers[0].Length;
+
+            //double maxValue = 0;
+
+            //double Uint16MaxValueDouble = (double)UInt16.MaxValue;
+            float Uint16MaxValueFloat = (float)UInt16.MaxValue;
+
+
+            // Do one color after another
+            Parallel.For(0, 3, (colorIndex, state) =>
+            //for (var colorIndex = 0; colorIndex < 3; colorIndex++)
+            {
+
+
+                Vector2 Uint16Divider = new Vector2();
+                float thisMultiplierMultiplier;
+                int thisIndex;
+                ShotSettingBayer thisShotSetting;
+                float effectiveMultiplier;
+                float currentOutputValue;
+                float currentInputValue;
+                bool isClipping;
+                UInt16 finalValue;
+                float inputIntensity;
+                float tmpValue;
+                byte[] sixteenbitbytes;
+
+
+                thisIndex = 0;
+                thisMultiplierMultiplier = 1;
+                for (var shotSettingIndex = 0; shotSettingIndex < shotSettings.shots.Length; shotSettingIndex++)
+                {
+                    thisShotSetting = shotSettings.shots[shotSettingIndex];
+                   
+                    // first image of each set just has its buffer copied for speed reasons
+                    if (thisIndex == 0)
+                    {
+                        outputBuffer = buffers[thisShotSetting.orderIndex];
+                        // The darkest image's multiplier should technically be 1 by default. But if it isn't, we use this to normalize the following images.
+                        // For example, if the darkest image multiplier is 2, we record the "multiplier multiplier" as 0.5, as we aren't actually multiplying this image data by 2
+                        // and as a result we need to reduce the image multiplier of following images by multiplying it with 0.5.
+                        thisMultiplierMultiplier = 1 / thisShotSetting.exposureMultiplier;
+                    }
+
+                    // Do actual HDR merging
+                    else
+                    {
+                        effectiveMultiplier = thisMultiplierMultiplier * thisShotSetting.exposureMultiplier;
+
+                        if (featherMultiplier < 1 && featherRange != 0)
+                        {
+                            for (var i = 0; i < singleBufferLength; i += 2) // 16 bit steps
+                            {
+                                Uint16Divider.X = (float)BitConverter.ToUInt16(outputBuffer, i);
+                                Uint16Divider.Y = (float)BitConverter.ToUInt16(buffers[thisShotSetting.orderIndex], i);
+
+
+                                /*currentOutputValue = (double)BitConverter.ToUInt16(outputBuffers[colorIndex], i) / Uint16MaxValueDouble;
+                                currentInputValue = (double)BitConverter.ToUInt16(buffers[thisShotSetting.orderIndex], i) / Uint16MaxValueDouble;*/
+                                Uint16Divider = Vector2.Divide(Uint16Divider, Uint16MaxValueFloat);
+                                currentOutputValue = Uint16Divider.X;
+                                currentInputValue = Uint16Divider.Y;
+
+                                //if(currentInputValue > maxValue) { maxValue = currentInputValue; }
+                                isClipping = currentInputValue > clippingPoint;
+                                if (!isClipping)
+                                {
+                                    finalValue = 0;
+                                    if (currentInputValue > featherBottomIntensity)
+                                    {
+                                        inputIntensity = (featherRange - (clippingPoint - currentInputValue)) / featherRange;
+                                        currentInputValue /= effectiveMultiplier;
+                                        tmpValue = inputIntensity * currentInputValue + (1 - inputIntensity) * currentOutputValue;
+                                        finalValue = (UInt16)Math.Round(tmpValue * Uint16MaxValueFloat);
+                                    }
+                                    else
+                                    {
+                                        currentInputValue /= effectiveMultiplier;
+                                        finalValue = (UInt16)Math.Round(currentInputValue * Uint16MaxValueFloat);
+                                    }
+
+                                    sixteenbitbytes = BitConverter.GetBytes(finalValue);
+                                    outputBuffer[i] = sixteenbitbytes[0];
+                                    outputBuffer[i + 1] = sixteenbitbytes[1];
+                                }
+                            }
+                        }
+                        else
+                        {
+
+                            for (var i = 0; i < singleBufferLength; i += 2) // 16 bit steps
+                            {
+                                // Comments:
+                                // You might want to use Buffer.BlockCopy to convert the array from raw bytes to unsigned shorts
+                                // https://markheath.net/post/how-to-convert-byte-to-short-or-float
+                                // Or: Span<ushort> a = MemoryMarshal.Cast<byte, ushort>(data)
+                                // https://markheath.net/post/span-t-audio
+                                Uint16Divider.X = (float)BitConverter.ToUInt16(outputBuffer, i);
+                                Uint16Divider.Y = (float)BitConverter.ToUInt16(buffers[thisShotSetting.orderIndex], i);
+
+
+                                /*currentOutputValue = (double)BitConverter.ToUInt16(outputBuffers[colorIndex], i) / Uint16MaxValueDouble;
+                                currentInputValue = (double)BitConverter.ToUInt16(buffers[thisShotSetting.orderIndex], i) / Uint16MaxValueDouble;*/
+                                Uint16Divider = Vector2.Divide(Uint16Divider, Uint16MaxValueFloat);
+                                currentOutputValue = Uint16Divider.X;
+                                currentInputValue = Uint16Divider.Y;
+
+                                //if (currentInputValue > maxValue) { maxValue = currentInputValue; }
+                                isClipping = currentInputValue > clippingPoint;
+                                if (!isClipping)
+                                {
+                                    finalValue = 0;
+                                    currentInputValue /= effectiveMultiplier;
+                                    finalValue = (UInt16)Math.Round(currentInputValue * Uint16MaxValueFloat);
+
+                                    sixteenbitbytes = BitConverter.GetBytes(finalValue);
+                                    outputBuffer[i] = sixteenbitbytes[0];
+                                    outputBuffer[i + 1] = sixteenbitbytes[1];
+                                }
+                            }
+                        }
+
+                    }
+                    thisIndex++;
+                    
+                }
+
+
+
+
+            });
+
+            //MessageBox.Show(maxValue.ToString());
+
+            return outputBuffer;
+        }
+
         private void ReDrawPreview()
         {
             if (imageSequenceSource == null)
@@ -412,17 +578,56 @@ namespace RawBayer2DNG
             bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
             bool doPreviewGamma = (bool)previewGamma.IsChecked;
 
+            ShotSettings shotSettings = getShotSettings();
 
             int sliderNumber = (int)slide_currentFile.Value;
-            int index = sliderNumber - 1;
-            //string selectedRawFile = filesInSourceFolder[index];
-            if (!imageSequenceSource.imageExists(index))
+            //int index = ;
+
+            int firstIndex = (sliderNumber - 1)*shotSettings.shots.Length;
+
+            bool anythingMissing = false;
+            string whatsMissing = "";
+
+            int[] indiziForMerge = new int[shotSettings.shots.Length];
+            byte[][] buffersForMerge = new byte[shotSettings.shots.Length][];
+
+            // Check if all necessary shots exist and add the indizi to an array.
+            int thatIndex;
+            for(int i=0;i< shotSettings.shots.Length; i++)
             {
-                MessageBox.Show("weirdo error, apparently image " + imageSequenceSource.getImageName(index) + " (no longer?) exists");
+                thatIndex = firstIndex + i;
+                if (!imageSequenceSource.imageExists(i))
+                {
+                    anythingMissing = true;
+                    whatsMissing = imageSequenceSource.getImageName(i);
+                    break;
+                }
+                else
+                {
+                    indiziForMerge[i] = thatIndex;
+                    buffersForMerge[i] = imageSequenceSource.getRawImageData(thatIndex);
+                    // Convert to 16 bit if necessary
+                    if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYERRG12p)
+                    {
+                        buffersForMerge[i] = DataFormatConverter.convert12pInputto16bit(buffersForMerge[i]);
+                    }
+                    if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
+                    {
+                        buffersForMerge[i] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForMerge[i]);
+                    }
+                }
+            }
+
+            //string selectedRawFile = filesInSourceFolder[index];
+            if (anythingMissing)
+            {
+                MessageBox.Show("weirdo error, apparently image " + whatsMissing + " (no longer?) exists");
                 return;
             }
             else
             {
+
+
                 int subsample = 4;
 
                 int width = imageSequenceSource.getWidth();
@@ -431,15 +636,9 @@ namespace RawBayer2DNG
                 int newWidth = (int)Math.Ceiling((double)width / subsample);
                 int newHeight = (int)Math.Ceiling((double)height / subsample);
 
-                byte[] buff = imageSequenceSource.getRawImageData(index);
+                byte[] buff = HDRMerge(buffersForMerge,shotSettings);
 
-                // Convert to 16 bit if necessary
-                if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYERRG12p) {
-                    buff = DataFormatConverter.convert12pInputto16bit(buff);
-                }
-                if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT) {
-                    buff = DataFormatConverter.convert12paddedto16Inputto16bit(buff);
-                }
+                
 
                 int byteDepth = 2; // This is for the source
                 int byteWidth = newWidth * 3; // This is for the preview. 3 means RGB
@@ -854,6 +1053,8 @@ namespace RawBayer2DNG
         private struct ShotSettings
         {
             public int delay;
+            public float clippingPoint;
+            public float featherMultiplier;
             public ShotSettingBayer[] shots;
         }
 
@@ -869,7 +1070,15 @@ namespace RawBayer2DNG
             {
                 MessageBox.Show("Invalid delay number? "+e.Message);
             }
-            return new ShotSettings() { delay = delayTmp, shots = getShots() };
+
+            double featherStopsTmp = 0;
+            double.TryParse(featherStops_txt.Text, out featherStopsTmp);
+            float clippingPointTmp = 0.7f;
+            float.TryParse(clippingPoint_txt.Text, out clippingPointTmp);
+
+            float featherMultiplier = (float)Math.Pow(2, -featherStopsTmp);
+
+            return new ShotSettings() { delay = delayTmp, clippingPoint = clippingPointTmp,featherMultiplier = featherMultiplier, shots = getShots() };
 
         }
         private ShotSettingBayer[] getShots()

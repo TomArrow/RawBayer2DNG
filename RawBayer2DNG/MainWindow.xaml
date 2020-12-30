@@ -150,6 +150,15 @@
                         <Label>Delay (skip first X images):</Label>
                         <TextBox TextAlignment="Right" MinWidth="30" x:Name="shotDelay_txt">0</TextBox>
                     </WrapPanel>
+                    <WrapPanel>
+                        <Label ToolTip="The clipping point in the overexposed image at which the darker exposure is taken instead of the brighter. Necessary to set because possibly due to weirdness of ADCs a clipped pixel isn't always EXACTLY perfect white, only almost.">Clipping point</Label>
+                        <TextBox x:Name="clippingPoint_txt">0.7</TextBox>
+                    </WrapPanel>
+
+                    <WrapPanel>
+                        <Label ToolTip="How many stops (from the clipping point downwards) should be averaged between the brighter and darker exposure? Potentially reduces artifacts (play around and see), but can result in bigger files due to increased precision. Can be left at zero to deactivate feathering.">"Feather stops"</Label>
+                        <TextBox x:Name="featherStops_txt">0</TextBox>
+                    </WrapPanel>
                 </StackPanel>
             </GroupBox>
             

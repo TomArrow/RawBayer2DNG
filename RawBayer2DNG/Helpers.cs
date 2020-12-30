@@ -145,6 +145,8 @@ namespace RawBayer2DNG
             return newbytes;
         }
 
+
+
         internal static byte[] DrawBayerPreview(byte[] buff, int height, int width, int srcHeight, int srcWidth, int newStride, int byteDepth, int subsample, bool previewGamma,byte[,] bayerPattern)
         {
 
