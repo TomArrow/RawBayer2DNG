@@ -25,6 +25,7 @@ using Orientation = BitMiracle.LibTiff.Classic.Orientation;
 using System.Runtime.InteropServices;
 using System.Threading;
 using RawBayer2DNG.ImageSequenceSources;
+using System.Text.RegularExpressions;
 
 namespace RawBayer2DNG
 {
@@ -281,7 +282,24 @@ namespace RawBayer2DNG
                 output.WriteEncodedStrip(0, rawImageData, rawImageData.Length);
             }
                       
-        } 
+        }
+
+        private void loadedSequenceGUIUpdate(string sourceName = "")
+        {
+
+
+            txtSrcFolder.Text = sourceName;
+            txtStatus.Text = "Source set to " + sourceName;
+
+            currentImagNumber.Text = "1";
+            totalImageCount.Text = imageSequenceSource.getImageCount().ToString();
+            slide_currentFile.Maximum = imageSequenceSource.getImageCount();
+            slide_currentFile.Minimum = 1;
+            slide_currentFile.Value = 1;
+            btnProcessFolder.IsEnabled = true;
+
+
+        }
 
         private void BtnLoadRAWFolder_Click(object sender, RoutedEventArgs e)
         {
@@ -300,8 +318,7 @@ namespace RawBayer2DNG
             if (result == true && !string.IsNullOrWhiteSpace(fbd.SelectedPath) && Directory.Exists(fbd.SelectedPath))
             {
                 sourceFolder = fbd.SelectedPath;
-                txtSrcFolder.Text = sourceFolder;
-                txtStatus.Text = "Source folder set to " + sourceFolder;
+
                 if (targetFolder == null)
                 {
                     targetFolder = sourceFolder;
@@ -325,12 +342,7 @@ namespace RawBayer2DNG
                     filesAreReversed = true;
                 }
 
-                currentImagNumber.Text = "1";
-                totalImageCount.Text = imageSequenceSource.getImageCount().ToString();
-                slide_currentFile.Maximum = imageSequenceSource.getImageCount();
-                slide_currentFile.Minimum = 1;
-                slide_currentFile.Value = 1;
-                btnProcessFolder.IsEnabled = true;
+                loadedSequenceGUIUpdate("[RAW Folder] " + sourceFolder);
 
                 Properties.Settings.Default.InputFolder = sourceFolder;
                 Properties.Settings.Default.Save();
@@ -788,18 +800,18 @@ namespace RawBayer2DNG
                 } else
                 {
 
+
+
                     if (targetFolder == null)
                     {
                         targetFolder = Path.GetDirectoryName(ofd.FileName);
                         txtTargetFolder.Text = targetFolder;
                     }
-                    currentImagNumber.Text = "1";
-                    totalImageCount.Text = imageSequenceSource.getImageCount().ToString();
-                    slide_currentFile.Maximum = imageSequenceSource.getImageCount();
-                    slide_currentFile.Minimum = 1;
-                    slide_currentFile.Value = 1;
-                    btnProcessFolder.IsEnabled = true;
+
+                    loadedSequenceGUIUpdate("[Streampix] " + ofd.FileName);
+
                 }
+
 
             }
         }
@@ -831,6 +843,138 @@ namespace RawBayer2DNG
                     dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
                     break;
             }
+        }
+
+        private struct ShotSettingBayer
+        {
+            public int orderIndex;
+            public float exposureMultiplier;
+        }
+
+        private struct ShotSettings
+        {
+            public int delay;
+            public ShotSettingBayer[] shots;
+        }
+
+        static Regex shotSettingTextRegexp = new Regex(@"(E|X)(?:(\+|\-|\*|\/)(\d+))?", RegexOptions.IgnoreCase);
+
+        private ShotSettings getShotSettings()
+        {
+            int delayTmp = 0;
+            try
+            {
+                delayTmp = int.Parse(shotDelay_txt.Text);
+            }catch(Exception e)
+            {
+                MessageBox.Show("Invalid delay number? "+e.Message);
+            }
+            return new ShotSettings() { delay = delayTmp, shots = getShots() };
+
+        }
+        private ShotSettingBayer[] getShots()
+        {
+            string[] shotTexts = { exposureA.Text, exposureB.Text, exposureC.Text, exposureD.Text, exposureE.Text, exposureF.Text };
+            List<ShotSettingBayer> shotSettings = new List<ShotSettingBayer>();
+
+            int index = 0;
+
+            for (int i = 0; i < 6; i++)
+            {
+
+                if (shotTexts[i].Trim() == "")
+                {
+                    // nothing
+                }
+                else
+                {
+                    ShotSettingBayer shotSettingTemp = new ShotSettingBayer();
+                    shotSettingTemp.exposureMultiplier = 1;
+                    shotSettingTemp.orderIndex = index;
+
+                    MatchCollection matches = shotSettingTextRegexp.Matches(shotTexts[i]);
+
+                    // Try cach just in case the regexp doesnt give proper results for some reason.
+                    try
+                    {
+                        string color = matches[0].Groups[1].Value.ToUpper();
+                        string operater = matches[0].Groups[2].Value;
+                        string number = matches[0].Groups[3].Value;
+
+                        float numberParsed = 1;
+                        bool numberParsingSuccessful = float.TryParse(number, out numberParsed);
+
+                        bool isEmpty = false;
+
+                        switch (color)
+                        {
+                            case "E":
+                                // a real exposure
+                                break;
+                            case "X":
+                            default:
+                                isEmpty = true;
+                                break;
+                        }
+
+                        // If the number wasn't parsed properly, may as well stop here.
+                        if (!isEmpty && numberParsingSuccessful)
+                        {
+                            switch (operater)
+                            {
+                                case "+":
+                                    shotSettingTemp.exposureMultiplier = (float)Math.Pow(2, numberParsed);
+                                    break;
+                                case "*":
+                                    shotSettingTemp.exposureMultiplier = numberParsed;
+                                    break;
+
+                                case "-":
+                                case "/":
+                                default:
+                                    // Not implemented. Always declare the overexposed shots!
+                                    shotSettingTemp.exposureMultiplier = 1;
+                                    break;
+                            }
+                        }
+
+                        if (!isEmpty)
+                        {
+                            shotSettings.Add(shotSettingTemp);
+                            index++;
+                        }
+                        else
+                        {
+
+                            // nothing
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        MessageBox.Show("Some weird error parsing the shot settings.");
+                    }
+                }
+
+
+            }
+
+            // Order by  exposure
+            // Exposure order: Starting with smallest exposure multiplier.
+            shotSettings.Sort(OrderComparisonTwoShotSettings);
+
+            return shotSettings.ToArray();
+        }
+
+        static int OrderComparisonTwoShotSettings(ShotSettingBayer shotSetting1, ShotSettingBayer shotSetting2)
+        {
+
+            return shotSetting1.exposureMultiplier.CompareTo(shotSetting2.exposureMultiplier);
+        }
+
+
+        private void exposure_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
         }
     }
 }

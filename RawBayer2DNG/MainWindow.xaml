@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:RawBayer2DNG"
         mc:Ignorable="d"
         DataContext="{Binding RelativeSource={RelativeSource Self}}"
-        Title="MainWindow" Height="750" Width="1000">
+        Title="MainWindow" Height="850" Width="1000">
 
 
     <Grid>
@@ -124,8 +124,36 @@
                 </TabItem>
             </TabControl>
 
+            <GroupBox Header="Exposure settings / HDR" ToolTip="Use E to indicate exposure in order. Use X or leave empty to indicate that that shot doesn't exist (if you only do single exposure for example). Use E+2 to indicate a shot that is 2 stops overexposed. Use E*4 to indicate a shot that is overexposed with an exposure time multiplier of 4 (equivalent of 2 stops). These are two alternate ways you can define the same thing.">
+                <StackPanel>
+                    <WrapPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="exposureA" Grid.Column="0" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged">E</TextBox>
+                            <TextBox x:Name="exposureB" Grid.Column="1" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureC" Grid.Column="2" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureD" Grid.Column="3" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureE" Grid.Column="4" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureF" Grid.Column="5" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+
+                        </Grid>
+                   
+                    </WrapPanel>
+                    <WrapPanel>
+                        <Label>Delay (skip first X images):</Label>
+                        <TextBox TextAlignment="Right" MinWidth="30" x:Name="shotDelay_txt">0</TextBox>
+                    </WrapPanel>
+                </StackPanel>
+            </GroupBox>
             
-            <CheckBox ToolTip="does not affect resulting DNG" x:Name="previewDebayer" Click="PreviewDebayer_Click" Margin="2">Preview debayer</CheckBox>
+            <CheckBox ToolTip="does not affect resulting DNG" x:Name="previewDebayer" Click="PreviewDebayer_Click" Margin="2" IsChecked="True">Preview debayer</CheckBox>
             <CheckBox ToolTip="does not affect resulting DNG" x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click" Margin="2">Preview with sRGB gamma</CheckBox>
             <GroupBox Header="DNG output data format">
                 <StackPanel>
@@ -156,7 +184,7 @@
             <StackPanel>
                 <Label>Info</Label>
                 <WrapPanel>
-                    <Label>Source folder:</Label>
+                    <Label>Source:</Label>
                     <TextBlock x:Name="txtSrcFolder" TextWrapping="Wrap"></TextBlock>
                 </WrapPanel>
                 <WrapPanel>
