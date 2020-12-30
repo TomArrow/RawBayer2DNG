@@ -168,8 +168,8 @@
                 <StackPanel>
                     <WrapPanel>
                         <RadioButton x:Name="output_12bitPacked_radio" IsChecked="True" Checked="outputDataFormat_radio_Checked">12 bit packed</RadioButton>
-                        <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">12 bit dark-capsuled in 16bit</RadioButton>
-                        <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">12 bit bright-capsuled in 16bit</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">12 bit dark in 16bit</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">12 bit bright in 16bit / HDR</RadioButton>
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>
