@@ -27,6 +27,7 @@ using System.Threading;
 using RawBayer2DNG.ImageSequenceSources;
 using System.Text.RegularExpressions;
 using System.Numerics;
+using System.Globalization;
 
 namespace RawBayer2DNG
 {
@@ -964,6 +965,9 @@ namespace RawBayer2DNG
                             c++;
                         }
 
+                        // For debugging
+                        File.WriteAllText("debug.txt","Clipping point: "+shotSettings.clippingPoint+", feather "+shotSettings.featherMultiplier);
+
                         ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
                     }
                     
@@ -1127,6 +1131,10 @@ namespace RawBayer2DNG
         {
             public int orderIndex;
             public float exposureMultiplier;
+            override public string ToString()
+            {
+                return "[ShotSettingBayer order "+orderIndex+ ", "+exposureMultiplier.ToString()+"]";
+            }
         }
 
         private struct ShotSettings
@@ -1135,9 +1143,13 @@ namespace RawBayer2DNG
             public float clippingPoint;
             public float featherMultiplier;
             public ShotSettingBayer[] shots;
+            override public string ToString()
+            {
+                return "[ShotSettings delay " + delay + ", clippingPoint " + clippingPoint + ", featherMultiplier "+featherMultiplier+" shots"+shots.ToString() + "]";
+            }
         }
 
-        static Regex shotSettingTextRegexp = new Regex(@"(E|X)(?:(\+|\-|\*|\/)(\d+))?", RegexOptions.IgnoreCase);
+        static Regex shotSettingTextRegexp = new Regex(@"(E|X)(?:(\+|\-|\*|\/)([\d\.\,]+))?", RegexOptions.IgnoreCase);
 
         private ShotSettings getShotSettings()
         {
@@ -1151,9 +1163,9 @@ namespace RawBayer2DNG
             }
 
             double featherStopsTmp = 0;
-            double.TryParse(featherStops_txt.Text, out featherStopsTmp);
+            double.TryParse(featherStops_txt.Text.Replace(",","."),NumberStyles.Float, CultureInfo.InvariantCulture, out featherStopsTmp);
             float clippingPointTmp = 0.7f;
-            float.TryParse(clippingPoint_txt.Text, out clippingPointTmp);
+            float.TryParse(clippingPoint_txt.Text.Replace(",", "."), NumberStyles.Float, CultureInfo.InvariantCulture, out clippingPointTmp);
 
             float featherMultiplier = (float)Math.Pow(2, -featherStopsTmp);
 
@@ -1190,7 +1202,7 @@ namespace RawBayer2DNG
                         string number = matches[0].Groups[3].Value;
 
                         float numberParsed = 1;
-                        bool numberParsingSuccessful = float.TryParse(number, out numberParsed);
+                        bool numberParsingSuccessful = float.TryParse(number.Replace(",","."), NumberStyles.Float, CultureInfo.InvariantCulture, out numberParsed);
 
                         bool isEmpty = false;
 
