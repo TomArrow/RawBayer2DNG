@@ -147,24 +147,24 @@
                         </Grid>
 
                     </WrapPanel>
-                    <WrapPanel>
+                    <WrapPanel ToolTip="{StaticResource ResourceKey=Tooltip_HDR_Delay}">
                         <Label>Delay (skip first X images):</Label>
                         <TextBox TextAlignment="Right" MinWidth="30" x:Name="shotDelay_txt">0</TextBox>
                     </WrapPanel>
-                    <WrapPanel ToolTip="{StaticResource ResourceKey=Tooltip_HDR_ClippingPoint}">
+                    <WrapPanel  ToolTip="{StaticResource ResourceKey=Tooltip_HDR_ClippingPoint}">
                         <Label>Clipping point</Label>
-                        <TextBox x:Name="clippingPoint_txt">0.7</TextBox>
+                        <TextBox x:Name="clippingPoint_txt" MinWidth="30">0.7</TextBox>
                     </WrapPanel>
 
-                    <WrapPanel>
-                        <Label ToolTip="{StaticResource Tooltip_HDR_FeatherStops}">"Feather stops"</Label>
-                        <TextBox x:Name="featherStops_txt">0</TextBox>
+                    <WrapPanel ToolTip="{StaticResource ResourceKey=Tooltip_HDR_FeatherStops}">
+                        <Label>"Feather stops"</Label>
+                        <TextBox x:Name="featherStops_txt" MinWidth="30">0</TextBox>
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>
 
-            <CheckBox ToolTip="does not affect resulting DNG" x:Name="previewDebayer" Click="PreviewDebayer_Click" Margin="2" IsChecked="True">Preview debayer</CheckBox>
-            <CheckBox ToolTip="does not affect resulting DNG" x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click" Margin="2">Preview with sRGB gamma</CheckBox>
+            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_Debayer}" x:Name="previewDebayer" Click="PreviewDebayer_Click" Margin="2" IsChecked="True">Preview debayer</CheckBox>
+            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_sRGBGamma}" x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click" Margin="2">Preview with sRGB gamma</CheckBox>
             <GroupBox Header="DNG output data format">
                 <StackPanel>
 

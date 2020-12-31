@@ -2,6 +2,62 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:RawBayer2DNG">
     
+    <!-- sRGB gamma preview setting explanation -->
+    <ToolTip x:Key="Tooltip_Preview_sRGBGamma" ToolTipService.ShowDuration="2000000000">
+        <StackPanel MaxWidth="500">
+            <WrapPanel>
+                <Image Source="images/Question_16x.png" Margin="0,0,5,0" Stretch="None" />
+                <StackPanel>
+                    <TextBlock FontWeight="Bold" FontSize="14" Margin="0,0,0,0">sRGB gamma preview</TextBlock>
+                    <TextBlock FontStyle="Italic">Preview option</TextBlock>
+                    <TextBlock FontWeight="Bold">Shows the raw image correctly inside this tool's preview</TextBlock>
+                    <TextBlock FontWeight="Bold">Does not affect the produced output</TextBlock>
+                </StackPanel>
+            </WrapPanel>
+            <Border BorderBrush="Silver" BorderThickness="0,1,0,0" Margin="0,8" />
+            <TextBlock TextWrapping="Wrap">
+                Properly recorded raw data from a sensor comes in linear form. Typically we're talking about linear light in 12 bits of precision.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>Unfortunately the connection between your computer and display can (with exceptions) only carry 8 bits of precision. Thus computer displays typically expect the data to be delivered to it in so-called "sRGB gamma", which applies a curve to the data boosting dark parts, which the display reverses again.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>With this switch on, that's all that happens. If you turn it off, the preview image will be produced in linear light, which is technically more accurate to the source data, but will look wrong (too dark and contrasty) on pretty much every computer display.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>Disabling this setting will give you a similar image to what you get in some industrial camera capturing software when gamma is not set. This does not mean that there is anything wrong with the image, merely that the preview is not correctly implemented to apply sRGB gamma.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>If the .raw sequence you are editing was captured with gamma already applied, disabling this might give you a better looking preview, but keep in mind that it will still look too bright in any raw developer you use unless you reverse the gamma. Raw developers expect linear data, hence capturing without gamma is highly recommended. Capturing with gamma also breaks the HDR functionality.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>As a preview setting, this does not affect the output in any way. It is merely there to give you an accurate preview.
+            </TextBlock>
+        </StackPanel>
+    </ToolTip>
+    
+    <!-- DeBayer preview setting explanation -->
+    <ToolTip x:Key="Tooltip_Preview_Debayer" ToolTipService.ShowDuration="2000000000">
+        <StackPanel MaxWidth="500">
+            <WrapPanel>
+                <Image Source="images/Question_16x.png" Margin="0,0,5,0" Stretch="None" />
+                <StackPanel>
+                    <TextBlock FontWeight="Bold" FontSize="14" Margin="0,0,0,0">Debayer preview</TextBlock>
+                    <TextBlock FontStyle="Italic">Preview option</TextBlock>
+                    <TextBlock FontWeight="Bold">Does not affect the produced output</TextBlock>
+                </StackPanel>
+            </WrapPanel>
+            <Border BorderBrush="Silver" BorderThickness="0,1,0,0" Margin="0,8" />
+            <TextBlock TextWrapping="Wrap">
+                Bayer images do not technically have separate red, green and blue channels. It is one big greyscale image and the so-called "Bayer pattern" on the sensor of the camera defines which pixel senses which color. 
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>The Bayer pattern typically consists of a pattern of 4 pixels that repeats itself across the entire image. This pattern typically has two green pixels, one red pixel, and one blue pixel. The thing that changes from camera to camera is the exact arrangement of the pixels. Cropping an image by amounts not divisible by 2 also changes the effective bayer pattern.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>To create color from this greyscale image, a debayering algorithm is needed. Ideally, it keeps the image in the full resolution of the greyscale image and uses interpolation to find a good compromise between a sharp image and correct colors.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>Proper debayering can be a bit complex and there is no real need to have a perfect preview in this tool, so this setting will simply give you the combined RGB values from each bayer group of 4 pixels without doing any interpolation. This results in a low resolution output image, but the preview in this tool is subsampled and low res anyway, so it does the job of previewing the colors.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>This setting is only a preview setting, it does not affect the output in any way, which is always linear data losslessly copied from the source (except for HDR processing, which by its nature cannot be entirely lossless)
+            </TextBlock>
+        </StackPanel>
+    </ToolTip>
+    
+    
     <!-- HDR Sequence explanation -->
     <ToolTip x:Key="Tooltip_HDR_Sequence" ToolTipService.ShowDuration="2000000000">
         <StackPanel MaxWidth="500">
@@ -28,6 +84,26 @@
                 <LineBreak></LineBreak>
                 <LineBreak></LineBreak>Use X or leave empty to indicate that that shot doesn't exist (if you only do single exposure for example).
                 <LineBreak></LineBreak>Use the delay option to skip "useless images" at the start of your sequence that mess up your order.
+            </TextBlock>
+        </StackPanel>
+    </ToolTip>
+    
+    <!-- HDR delay explanation -->
+    <ToolTip x:Key="Tooltip_HDR_Delay" ToolTipService.ShowDuration="2000000000">
+        <StackPanel MaxWidth="400">
+            <WrapPanel>
+                <Image Source="images/Question_16x.png" Margin="0,0,5,0" Stretch="None" />
+                <StackPanel>
+                    <TextBlock FontWeight="Bold" FontSize="14" Margin="0,0,0,0">HDR processing delay</TextBlock>
+                    <TextBlock FontStyle="Italic">Input processing option</TextBlock>
+                    <TextBlock FontWeight="Bold">Discard X pictures before the first full HDR sequence begins</TextBlock>
+                </StackPanel>
+            </WrapPanel>
+            <Border BorderBrush="Silver" BorderThickness="0,1,0,0" Margin="0,8" />
+            <TextBlock TextWrapping="Wrap">
+                It might not always be easy to start recording your sequences at exactly the right time so that the first image is also the first image in your first HDR sequence.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>Thus, if your sequence doesn't properly align for HDR processing, simply discard as many pictures as you need from the start of the sequence to fix the alignment of the HDR processing.
             </TextBlock>
         </StackPanel>
     </ToolTip>
