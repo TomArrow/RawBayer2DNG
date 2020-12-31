@@ -115,6 +115,8 @@ namespace RawBayer2DNG
         public MainWindow()
         {
             InitializeComponent();
+
+
             // Register the custom tag handler
             Tiff.TiffExtendProc extender = TagExtender;
             m_parentExtender = Tiff.SetTagExtender(extender);
@@ -396,6 +398,13 @@ namespace RawBayer2DNG
         // Expects 16 bit linear input.
         private byte[] HDRMerge(byte[][] buffers, ShotSettings shotSettings)
         {
+
+            // Fast skip for non HDR
+            // Shouldn't really be necessary because it should be caught outside during normal raw processing. This might speed up the preview though.
+            if(buffers.Length == 1 && shotSettings.shots.Length == 1)
+            {
+                return buffers[0];
+            }
 
             float clippingPoint = shotSettings.clippingPoint;
             float featherMultiplier = shotSettings.featherMultiplier;
@@ -923,25 +932,41 @@ namespace RawBayer2DNG
                         return;
                     }
 
-                    byte[] tmpBuff;
-                    byte[][] buffersForHDR = new byte[3][];
-                    int c = 0;
-                    foreach(int thisThereThatIndex in currentImage.Value.shotIndizi)
+                    if(shotSettings.shots.Length == 1) // SDR (single image)
                     {
-
-                        buffersForHDR[c] = imageSequenceSource.getRawImageData(thisThereThatIndex);
+                        byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.Value.shotIndizi[0]);
                         if (inputFormat == RAWDATAFORMAT.BAYERRG12p)
                         {
-                            buffersForHDR[c] = DataFormatConverter.convert12pInputto16bit(buffersForHDR[c]);
+                            tmpBuff = DataFormatConverter.convert12pInputto16bit(tmpBuff);
                         }
                         if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                         {
-                            buffersForHDR[c] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForHDR[c]);
+                            tmpBuff = DataFormatConverter.convert12paddedto16Inputto16bit(tmpBuff);
                         }
-                        c++;
-                    }
 
-                    ProcessRAW(HDRMerge(buffersForHDR,shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                        ProcessRAW(tmpBuff, currentImage.Value.outputName, bayerPattern, inputFormat, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                    } else // HDR
+                    {
+                        byte[][] buffersForHDR = new byte[3][];
+                        int c = 0;
+                        foreach (int thisThereThatIndex in currentImage.Value.shotIndizi)
+                        {
+
+                            buffersForHDR[c] = imageSequenceSource.getRawImageData(thisThereThatIndex);
+                            if (inputFormat == RAWDATAFORMAT.BAYERRG12p)
+                            {
+                                buffersForHDR[c] = DataFormatConverter.convert12pInputto16bit(buffersForHDR[c]);
+                            }
+                            if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
+                            {
+                                buffersForHDR[c] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForHDR[c]);
+                            }
+                            c++;
+                        }
+
+                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                    }
+                    
                 });
 
             worker?.ReportProgress(100);

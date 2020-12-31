@@ -166,9 +166,10 @@
             <CheckBox ToolTip="does not affect resulting DNG" x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click" Margin="2">Preview with sRGB gamma</CheckBox>
             <GroupBox Header="DNG output data format">
                 <StackPanel>
+                    
                     <WrapPanel>
-                        <RadioButton x:Name="output_12bitPacked_radio" IsChecked="True" Checked="outputDataFormat_radio_Checked">12 bit packed</RadioButton>
-                        <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">12 bit dark in 16bit</RadioButton>
+                        <RadioButton x:Name="output_12bitPacked_radio" IsChecked="True" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitpacked}">12 bit packed</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitdarkcapsuled}">12 bit dark in 16bit</RadioButton>
                         <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">12 bit bright in 16bit / HDR</RadioButton>
                     </WrapPanel>
                 </StackPanel>
