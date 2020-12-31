@@ -116,7 +116,8 @@ namespace RawBayer2DNG
         public MainWindow()
         {
             InitializeComponent();
-
+            ToolTipService.ShowDurationProperty.OverrideMetadata(
+                typeof(DependencyObject), new FrameworkPropertyMetadata(Int32.MaxValue)); // Helps keep the Tooltips open for a longer time if we set their ShowDuration high.
 
             // Register the custom tag handler
             Tiff.TiffExtendProc extender = TagExtender;

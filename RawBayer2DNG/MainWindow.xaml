@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:RawBayer2DNG"
         mc:Ignorable="d"
         DataContext="{Binding RelativeSource={RelativeSource Self}}"
-        Title="MainWindow" Height="850" Width="1000">
+        Title="RawBayer2DNG" Height="850" Width="1000">
 
 
     <Grid>
@@ -16,11 +16,12 @@
             </RowDefinition>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="200"></ColumnDefinition>
+            <ColumnDefinition Width="57"></ColumnDefinition>
+            <ColumnDefinition Width="143"/>
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition Width="200"></ColumnDefinition>
         </Grid.ColumnDefinitions>
-        <StackPanel Grid.Column="0">
+        <StackPanel Grid.Column="0" Grid.ColumnSpan="2">
 
             <Label>Magnifier Horizontal Position:</Label>
             <Slider x:Name="magnifierHorizontalPosition" Maximum="1" Minimum="0" Value="0.5" ValueChanged="MagnifierPosition_ValueChanged"></Slider>
@@ -46,7 +47,7 @@
             </WrapPanel>
         </StackPanel>
 
-        <StackPanel Grid.Column="1">
+        <StackPanel Grid.Column="2">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="81*"/>
@@ -68,7 +69,7 @@
                 <Image Grid.Row="1" x:Name="mainPreview" MinHeight="300" Grid.ColumnSpan="2"></Image>
             </Grid>
         </StackPanel>
-        <StackPanel Grid.Column="2">
+        <StackPanel Grid.Column="3">
 
             <TabControl>
                 <TabItem Header=".dng">
@@ -111,7 +112,7 @@
 
                         </Grid>
                     </StackPanel>
-                    
+
                 </TabItem>
                 <TabItem Header="Streampix .seq">
 
@@ -144,7 +145,7 @@
                             <TextBox x:Name="exposureF" Grid.Column="5" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
 
                         </Grid>
-                   
+
                     </WrapPanel>
                     <WrapPanel>
                         <Label>Delay (skip first X images):</Label>
@@ -161,23 +162,24 @@
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>
-            
+
             <CheckBox ToolTip="does not affect resulting DNG" x:Name="previewDebayer" Click="PreviewDebayer_Click" Margin="2" IsChecked="True">Preview debayer</CheckBox>
             <CheckBox ToolTip="does not affect resulting DNG" x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click" Margin="2">Preview with sRGB gamma</CheckBox>
             <GroupBox Header="DNG output data format">
                 <StackPanel>
-                    
+
                     <WrapPanel>
                         <RadioButton x:Name="output_12bitPacked_radio" IsChecked="True" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitpacked}">12 bit packed</RadioButton>
                         <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitdarkcapsuled}">12 bit dark in 16bit</RadioButton>
-                        <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">12 bit bright in 16bit / HDR</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitbrightcapsuled}">12 bit bright in 16bit / HDR</RadioButton>
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>
             <CheckBox ToolTip="lossless compression" x:Name="compressDNG" IsChecked="False" Checked="CompressDNG_Checked" Unchecked="CompressDNG_Unchecked" Margin="2">Compress DNG (16 bit formats)</CheckBox>
 
             <WrapPanel>
-                <TextBlock x:Name="txtMaxThreads">Threads (max: )</TextBlock><TextBox KeyUp="Threads_OnTextChanged" x:Name="Threads" MinWidth="30" TextAlignment="Right">4</TextBox>
+                <TextBlock x:Name="txtMaxThreads">Threads (max: )</TextBlock>
+                <TextBox KeyUp="Threads_OnTextChanged" x:Name="Threads" MinWidth="30" TextAlignment="Right">4</TextBox>
             </WrapPanel>
             <Label Padding="0" Margin="2">Rename to (optional):</Label>
             <TextBox x:Name="Rename" MinWidth="50" Margin="2"></TextBox>
@@ -207,7 +209,7 @@
         </StackPanel>
 
 
-        <TextBlock x:Name="txtStatus" Grid.Row="1">Idle.</TextBlock>
+        <TextBlock x:Name="txtStatus" Grid.Row="1" Grid.ColumnSpan="3">Idle.</TextBlock>
     </Grid>
 </Window>
 
