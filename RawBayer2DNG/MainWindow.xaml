@@ -125,9 +125,9 @@
                 </TabItem>
             </TabControl>
 
-            <GroupBox Header="Exposure settings / HDR" ToolTip="Use E to indicate exposure in order. Use X or leave empty to indicate that that shot doesn't exist (if you only do single exposure for example). Use E+2 to indicate a shot that is 2 stops overexposed. Use E*4 to indicate a shot that is overexposed with an exposure time multiplier of 4 (equivalent of 2 stops). These are two alternate ways you can define the same thing.">
+            <GroupBox Header="Exposure settings / HDR">
                 <StackPanel>
-                    <WrapPanel>
+                    <WrapPanel ToolTip="{StaticResource ResourceKey=Tooltip_HDR_Sequence}">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition></ColumnDefinition>
@@ -151,13 +151,13 @@
                         <Label>Delay (skip first X images):</Label>
                         <TextBox TextAlignment="Right" MinWidth="30" x:Name="shotDelay_txt">0</TextBox>
                     </WrapPanel>
-                    <WrapPanel>
-                        <Label ToolTip="The clipping point in the overexposed image at which the darker exposure is taken instead of the brighter. Necessary to set because possibly due to weirdness of ADCs a clipped pixel isn't always EXACTLY perfect white, only almost.">Clipping point</Label>
+                    <WrapPanel ToolTip="{StaticResource ResourceKey=Tooltip_HDR_ClippingPoint}">
+                        <Label>Clipping point</Label>
                         <TextBox x:Name="clippingPoint_txt">0.7</TextBox>
                     </WrapPanel>
 
                     <WrapPanel>
-                        <Label ToolTip="How many stops (from the clipping point downwards) should be averaged between the brighter and darker exposure? Potentially reduces artifacts (play around and see), but can result in bigger files due to increased precision. Can be left at zero to deactivate feathering.">"Feather stops"</Label>
+                        <Label ToolTip="{StaticResource Tooltip_HDR_FeatherStops}">"Feather stops"</Label>
                         <TextBox x:Name="featherStops_txt">0</TextBox>
                     </WrapPanel>
                 </StackPanel>

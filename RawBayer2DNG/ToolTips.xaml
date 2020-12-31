@@ -2,6 +2,81 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:RawBayer2DNG">
     
+    <!-- HDR Sequence explanation -->
+    <ToolTip x:Key="Tooltip_HDR_Sequence" ToolTipService.ShowDuration="2000000000">
+        <StackPanel MaxWidth="500">
+            <WrapPanel>
+                <Image Source="images/Question_16x.png" Margin="0,0,5,0" Stretch="None" />
+                <StackPanel>
+                    <TextBlock FontWeight="Bold" FontSize="14" Margin="0,0,0,0">HDR sequence settings</TextBlock>
+                    <TextBlock FontStyle="Italic">Input processing option</TextBlock>
+                    <TextBlock FontWeight="Bold">Set your exposure settings here</TextBlock>
+                </StackPanel>
+            </WrapPanel>
+            <Border BorderBrush="Silver" BorderThickness="0,1,0,0" Margin="0,8" />
+            <TextBlock TextWrapping="Wrap">
+                Here you can set up a sequence of up to 6 exposures that repeats itself. Empty fields are ignored. By default the first field is filled with a single "E". In this configuration, no HDR processing is applied, and a single exposure per frame is assumed.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>
+                The HDR processing deals with relative exposure times, not with absolute exposure times. A simple "E" represents a "base exposure" that other entries are relative to. This base exposure is not required to be the first one in the sequence.
+                <LineBreak></LineBreak> 
+                <LineBreak></LineBreak>Use E+2 to indicate a shot that is 2 stops overexposed. Use E*4 to indicate a shot that is overexposed with an exposure time multiplier of 4 (equivalent of 2 stops). These are two alternate ways you can define the same thing."
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>The darkest exposure defines the actual brightness of the output image. The other exposures are linearly reduced (through division/multiplication) to the same brightness as the darkest exposure and their clipped values are masked out.
+                <LineBreak></LineBreak>Due to this algorithm it is particularly important for the input images to be linear and to have no gamma applied, otherwise the HDR merging will be compromised and produce artifacts. 
+                <LineBreak></LineBreak>In the same vein, if the provided exposure information is not accurate, ugly artifacts will be the result. For example, if your second exposure is 12 times brighter than the first, but you enter E*16, the outcome will look terrible.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>Use X or leave empty to indicate that that shot doesn't exist (if you only do single exposure for example).
+                <LineBreak></LineBreak>Use the delay option to skip "useless images" at the start of your sequence that mess up your order.
+            </TextBlock>
+        </StackPanel>
+    </ToolTip>
+    
+    <!-- HDR clipping point explanation -->
+    <ToolTip x:Key="Tooltip_HDR_ClippingPoint" ToolTipService.ShowDuration="2000000000">
+        <StackPanel MaxWidth="400">
+            <WrapPanel>
+                <Image Source="images/Question_16x.png" Margin="0,0,5,0" Stretch="None" />
+                <StackPanel>
+                    <TextBlock FontWeight="Bold" FontSize="14" Margin="0,0,0,0">HDR processing clipping point</TextBlock>
+                    <TextBlock FontStyle="Italic">Input processing option</TextBlock>
+                    <TextBlock FontWeight="Bold">Clipping point of the overexposed exposures</TextBlock>
+                </StackPanel>
+            </WrapPanel>
+            <Border BorderBrush="Silver" BorderThickness="0,1,0,0" Margin="0,8" />
+            <TextBlock TextWrapping="Wrap">
+                When merging for HDR, the darkest exposure is taken as reference for the output image brightness. The other exposures are linearly reduced to the brightness of the darkest exposure, and all clipped pixels are masked out and taken from the dark exposure.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>
+                The clipping point is the threshold at which the pixel is taken from the darker exposure instead of the brighter one. This is necessary to set possibly due to weirdness of ADCs - it seems a clipped pixel isn't always EXACTLY perfect white, only almost. Even an obviously clipped pixel can produce values far from the maximum digital value.
+                
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>I have observed these values to easily dip to, for example, 80% of the maximum digital value. If the value for the clipping point is set too high, some clipped pixels will not be recognized as clipped and produce ugly dark pixels in the output. These "dark clipped" pixels also tend to stay in the same positions on the same sensor, indicating that it might be an imperfection in the sensor itself. 
+            </TextBlock>
+        </StackPanel>
+    </ToolTip>
+    
+    <!-- HDR feather stops explanation -->
+    <ToolTip x:Key="Tooltip_HDR_FeatherStops" ToolTipService.ShowDuration="2000000000">
+        <StackPanel MaxWidth="400">
+            <WrapPanel>
+                <Image Source="images/Question_16x.png" Margin="0,0,5,0" Stretch="None" />
+                <StackPanel>
+                    <TextBlock FontWeight="Bold" FontSize="14" Margin="0,0,0,0">HDR processing feather stops</TextBlock>
+                    <TextBlock FontStyle="Italic">Input processing option</TextBlock>
+                    <TextBlock FontWeight="Bold">Smoothing of transition between exposures</TextBlock>
+                </StackPanel>
+            </WrapPanel>
+            <Border BorderBrush="Silver" BorderThickness="0,1,0,0" Margin="0,8" />
+            <TextBlock TextWrapping="Wrap">
+                How many stops (from the clipping point downwards) should be averaged between the brighter and darker exposure? 
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>Potentially reduces artifacts (play around and see), but can result in bigger files due to increased precision. Can be left at zero to deactivate feathering.
+            </TextBlock>
+        </StackPanel>
+    </ToolTip>
+    
+    
     <!-- DNG output 12 bit packed -->
     <ToolTip x:Key="Tooltip_DNGOutput_12bitpacked" ToolTipService.ShowDuration="2000000000">
         <StackPanel MaxWidth="400">
