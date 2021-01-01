@@ -72,7 +72,7 @@
         <StackPanel Grid.Column="3">
 
             <TabControl>
-                <TabItem Header=".dng">
+                <TabItem Header=".raw">
                     <StackPanel>
 
                         <WrapPanel>
@@ -121,6 +121,12 @@
                         <Button x:Name="btnLoadStreamPixSeq" Click="btnLoadStreamPixSeq_Click">Load Streampix .seq file</Button>
                         <Label>Sequence metadata:</Label>
                         <TextBlock TextWrapping="Wrap" x:Name="streampix_fileInfo_txt">[no file loaded]</TextBlock>
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header=".dng">
+                    <StackPanel>
+                        <TextBlock TextWrapping="Wrap">Use this if you want to reprocess dngs to change them into a different format. It is not meant to work with any other dngs than those produced by this tool.</TextBlock>
+                        <Button x:Name="btnLoadDNGFolder" Click="btnLoadDNGFolder_Click">Select folder of .dng files</Button>
                     </StackPanel>
                 </TabItem>
             </TabControl>

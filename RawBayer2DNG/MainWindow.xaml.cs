@@ -33,13 +33,15 @@ namespace RawBayer2DNG
 {
 
 
+
     public enum RAWDATAFORMAT {INVALID,
         BAYER12BITDARKCAPSULEDIN16BIT, // 12 bit in a 16 bit wrapper, but such that the image ends up dark.
         BAYER12BITBRIGHTCAPSULEDIN16BIT, // 12 bit in a 16 bit wrapper, but such that the image ends up bright
 
         // 12 bit packed, with the "12p" standard from FLIR cameras. The other standard is "12packed", which is currently not implemented in this tool.
         // It's like this: AAAAAAAA AAAABBBB BBBBBBBB, with the BBBB in the second bit being the first bytes (not the last) of the second sample
-        BAYERRG12p
+        BAYERRG12p,
+        TIFF12BITPACKED // For reading dngs
     };
 
     /// <summary>
@@ -47,9 +49,10 @@ namespace RawBayer2DNG
     /// </summary>
     public partial class MainWindow : Window,  INotifyPropertyChanged
     {
-        
-        private const TiffTag TIFFTAG_CFAREPEATPATTERNDIM = (TiffTag)33421;
-        private const TiffTag TIFFTAG_CFAPATTERN = (TiffTag)33422;
+
+        public const TiffTag TIFFTAG_CFAREPEATPATTERNDIM = (TiffTag)33421;
+        public const TiffTag TIFFTAG_CFAPATTERN = (TiffTag)33422;
+        public const TiffTag TIFFTAG_SUBIFDS = (TiffTag)330;
 
         private static Tiff.TiffExtendProc m_parentExtender;
         private BackgroundWorker worker = new BackgroundWorker();
@@ -88,6 +91,7 @@ namespace RawBayer2DNG
         {
             TiffFieldInfo[] tiffFieldInfo =
             {
+                new TiffFieldInfo(TIFFTAG_SUBIFDS, -1, -1, TiffType.LONG, FieldBit.Custom, false, false, "SubIFDs"),
                 new TiffFieldInfo(TIFFTAG_CFAREPEATPATTERNDIM, 2, 2, TiffType.SHORT, FieldBit.Custom, false, false, "CFARepeatPatternDim"),
                 new TiffFieldInfo(TIFFTAG_CFAPATTERN, 4, 4, TiffType.BYTE, FieldBit.Custom, false, false, "CFAPattern"),
             };
@@ -1084,6 +1088,9 @@ namespace RawBayer2DNG
                 {
 
 
+                    // reset progress counters
+                    CurrentProgress = 0;
+                    _counter = 0;
 
                     if (targetFolder == null)
                     {
@@ -1276,6 +1283,49 @@ namespace RawBayer2DNG
         private void exposure_TextChanged(object sender, TextChangedEventArgs e)
         {
 
+        }
+
+        private void btnLoadDNGFolder_Click(object sender, RoutedEventArgs e)
+        {
+            // reset progress counters
+            CurrentProgress = 0;
+            _counter = 0;
+            var fbd = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog();
+            //  save path as a setting - We typically capture to the same folder every time.
+            if (!string.IsNullOrWhiteSpace(Properties.Settings.Default.InputFolder) && Directory.Exists(Properties.Settings.Default.InputFolder))
+            {
+                fbd.SelectedPath = Properties.Settings.Default.InputFolder;
+            }
+
+            bool? result = fbd.ShowDialog();
+
+            if (result == true && !string.IsNullOrWhiteSpace(fbd.SelectedPath) && Directory.Exists(fbd.SelectedPath))
+            {
+                sourceFolder = fbd.SelectedPath;
+
+                if (targetFolder == null)
+                {
+                    targetFolder = sourceFolder;
+                    txtTargetFolder.Text = targetFolder;
+                }
+                filesInSourceFolder = Directory.GetFiles(fbd.SelectedPath, "*.dng");
+                Array.Sort(filesInSourceFolder, new AlphanumComparatorFast());
+
+
+
+                imageSequenceSource = new DNGSequenceSource(filesInSourceFolder);
+
+                // Option to reverse file order when running film in reverse!
+                if (reverseFileOrder)
+                {
+                    Array.Reverse(filesInSourceFolder);
+                    filesAreReversed = true;
+                }
+
+                loadedSequenceGUIUpdate("[DNG Folder] " + sourceFolder);
+
+
+            }
         }
     }
 }
