@@ -345,14 +345,16 @@ namespace RawBayer2DNG
                 width = int.Parse(rawWidth.Text);
                 height = int.Parse(rawHeight.Text);
 
-                imageSequenceSource = new RAWSequenceSource(getInputFormat(), width, height, getBayerPattern(), filesInSourceFolder);
 
                 // Option to reverse file order when running film in reverse!
+                // Todo find a more universal way to do this
                 if (reverseFileOrder)
                 {
                     Array.Reverse(filesInSourceFolder);
                     filesAreReversed = true;
                 }
+
+                imageSequenceSource = new RAWSequenceSource(getInputFormat(), width, height, getBayerPattern(), filesInSourceFolder);
 
                 loadedSequenceGUIUpdate("[RAW Folder] " + sourceFolder);
 
@@ -1316,6 +1318,8 @@ namespace RawBayer2DNG
                 imageSequenceSource = new DNGSequenceSource(filesInSourceFolder);
 
                 // Option to reverse file order when running film in reverse!
+
+                // TODO make this work again.
                 if (reverseFileOrder)
                 {
                     Array.Reverse(filesInSourceFolder);
