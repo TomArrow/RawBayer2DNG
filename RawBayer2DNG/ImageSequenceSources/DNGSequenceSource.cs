@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using JpegLibrary;
 
 namespace RawBayer2DNG.ImageSequenceSources
 {
@@ -78,6 +79,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                 {
                     rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
                 }
+
             }
         }
 
@@ -98,6 +100,10 @@ namespace RawBayer2DNG.ImageSequenceSources
         {
             return bayerPattern;
         }
+
+        byte[] compressedFileCache;
+        int compressedFileCacheIndex = -1;
+
         override public byte[] getRawImageData(int index)
         {
             using (Tiff input = Tiff.Open(paths[index], "r"))
@@ -111,21 +117,114 @@ namespace RawBayer2DNG.ImageSequenceSources
                     input.SetSubDirectory((long)offsetOfSubIFD);
                 }
 
-                byte[] buffer = new byte[input.StripSize()*input.NumberOfStrips()];
-                int bufferoffset = 0;
-                int stripsize = input.StripSize();
-                int stripcount = input.NumberOfStrips();
-                for (int i = 0; i < stripcount; i++)
+                if (input.IsTiled())
                 {
-                    int read = input.ReadEncodedStrip(i, buffer, bufferoffset, stripsize); // This throws an error with Adobe-created DNG files
-                    if (read == -1)
+
+                    if(compressedFileCacheIndex == index)
                     {
-                        throw new Exception("Error on decoding strip "+i+" of "+input.FileName());
+                        return compressedFileCache;
                     }
 
-                    bufferoffset += read;
+                    int tileWidth = input.GetField(TiffTag.TILEWIDTH)[0].ToInt();
+                    int tileHeight = input.GetField(TiffTag.TILELENGTH)[0].ToInt();
+                    byte[] buffer = new byte[width*height*2];
+                    long tileSize = input.TileSize();
+                    byte[] tileBuff = new byte[tileSize ];
+
+                    JpegDecoder jpegLibraryDecoder = new JpegDecoder();
+
+                    long rawTileSize;
+                    byte[] rawTileBuffer;
+                    int tileIndex;
+                    ReadOnlyMemory<byte> rawTileReadOnlyMemory;
+
+                    int row, col, x, y;
+
+                    for (row = 0; row < height; row += tileHeight)
+                    {
+                        for (col = 0; col < width; col += tileWidth)
+                        {
+
+
+                            // Read the tile
+                            if (input.ReadTile(tileBuff, 0, col, row, 0, 0) < 0)
+                            {
+                                // This means the normal tile reading failed, so we try something else.
+                                tileIndex = input.ComputeTile(col, row, 0, 0);
+                                rawTileSize = input.RawTileSize(tileIndex);
+                                rawTileBuffer = new byte[rawTileSize];
+                                input.ReadRawTile(tileIndex, rawTileBuffer, 0, (int)rawTileSize);
+                                rawTileReadOnlyMemory = new ReadOnlyMemory<byte>(rawTileBuffer);
+                                jpegLibraryDecoder.SetInput(rawTileReadOnlyMemory);
+                                //jpegLibraryDecoder.SetFrameHeader()
+                                jpegLibraryDecoder.Identify(); // fails to identify. missing markers or whatever: Failed to decode JPEG data at offset 91149. No marker found.'
+                                jpegLibraryDecoder.SetOutputWriter(new JpegDecode.JpegBufferOutputWriterGreaterThan8Bit(tileWidth, tileHeight, jpegLibraryDecoder.Precision, 1, tileBuff));
+                                jpegLibraryDecoder.Decode();
+                                //throw new Exception("Error reading data");
+                            }
+
+                            int indexTileStuff = 0;
+
+                            // Iterate the rows in the tile
+                            for (y = row; y < row + tileHeight; y++)
+                            {
+                                if (y >= height) break;
+                                for (x = col;x  < col + tileWidth; x++)
+                                {
+                                    if (x >= width) continue;
+
+                                    buffer[y * width * 2 + x * 2] = tileBuff[(y-row) * tileWidth * 2 + (x-col) * 2];
+                                    buffer[y * width * 2 + x * 2+1] = tileBuff[(y-row) * tileWidth * 2 + (x-col) * 2 +1];
+                                }
+                            }
+                            
+                            /*for (var i = 0; i < tileHeight && i + row < height; i++)
+                            {
+                                var length = tileWidth;
+
+                                // Index of the first position in the row
+                                var position = (row + i) * tileWidth + col;
+
+                                // Check we are not outside the image
+                                if (col + length > width)
+                                {
+                                    length = width - col;
+                                }
+                                for (var p = 0; p < length; p++)
+                                {
+                                    buffer[position + p] = buffer[indexTileStuff * 2 + p * 2];
+                                }
+
+
+                                index += tileWidth;
+
+                            }*/
+                        }
+                    }
+
+                    compressedFileCache = buffer;
+                    compressedFileCacheIndex = index;
+
+                    return buffer;
+                } else
+                {
+                    byte[] buffer = new byte[input.StripSize() * input.NumberOfStrips()];
+                    int bufferoffset = 0;
+                    int stripsize = input.StripSize();
+                    int stripcount = input.NumberOfStrips();
+                    for (int i = 0; i < stripcount; i++)
+                    {
+                        int read = input.ReadEncodedStrip(i, buffer, bufferoffset, stripsize); // This throws an error with Adobe-created DNG files
+                        if (read == -1)
+                        {
+                            throw new Exception("Error on decoding strip " + i + " of " + input.FileName());
+                        }
+
+                        bufferoffset += read;
+                    }
+                    return buffer;
                 }
-                return buffer;
+                
             }
         }
         public override bool imageExists(int index)

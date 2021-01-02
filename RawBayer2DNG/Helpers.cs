@@ -9,7 +9,7 @@ using System.Drawing;
 
 namespace RawBayer2DNG
 {
-    class Helpers
+    static class Helpers
     {
         static public BitmapImage BitmapToImageSource(Bitmap bitmap)
         {
@@ -146,6 +146,12 @@ namespace RawBayer2DNG
         }
 
 
+        public static T Clamp<T>(this T val, T min, T max) where T : IComparable<T>
+        {
+            if (val.CompareTo(min) < 0) return min;
+            else if (val.CompareTo(max) > 0) return max;
+            else return val;
+        }
 
         internal static byte[] DrawBayerPreview(byte[] buff, int height, int width, int srcHeight, int srcWidth, int newStride, int byteDepth, int subsample, bool previewGamma,byte[,] bayerPattern)
         {
