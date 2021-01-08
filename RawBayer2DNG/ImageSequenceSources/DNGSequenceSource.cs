@@ -165,10 +165,11 @@ namespace RawBayer2DNG.ImageSequenceSources
                                 jpegLibraryDecoder.Identify(); // fails to identify. missing markers or whatever: Failed to decode JPEG data at offset 91149. No marker found.'
 
                                 // Hyper messy. Need to give him the wrong width bc reasons... (he thinks its 2 components and only half the width. Whatever I guess)
-                                jpegLibraryDecoder.SetOutputWriter(new JpegDecode.JpegBufferOutputWriterGreaterThan8Bit(tileWidth/2, tileHeight, jpegLibraryDecoder.Precision, 2, tileBuffMessy, 16));
+                                jpegLibraryDecoder.SetOutputWriter(new JpegDecode.JpegBufferOutputWriterGreaterThan8Bit(tileWidth/2, tileHeight, jpegLibraryDecoder.Precision, 2, tileBuff, 16));
                                 jpegLibraryDecoder.Decode();
                                 //throw new Exception("Error reading data");
 
+                                /*
                                 // Translate jpegLibrary-ish to normal bayer stuff (whatever that fucking means)
                                 for(int yTile = 0; yTile < tileHeight; yTile++)
                                 {
@@ -177,7 +178,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                                         tileBuff[yTile * tileWidth *2 + xTile * 2] = tileBuffMessy[yTile * tileWidth *2 + xTile * 2];
                                         tileBuff[yTile * tileWidth *2 + xTile * 2+1] = tileBuffMessy[yTile * tileWidth *2 + xTile * 2+1];
                                     }
-                                }
+                                }*/
                             }
 
                             int indexTileStuff = 0;
