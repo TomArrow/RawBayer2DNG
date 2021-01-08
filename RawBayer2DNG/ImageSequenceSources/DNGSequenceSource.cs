@@ -38,6 +38,8 @@ namespace RawBayer2DNG.ImageSequenceSources
             {
 
 
+                float baselineExposure = input.GetField(TiffTag.BASELINEEXPOSURE) == null ? 0 : input.GetField(TiffTag.BASELINEEXPOSURE)[0].ToFloat();
+
                 // Try to make Adobe DNG work
                 bool subIFDTagExists = input.GetField(TIFFTAG_SUBIFDS) != null;
                 if (subIFDTagExists)
@@ -50,6 +52,7 @@ namespace RawBayer2DNG.ImageSequenceSources
 
                 width = input.GetField(TiffTag.IMAGEWIDTH)[0].ToInt();
                 height = input.GetField(TiffTag.IMAGELENGTH)[0].ToInt();
+                ushort whiteLevel = input.GetField(TiffTag.WHITELEVEL)[0].ToUShortArray()[0];
 
                 // For debugging
                 int[] tagList = new int[input.GetTagListCount()];
@@ -67,12 +70,11 @@ namespace RawBayer2DNG.ImageSequenceSources
                                                 bayerTiffBytes[2],
                                                 bayerTiffBytes[3] } };
                 int bitDepth = input.GetField(TiffTag.BITSPERSAMPLE)[0].ToInt();
-                float baselineExposure = input.GetField(TiffTag.BASELINEEXPOSURE) == null ? 0 : input.GetField(TiffTag.BASELINEEXPOSURE)[0].ToFloat();
 
                 if (bitDepth == 12)
                 {
                     rawDataFormat = RAWDATAFORMAT.TIFF12BITPACKED;
-                } else if(bitDepth == 16 && (int)Math.Round(baselineExposure) == 4)
+                } else if(bitDepth == 16 && ( (int)Math.Round(baselineExposure) == 4 || whiteLevel==4095) ) // White level 4095 is what you get when Adobe DNG converter compresses a 12 bit packed file. It's still a dark capsuled 12 in 16 bit really.
                 {
                     rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
                 } else if(bitDepth == 16 && (int)Math.Round(baselineExposure) == 0)
@@ -122,7 +124,7 @@ namespace RawBayer2DNG.ImageSequenceSources
 
                     if(compressedFileCacheIndex == index)
                     {
-                        return compressedFileCache;
+                        return (byte[])compressedFileCache.Clone();
                     }
 
                     int tileWidth = input.GetField(TiffTag.TILEWIDTH)[0].ToInt();
@@ -220,7 +222,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                         }
                     }
 
-                    compressedFileCache = buffer;
+                    compressedFileCache =(byte[]) buffer.Clone();
                     compressedFileCacheIndex = index;
 
                     return buffer;
