@@ -52,7 +52,7 @@ namespace JpegDecode
 
 
             ref byte destinationRef = ref MemoryMarshal.GetReference(_output.Span);
-            destinationRef = ref Unsafe.Add(ref destinationRef, y * width * componentCount * _outputByteDepth + x * componentCount *_outputByteDepth + componentIndex);
+            destinationRef = ref Unsafe.Add(ref destinationRef, y * width * componentCount * _outputByteDepth + x * componentCount *_outputByteDepth + componentIndex*_outputByteDepth);
 
             /*for (int destY = 0; destY < writeHeight; destY++)
             {
@@ -73,8 +73,9 @@ namespace JpegDecode
                     reinterpreted = Helpers.ReinterpretCast<short, ushort>(Unsafe.Add(ref blockRef, destX));
                     msb = ClampTo8Bit(reinterpreted>>8);
                     lsb = ClampTo8Bit(reinterpreted & byte.MaxValue);
-                    Unsafe.Add(ref destinationRowRef, destX * componentCount*_outputByteDepth) = msb;
-                    Unsafe.Add(ref destinationRowRef, destX * componentCount*_outputByteDepth+1) = lsb;
+                    //if (componentIndex == 0) continue;
+                    Unsafe.Add(ref destinationRowRef, destX * componentCount*_outputByteDepth) = lsb;
+                    Unsafe.Add(ref destinationRowRef, destX * componentCount*_outputByteDepth+1) = msb;
                 }
                 blockRef = ref Unsafe.Add(ref blockRef, 8);
             }

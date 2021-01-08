@@ -130,6 +130,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                     byte[] buffer = new byte[width*height*2];
                     long tileSize = input.TileSize();
                     byte[] tileBuff = new byte[tileSize ];
+                    byte[] tileBuffMessy = new byte[tileSize ];
 
                     JpegDecoder jpegLibraryDecoder = new JpegDecoder();
 
@@ -140,6 +141,8 @@ namespace RawBayer2DNG.ImageSequenceSources
 
                     int row, col, x, y;
 
+                    bool isSOF3Stuff = false;
+
                     for (row = 0; row < height; row += tileHeight)
                     {
                         for (col = 0; col < width; col += tileWidth)
@@ -147,8 +150,9 @@ namespace RawBayer2DNG.ImageSequenceSources
 
 
                             // Read the tile
-                            if (input.ReadTile(tileBuff, 0, col, row, 0, 0) < 0)
+                            if (isSOF3Stuff || input.ReadTile(tileBuff, 0, col, row, 0, 0) < 0)
                             {
+                                isSOF3Stuff = true;
                                 // This means the normal tile reading failed, so we try something else.
                                 tileIndex = input.ComputeTile(col, row, 0, 0);
                                 rawTileSize = input.RawTileSize(tileIndex);
@@ -159,9 +163,21 @@ namespace RawBayer2DNG.ImageSequenceSources
                                 jpegLibraryDecoder.SetInput(rawTileReadOnlyMemory);
                                 //jpegLibraryDecoder.SetFrameHeader()
                                 jpegLibraryDecoder.Identify(); // fails to identify. missing markers or whatever: Failed to decode JPEG data at offset 91149. No marker found.'
-                                jpegLibraryDecoder.SetOutputWriter(new JpegDecode.JpegBufferOutputWriterGreaterThan8Bit(tileWidth, tileHeight, jpegLibraryDecoder.Precision, 1, tileBuff));
+
+                                // Hyper messy. Need to give him the wrong width bc reasons... (he thinks its 2 components and only half the width. Whatever I guess)
+                                jpegLibraryDecoder.SetOutputWriter(new JpegDecode.JpegBufferOutputWriterGreaterThan8Bit(tileWidth/2, tileHeight, jpegLibraryDecoder.Precision, 2, tileBuffMessy, 16));
                                 jpegLibraryDecoder.Decode();
                                 //throw new Exception("Error reading data");
+
+                                // Translate jpegLibrary-ish to normal bayer stuff (whatever that fucking means)
+                                for(int yTile = 0; yTile < tileHeight; yTile++)
+                                {
+                                    for (int xTile = 0; xTile < tileWidth; xTile++)
+                                    {
+                                        tileBuff[yTile * tileWidth *2 + xTile * 2] = tileBuffMessy[yTile * tileWidth *2 + xTile * 2];
+                                        tileBuff[yTile * tileWidth *2 + xTile * 2+1] = tileBuffMessy[yTile * tileWidth *2 + xTile * 2+1];
+                                    }
+                                }
                             }
 
                             int indexTileStuff = 0;
