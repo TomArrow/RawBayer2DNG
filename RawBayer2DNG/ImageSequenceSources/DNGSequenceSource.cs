@@ -154,6 +154,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                                 rawTileSize = input.RawTileSize(tileIndex);
                                 rawTileBuffer = new byte[rawTileSize];
                                 input.ReadRawTile(tileIndex, rawTileBuffer, 0, (int)rawTileSize);
+                                //File.WriteAllBytes("col"+col+"_row"+row+"_sof3.jpg",rawTileBuffer);
                                 rawTileReadOnlyMemory = new ReadOnlyMemory<byte>(rawTileBuffer);
                                 jpegLibraryDecoder.SetInput(rawTileReadOnlyMemory);
                                 //jpegLibraryDecoder.SetFrameHeader()
