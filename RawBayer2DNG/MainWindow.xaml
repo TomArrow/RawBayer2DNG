@@ -129,6 +129,12 @@
                         <Button x:Name="btnLoadDNGFolder" Click="btnLoadDNGFolder_Click">Select folder of .dng files</Button>
                     </StackPanel>
                 </TabItem>
+                <TabItem Header=".cri">
+                    <StackPanel>
+                        <TextBlock TextWrapping="Wrap">Cintel .cri file reading. Limited functionality, non-official implementation. Only uncompressed files.</TextBlock>
+                        <Button x:Name="btnLoadCRIFolder" Click="btnLoadCRIFolder_Click">Select folder of .cri files</Button>
+                    </StackPanel>
+                </TabItem>
             </TabControl>
 
             <GroupBox Header="Exposure settings / HDR">

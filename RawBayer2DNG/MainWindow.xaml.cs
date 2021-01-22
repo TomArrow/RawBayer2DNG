@@ -1331,5 +1331,50 @@ namespace RawBayer2DNG
 
             }
         }
+
+        private void btnLoadCRIFolder_Click(object sender, RoutedEventArgs e)
+        {
+            // reset progress counters
+            CurrentProgress = 0;
+            _counter = 0;
+            var fbd = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog();
+            //  save path as a setting - We typically capture to the same folder every time.
+            if (!string.IsNullOrWhiteSpace(Properties.Settings.Default.InputFolder) && Directory.Exists(Properties.Settings.Default.InputFolder))
+            {
+                fbd.SelectedPath = Properties.Settings.Default.InputFolder;
+            }
+
+            bool? result = fbd.ShowDialog();
+
+            if (result == true && !string.IsNullOrWhiteSpace(fbd.SelectedPath) && Directory.Exists(fbd.SelectedPath))
+            {
+                sourceFolder = fbd.SelectedPath;
+
+                if (targetFolder == null)
+                {
+                    targetFolder = sourceFolder;
+                    txtTargetFolder.Text = targetFolder;
+                }
+                filesInSourceFolder = Directory.GetFiles(fbd.SelectedPath, "*.cri");
+                Array.Sort(filesInSourceFolder, new AlphanumComparatorFast());
+
+
+
+                imageSequenceSource = new CRISequenceSource(filesInSourceFolder);
+
+                // Option to reverse file order when running film in reverse!
+
+                // TODO make this work again.
+                if (reverseFileOrder)
+                {
+                    Array.Reverse(filesInSourceFolder);
+                    filesAreReversed = true;
+                }
+
+                loadedSequenceGUIUpdate("[CRI Folder] " + sourceFolder);
+
+
+            }
+        }
     }
 }

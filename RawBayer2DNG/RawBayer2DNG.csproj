@@ -140,6 +140,7 @@
     <Compile Include="DataFormatConverter.cs" />
     <Compile Include="Helpers.cs" />
     <Compile Include="ImageSequenceSource.cs" />
+    <Compile Include="ImageSequenceSources\CRISequenceSource.cs" />
     <Compile Include="ImageSequenceSources\DNGSequenceSource.cs" />
     <Compile Include="ImageSequenceSources\RAWSequenceSource.cs" />
     <Compile Include="ImageSequenceSources\StreampixSequenceSource.cs" />
