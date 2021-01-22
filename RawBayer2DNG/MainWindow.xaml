@@ -131,6 +131,7 @@
                 </TabItem>
                 <TabItem Header=".cri">
                     <StackPanel>
+                        <TextBlock TextWrapping="Wrap" FontWeight="Black">Caution: This is not production ready and creates broken ugly files.</TextBlock>
                         <TextBlock TextWrapping="Wrap">Cintel .cri file reading. Limited functionality, non-official implementation. Only uncompressed files.</TextBlock>
                         <Button x:Name="btnLoadCRIFolder" Click="btnLoadCRIFolder_Click">Select folder of .cri files</Button>
                     </StackPanel>
