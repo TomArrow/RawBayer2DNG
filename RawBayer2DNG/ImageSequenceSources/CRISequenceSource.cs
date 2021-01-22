@@ -248,7 +248,75 @@ namespace RawBayer2DNG.ImageSequenceSources
 
             if (tagData.ContainsKey((UInt32)Key.FrameData))
             {
-                return tagData[(UInt32)Key.FrameData];
+
+                // Detect compression
+                // Only horizontal tiles are supported so far. Assuming there is no vertical tiling.
+                if (tagData.ContainsKey((UInt32)Key.TileSizes))
+                {
+                    byte[] decodedOutputBuffer = new byte[width*height*2];
+
+                    byte[] tileSizeData = tagData[(UInt32)Key.TileSizes];
+                    int tileCount = tileSizeData.Length / 8; // The tilesizes are saved as Uint64s I think, so dividing by 8 should give the right number.
+
+                    UInt64 totalSizeFromTileSizes = 0;
+                    UInt64[] tileSizes = new UInt64[tileCount];
+                    for(int i = 0; i < tileCount; i++)
+                    {
+                        tileSizes[i] = BitConverter.ToUInt64(tileSizeData,i*8);
+                        totalSizeFromTileSizes += tileSizes[i];
+                    }
+
+                    byte[] compressedData = tagData[(UInt32)Key.FrameData];
+
+
+                    JpegDecoder jpegLibraryDecoder = new JpegDecoder();
+                    ReadOnlyMemory<byte> rawTileReadOnlyMemory;
+
+                    byte[] tmpBuffer;
+                    UInt64 alreadyRead = 0;
+                    UInt32 horizOffset = 0;
+                    foreach(UInt64 tileSize in tileSizes)
+                    {
+                        tmpBuffer = new byte[tileSize];
+
+                        Array.Copy(compressedData, (int)alreadyRead, tmpBuffer,0,(int)tileSize);
+                        alreadyRead += tileSize;
+
+                        rawTileReadOnlyMemory = new ReadOnlyMemory<byte>(tmpBuffer);
+                        jpegLibraryDecoder.SetInput(rawTileReadOnlyMemory);
+                        //jpegLibraryDecoder.SetFrameHeader()
+                        jpegLibraryDecoder.Identify(); // fails to identify. missing markers or whatever: Failed to decode JPEG data at offset 91149. No marker found.'
+
+                        int tileActualWidth = jpegLibraryDecoder.Width/2;
+                        int tileActualHeight = jpegLibraryDecoder.Height*2;
+                        byte[] tileBuff = new byte[jpegLibraryDecoder.Width * jpegLibraryDecoder.Height * 2];
+                        jpegLibraryDecoder.SetOutputWriter(new JpegDecode.JpegBufferOutputWriterGreaterThan8Bit(jpegLibraryDecoder.Width, jpegLibraryDecoder.Height, jpegLibraryDecoder.Precision, 1, tileBuff, 16));
+                        jpegLibraryDecoder.Decode();
+
+                        int actualX;
+                        for (int y = 0; y < tileActualHeight; y++)
+                        {
+                            for (int x = 0; x < tileActualWidth; x++)
+                            {
+                                actualX = (Int32)horizOffset + x;
+                                decodedOutputBuffer[y * width * 2 + actualX * 2] = tileBuff[y*tileActualWidth*2+x*2];
+                                decodedOutputBuffer[y * width * 2 + actualX * 2+1] = tileBuff[y*tileActualWidth*2+x*2+1];
+
+                            }
+                        }
+
+                        horizOffset += (uint)tileActualWidth;
+                    }
+                    return decodedOutputBuffer;
+                } else
+                {
+
+                    // Presuming uncompressed
+                    return tagData[(UInt32)Key.FrameData];
+                }
+
+                //File.WriteAllBytes("rawcri.jpg", tagData[(UInt32)Key.FrameData]);
+                
             }
             else
             {
