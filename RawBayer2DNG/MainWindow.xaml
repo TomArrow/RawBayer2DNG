@@ -32,19 +32,23 @@
                 <StackPanel Width="60">
                     <Label HorizontalAlignment="Center">R</Label>
                     <TextBox TextAlignment="Center" x:Name="txtRAmplify">1</TextBox>
-                    <Slider HorizontalAlignment="Center" x:Name="rAmplify" Maximum="1" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtRAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                    <Slider HorizontalAlignment="Center" x:Name="rAmplify" Maximum="2" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtRAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
                 </StackPanel>
                 <StackPanel Width="60">
                     <Label HorizontalAlignment="Center">G</Label>
                     <TextBox TextAlignment="Center" x:Name="txtGAmplify">1</TextBox>
-                    <Slider HorizontalAlignment="Center" x:Name="gAmplify" Maximum="1" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtGAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                    <Slider HorizontalAlignment="Center" x:Name="gAmplify" Maximum="2" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtGAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
                 </StackPanel>
                 <StackPanel Width="60">
                     <Label HorizontalAlignment="Center">B</Label>
                     <TextBox TextAlignment="Center" x:Name="txtBAmplify">1</TextBox>
-                    <Slider HorizontalAlignment="Center" x:Name="bAmplify" Maximum="1" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtBAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                    <Slider HorizontalAlignment="Center" x:Name="bAmplify" Maximum="2" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtBAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
                 </StackPanel>
             </WrapPanel>
+            <TextBlock TextWrapping="Wrap">Caution: Changing these sliders DOES affect the resulting DNG look, however it does not affect the raw data saved into the DNG, which remains lossless. These sliders affect the AsShotNeutral and ColorMatrix1 TIFF tags. In effect, they are equivalent to applying digital gains during the creation of the .Raw (or other source) data. As long as you open the dng into a linear sRGB space (as you always should with data from this tool), you will retain the raw RGB data from the sensor even when using these sliders. It will merely be scaled/multiplied by the factors set with these sliders.</TextBlock>
+            <TextBlock TextWrapping="Wrap">
+                The benefit of using these sliders as opposed to digital gain during capturing of the raw data is that you retain the 100% lossless sensor data, suffer no potential rounding errors and retain the full dynamic range of each color channel.
+            </TextBlock>
         </StackPanel>
 
         <StackPanel Grid.Column="2">

@@ -56,7 +56,8 @@ namespace RawBayer2DNG
             return newBytes;
         }
 
-        internal static byte[] DrawPreview(byte[] buff, int height, int width, int srcHeight, int srcWidth, int newStride, int byteDepth, int subsample = 4, bool previewGamma = true)
+        // 
+        internal static byte[] DrawPreview(byte[] buff, int height, int width, int srcHeight, int srcWidth, int newStride, int byteDepth, double[] RGBAmplify, int subsample = 4, bool previewGamma = true)
         {
 
             var newBytes = new byte[newStride * height];
@@ -164,7 +165,7 @@ namespace RawBayer2DNG
             else return val;
         }
 
-        internal static byte[] DrawBayerPreview(byte[] buff, int height, int width, int srcHeight, int srcWidth, int newStride, int byteDepth, int subsample, bool previewGamma,byte[,] bayerPattern)
+        internal static byte[] DrawBayerPreview(byte[] buff, int height, int width, int srcHeight, int srcWidth, int newStride, int byteDepth, int subsample, bool previewGamma,byte[,] bayerPattern,double[] RGBAmplify)
         {
 
             byte[] newBytes = new byte[newStride * height];
@@ -176,6 +177,9 @@ namespace RawBayer2DNG
             byte[,] mappedBayer = { { bayerSubstitution[bayerPattern[0,0]],bayerSubstitution[bayerPattern[0,1]] },
                 {bayerSubstitution[bayerPattern[1,0]],bayerSubstitution[bayerPattern[1,1]] } };
 
+            byte[] bayerSubstitutionForAmplify = { 0,1,2 };
+            byte[,] mappedBayerForAmplify = { { bayerSubstitutionForAmplify[bayerPattern[0,0]],bayerSubstitutionForAmplify[bayerPattern[0,1]] },
+                {bayerSubstitutionForAmplify[bayerPattern[1,0]],bayerSubstitutionForAmplify[bayerPattern[1,1]] } };
 
             //
             // Bayer interpreted like this (Variable names)
@@ -189,6 +193,13 @@ namespace RawBayer2DNG
                     double fullValueB = (double)BitConverter.ToUInt16(buff, y * subsample * srcWidth * byteDepth + (x * subsample + 1) * byteDepth) / (double)UInt16.MaxValue;
                     double fullValueC = (double)BitConverter.ToUInt16(buff, (y * subsample + 1) * srcWidth * byteDepth + x * subsample * byteDepth) / (double)UInt16.MaxValue;
                     double fullValueD = (double)BitConverter.ToUInt16(buff, (y * subsample + 1) * srcWidth * byteDepth + (x * subsample + 1) * byteDepth) / (double)UInt16.MaxValue;
+
+                    {// RGB amplify
+                        fullValueA = fullValueA * RGBAmplify[mappedBayerForAmplify[0, 0]];
+                        fullValueB = fullValueB * RGBAmplify[mappedBayerForAmplify[0, 1]];
+                        fullValueC = fullValueC * RGBAmplify[mappedBayerForAmplify[1, 0]];
+                        fullValueD = fullValueD * RGBAmplify[mappedBayerForAmplify[1, 1]];
+                    }
                     if (previewGamma) // converts linear values to sRGB
                     {
                         fullValueA = fullValueA > 0.0031308 ? 1.055 * Math.Pow(fullValueA, 1 / 2.4) - 0.055 : 12.92 * fullValueA;

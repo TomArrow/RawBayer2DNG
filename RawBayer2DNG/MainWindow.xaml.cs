@@ -158,14 +158,15 @@ namespace RawBayer2DNG
                 string fileName = fileNameWithoutExtension + ".dng";
 
                 byte[,] bayerPattern = getBayerPattern();
+                double[]  RGBamplify =  { rAmplify.Value, gAmplify.Value, bAmplify.Value };
 
-                ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, Path.GetFileNameWithoutExtension(ofd.FileName));
+                ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, RGBamplify, Path.GetFileNameWithoutExtension(ofd.FileName));
             }
         }
 
-        
 
-        private void ProcessRAW( byte[] rawImageData,string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, string sourceFileNameForTIFFTag = "")
+
+        private void ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, string sourceFileNameForTIFFTag = "")
         {
 
 
@@ -244,11 +245,12 @@ namespace RawBayer2DNG
 
                 float[] cam_xyz =
                 {
-                3.2404542f, -1.5371385f, -0.4985314f, -0.9692660f, 1.8760108f, 0.0415560f, 0.0556434f,
-                -0.2040259f, 1.0572252f
+                3.2404542f / (float)RGBAmplify[0], -1.5371385f / (float)RGBAmplify[0], -0.4985314f / (float)RGBAmplify[0], 
+                    -0.9692660f / (float)RGBAmplify[1], 1.8760108f / (float)RGBAmplify[1], 0.0415560f / (float)RGBAmplify[1],
+                    0.0556434f / (float)RGBAmplify[2], -0.2040259f / (float)RGBAmplify[2], 1.0572252f / (float)RGBAmplify[2]
             }; // my sRGB hack
                 //float[] cam_xyz =  { 0f, 1f,0f,0f,0f,1f,1f,0f,0f }; // my sRGB hack
-                float[] neutral = { 1f, 1f, 1f }; // my sRGB hack
+                float[] neutral = { 1f / (float)RGBAmplify[0], 1f / (float)RGBAmplify[1], 1f / (float)RGBAmplify[2] }; // my sRGB hack
                 int[] bpp = { 8, 8, 8 }; // my sRGB hack
                 short[] bayerpatterndimensions = { 2, 2 }; // my sRGB hack
                 short[] linearizationTable = new short[256];
@@ -654,12 +656,14 @@ namespace RawBayer2DNG
                 byte[] newbytes;
 
                 byte[,] bayerPattern = imageSequenceSource.getBayerPattern();
+
+                double[] RGBamplify = { rAmplify.Value, gAmplify.Value, bAmplify.Value };
                 if (doPreviewDebayer) {
-                    newbytes = Helpers.DrawBayerPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, subsample,doPreviewGamma,bayerPattern);
+                    newbytes = Helpers.DrawBayerPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, subsample,doPreviewGamma,bayerPattern, RGBamplify);
                 } else
                 {
 
-                    newbytes = Helpers.DrawPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, subsample, doPreviewGamma);
+                    newbytes = Helpers.DrawPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, RGBamplify, subsample, doPreviewGamma);
                 }
 
                 // Draw magnifier rectangle
@@ -681,7 +685,6 @@ namespace RawBayer2DNG
                     );
                 newbytes = Helpers.drawRectangle(newbytes, newWidth, newHeight, positionPreview);
 
-                double[] RGBamplify = { rAmplify.Value, gAmplify.Value, bAmplify.Value };
 
 
 
@@ -857,9 +860,11 @@ namespace RawBayer2DNG
             ShotSettings shotSettings = new ShotSettings();
             int setCount = 0;
 
+            double[] RGBamplify = { 1, 1, 1 };
+
             this.Dispatcher.Invoke(() =>
             {
-
+                RGBamplify = new double[]{ rAmplify.Value, gAmplify.Value, bAmplify.Value };
                 shotSettings = getShotSettings();
                 setCount = getSetCount();
             });
@@ -952,7 +957,7 @@ namespace RawBayer2DNG
                             tmpBuff = DataFormatConverter.convert12paddedto16Inputto16bit(tmpBuff);
                         }
 
-                        ProcessRAW(tmpBuff, currentImage.Value.outputName, bayerPattern, inputFormat, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                        ProcessRAW(tmpBuff, currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
                     } else // HDR
                     {
                         byte[][] buffersForHDR = new byte[3][];
@@ -975,7 +980,7 @@ namespace RawBayer2DNG
                         // For debugging
                         File.WriteAllText("debug.txt","Clipping point: "+shotSettings.clippingPoint+", feather "+shotSettings.featherMultiplier);
 
-                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
                     }
                     
                 });

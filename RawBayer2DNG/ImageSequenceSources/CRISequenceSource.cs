@@ -173,7 +173,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                 isInvalid = true;
             }
 
-
+            /*
             if (tagData.ContainsKey((UInt32)Key.CodecType))
             {
                 tmpValue = tagData[(UInt32)Key.CodecType];
@@ -186,7 +186,7 @@ namespace RawBayer2DNG.ImageSequenceSources
             else
             {
                 isInvalid = true;
-            }
+            }*/
 
             if (isInvalid)
             {
