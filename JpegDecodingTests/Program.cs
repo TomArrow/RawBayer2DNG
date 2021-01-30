@@ -82,7 +82,7 @@ namespace JpegDecodingTests
             }
 
             dng_stream whatever = new dng_stream();
-            DNGLosslessEncoder.EncodeLosslessJPEG(rawReferenceDataUInt16, (uint)tileHeight, (uint)tileWidth/2, 2, 16, tileWidth, 1, whatever);
+            DNGLosslessEncoder.EncodeLosslessJPEG(rawReferenceDataUInt16, (uint)tileHeight, (uint)tileWidth/2, 2, 16, tileWidth, 2, whatever);
 
             File.WriteAllBytes("encodedTest.jpg", whatever.toByteArray());
 
