@@ -67,6 +67,7 @@ namespace RawBayer2DNG
         private static int _counter = 0;
         private static int _totalFiles = 0;
         private bool _compressDng = false;
+        private bool _compressDngLosslessJPEG = true;
         private string _newFileName;
 
 
@@ -231,7 +232,7 @@ namespace RawBayer2DNG
                 output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
                 //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
 
-                if (_compressDng && outputFormat != DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED)
+                if (_compressDng && outputFormat != DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED && !_compressDngLosslessJPEG)
                 { // Sadly combining the ADOBE_DEFLATE compression with 12 bit packing breaks the resulting file.
                     output.SetField(TiffTag.COMPRESSION, Compression.ADOBE_DEFLATE);
                 }
@@ -283,7 +284,26 @@ namespace RawBayer2DNG
                 //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
                 //output.SetField(TiffTag.WHITELEVEL, 1);
 
-                output.WriteEncodedStrip(0, rawImageData, rawImageData.Length);
+                if(outputFormat != DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED && _compressDngLosslessJPEG)
+                {
+                    UInt16[] rawImageDataUInt16 = new UInt16[rawImageData.Length / 2];
+                    for (int i = 0; i < rawImageDataUInt16.Length; i++)
+                    {
+                        rawImageDataUInt16[i] = BitConverter.ToUInt16(rawImageData, i * 2);
+                    }
+
+                    dng_stream compressedJpegData = new dng_stream();
+                    DNGLosslessEncoder.EncodeLosslessJPEG(rawImageDataUInt16, (uint)height, (uint)width / 2, 2, 16, width, 2, compressedJpegData);
+                    byte[] compressedJpegDataByteArray = compressedJpegData.toByteArray();
+
+                    output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
+                    output.WriteRawStrip(0, compressedJpegDataByteArray, compressedJpegDataByteArray.Length);
+                }
+                else
+                {
+
+                    output.WriteEncodedStrip(0, rawImageData, rawImageData.Length);
+                }
             }
                       
         }
@@ -742,6 +762,22 @@ namespace RawBayer2DNG
         {
             // Use IsChecked.
             _compressDng = checkBox.IsChecked.Value;
+        }
+
+        private void CompressDNGLosslessJPEG_Checked(object sender, RoutedEventArgs e)
+        {
+            HandleCompressionLosslessJPEG(sender as CheckBox);
+        }
+
+        private void CompressDNGLosslessJPEG_Unchecked(object sender, RoutedEventArgs e)
+        {
+            HandleCompressionLosslessJPEG(sender as CheckBox);
+        }
+
+        void HandleCompressionLosslessJPEG(CheckBox checkBox)
+        {
+            // Use IsChecked.
+            _compressDngLosslessJPEG = checkBox.IsChecked.Value;
         }
 
         private void ColorBayer_TextChanged(object sender, TextChangedEventArgs e)

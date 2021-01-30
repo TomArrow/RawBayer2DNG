@@ -193,6 +193,7 @@
                 </StackPanel>
             </GroupBox>
             <CheckBox ToolTip="lossless compression" x:Name="compressDNG" IsChecked="False" Checked="CompressDNG_Checked" Unchecked="CompressDNG_Unchecked" Margin="2">Compress DNG (16 bit formats)</CheckBox>
+            <CheckBox ToolTip="lossless JPEG compression" x:Name="compressDNGLosslessJPEG" IsChecked="True" Checked="CompressDNGLosslessJPEG_Checked" Unchecked="CompressDNGLosslessJPEG_Unchecked" Margin="2">Lossless JPEG (16 bit formats)</CheckBox>
 
             <WrapPanel>
                 <TextBlock x:Name="txtMaxThreads">Threads (max: )</TextBlock>

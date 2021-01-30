@@ -53,7 +53,7 @@ using int32 = System.Int32;
 using uint32 = System.UInt32;
 using System.Runtime.CompilerServices;
 
-namespace JpegDecodingTests
+namespace RawBayer2DNG
 {
 
 

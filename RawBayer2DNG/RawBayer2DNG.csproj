@@ -138,6 +138,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="DataFormatConverter.cs" />
+    <Compile Include="DNGLosslessEncoder.cs" />
     <Compile Include="Helpers.cs" />
     <Compile Include="ImageSequenceSource.cs" />
     <Compile Include="ImageSequenceSources\CRISequenceSource.cs" />
