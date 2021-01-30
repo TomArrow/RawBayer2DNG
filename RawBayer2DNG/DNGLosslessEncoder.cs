@@ -813,7 +813,7 @@ namespace RawBayer2DNG
         public void FreqCountSet()
         {
 
-            uint32[][] freqCount = new uint32[4][] {
+            /*uint32[][] This was a mistake and killed efficiency*/ freqCount = new uint32[4][] {
                 new uint32[257],
                 new uint32[257],
                 new uint32[257],

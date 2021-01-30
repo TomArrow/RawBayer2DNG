@@ -813,7 +813,7 @@ namespace JpegDecodingTests
         public void FreqCountSet()
         {
 
-            uint32[][] freqCount = new uint32[4][] {
+            /*uint32[][]*/ freqCount = new uint32[4][] {
                 new uint32[257],
                 new uint32[257],
                 new uint32[257],
