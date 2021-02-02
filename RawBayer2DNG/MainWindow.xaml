@@ -52,6 +52,36 @@
                     <TextBlock TextWrapping="Wrap">Caution: Changing these sliders DOES affect the resulting DNG look, however it does not affect the raw data saved into the DNG, which remains lossless. Channel seperation is likewise maintained when converting the DNG to sRGB.</TextBlock>
                 </StackPanel>
             </GroupBox>
+
+
+            <GroupBox Header="Cropping">
+                <StackPanel>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition></RowDefinition>
+                            <RowDefinition></RowDefinition>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                        </Grid.ColumnDefinitions>
+                        <Label Grid.Row="0" Grid.Column="0">Left</Label>
+                        <TextBox x:Name="cropLeft_txt" Grid.Row="1" Grid.Column="0" TextChanged="crop_txt_TextChanged">0</TextBox>
+                        <Label Grid.Row="0" Grid.Column="1">Top</Label>
+                        <TextBox x:Name="cropTop_txt" Grid.Row="1" Grid.Column="1" TextChanged="crop_txt_TextChanged">0</TextBox>
+                        <Label Grid.Row="0" Grid.Column="2">Right</Label>
+                        <TextBox x:Name="cropRight_txt" Grid.Row="1" Grid.Column="2" TextChanged="crop_txt_TextChanged">0</TextBox>
+                        <Label Grid.Row="0" Grid.Column="3">Bottom</Label>
+                        <TextBox x:Name="cropBottom_txt" Grid.Row="1" Grid.Column="3" TextChanged="crop_txt_TextChanged">0</TextBox>
+                    </Grid>
+                    <TextBlock TextWrapping="Wrap">Caution: Numbers will be rounded to multiples of 2.</TextBlock>
+                    <TextBlock TextWrapping="Wrap">
+                        Caution: This operation is not lossless. The cropped pixels will not be in the output DNG.
+                    </TextBlock>
+                </StackPanel>
+            </GroupBox>
         </StackPanel>
 
         <DockPanel Grid.Column="2" Grid.Row="0">

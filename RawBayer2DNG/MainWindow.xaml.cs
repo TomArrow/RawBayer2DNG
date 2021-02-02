@@ -70,6 +70,7 @@ namespace RawBayer2DNG
         private bool _compressDngLosslessJPEG = true;
         private string _newFileName;
 
+        uint[] cropAmounts = new uint[4];
 
         public enum DNGOUTPUTDATAFORMAT
         {
@@ -161,13 +162,13 @@ namespace RawBayer2DNG
                 byte[,] bayerPattern = getBayerPattern();
                 double[]  RGBamplify =  { rAmplify.Value, gAmplify.Value, bAmplify.Value };
 
-                ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, RGBamplify, Path.GetFileNameWithoutExtension(ofd.FileName));
+                ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, RGBamplify, cropAmounts, Path.GetFileNameWithoutExtension(ofd.FileName));
             }
         }
 
 
 
-        private void ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, string sourceFileNameForTIFFTag = "")
+        private void ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, uint[] cropAmounts, string sourceFileNameForTIFFTag = "")
         {
 
 
@@ -197,6 +198,17 @@ namespace RawBayer2DNG
                 height = imageSequenceSource.getHeight();
                 outputFormat = dngOutputDataFormat;
             });
+
+
+
+            if (cropAmounts[0] != 0 || cropAmounts[1] != 0 || cropAmounts[2] != 0 || cropAmounts[3] != 0)
+            {
+
+                rawImageData = Helpers.cropBuffer16bitMono(rawImageData, (uint)width, (uint)height, cropAmounts);
+                width = (int)(width - cropAmounts[0] - cropAmounts[2]);
+                height = (int)(height - cropAmounts[1] - cropAmounts[3]);
+            }
+
 
             string fileName = targetFilename;
 
@@ -591,7 +603,7 @@ namespace RawBayer2DNG
 
             // Do this to not break functionality with the old algorithm and allow changes on the fly
             // Might change/remove in the future.
-            if(imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
+            if (imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
             {
 
                 int width = int.Parse(rawWidth.Text);
@@ -611,7 +623,7 @@ namespace RawBayer2DNG
             int sliderNumber = (int)slide_currentFile.Value;
             //int index = ;
 
-            int firstIndex = (sliderNumber - 1)*shotSettings.shots.Length + shotSettings.delay;
+            int firstIndex = (sliderNumber - 1) * shotSettings.shots.Length + shotSettings.delay;
 
             bool anythingMissing = false;
             string whatsMissing = "";
@@ -621,7 +633,7 @@ namespace RawBayer2DNG
 
             // Check if all necessary shots exist and add the indizi to an array.
             int thatIndex;
-            for(int i=0;i< shotSettings.shots.Length; i++)
+            for (int i = 0; i < shotSettings.shots.Length; i++)
             {
                 thatIndex = firstIndex + i;
                 if (!imageSequenceSource.imageExists(i))
@@ -661,10 +673,21 @@ namespace RawBayer2DNG
                 int width = imageSequenceSource.getWidth();
                 int height = imageSequenceSource.getHeight();
 
+
+                byte[] buff = HDRMerge(buffersForMerge, shotSettings);
+
+
+                if (cropAmounts[0] != 0 || cropAmounts[1] != 0 || cropAmounts[2] != 0 || cropAmounts[3] != 0)
+                {
+
+                    buff = Helpers.cropBuffer16bitMono(buff, (uint)width, (uint)height, cropAmounts);
+                    width = (int)(width - cropAmounts[0] - cropAmounts[2]);
+                    height = (int)(height - cropAmounts[1] - cropAmounts[3]);
+                }
+
+
                 int newWidth = (int)Math.Ceiling((double)width / subsample);
                 int newHeight = (int)Math.Ceiling((double)height / subsample);
-
-                byte[] buff = HDRMerge(buffersForMerge,shotSettings);
 
                 
 
@@ -917,6 +940,7 @@ namespace RawBayer2DNG
                 setCount = getSetCount();
             });
 
+            uint[] cropAmountsAtBegin = (uint[])cropAmounts.Clone();
 
 
             int firstIndex;
@@ -1005,7 +1029,7 @@ namespace RawBayer2DNG
                             tmpBuff = DataFormatConverter.convert12paddedto16Inputto16bit(tmpBuff);
                         }
 
-                        ProcessRAW(tmpBuff, currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                        ProcessRAW(tmpBuff, currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
                     } else // HDR
                     {
                         byte[][] buffersForHDR = new byte[3][];
@@ -1028,7 +1052,7 @@ namespace RawBayer2DNG
                         // For debugging
                         File.WriteAllText("debug.txt","Clipping point: "+shotSettings.clippingPoint+", feather "+shotSettings.featherMultiplier);
 
-                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
                     }
                     
                 });
@@ -1433,6 +1457,42 @@ namespace RawBayer2DNG
         private void drawScope_check_Click(object sender, RoutedEventArgs e)
         {
 
+        }
+
+        private void crop_txt_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            FrameworkElement textbox = e.Source as FrameworkElement;
+            bool changeDidntHappen = false;
+            switch (textbox.Name)
+            {
+                case "cropLeft_txt":
+                    uint.TryParse(cropLeft_txt.Text, out cropAmounts[0]);
+                    cropAmounts[0] /= 2;
+                    cropAmounts[0] *= 2;
+                    break;
+                case "cropTop_txt":
+                    uint.TryParse(cropTop_txt.Text, out cropAmounts[1]);
+                    cropAmounts[1] /= 2;
+                    cropAmounts[1] *= 2;
+                    break;
+                case "cropRight_txt":
+                    uint.TryParse(cropRight_txt.Text, out cropAmounts[2]);
+                    cropAmounts[2] /= 2;
+                    cropAmounts[2] *= 2;
+                    break;
+                case "cropBottom_txt":
+                    uint.TryParse(cropBottom_txt.Text, out cropAmounts[3]);
+                    cropAmounts[3] /= 2;
+                    cropAmounts[3] *= 2;
+                    break;
+                default:
+                    changeDidntHappen = true;
+                    break;
+            }
+            if (!changeDidntHappen)
+            {
+                ReDrawPreview();
+            }
         }
     }
 }

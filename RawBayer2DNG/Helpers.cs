@@ -364,5 +364,25 @@ namespace RawBayer2DNG
             }
             return newBytes;
         }
+
+        // cropAmounts has to be array of 4 numbers for:left, top, right, bottom.
+        public static byte[] cropBuffer16bitMono(byte[] buffer, uint inputWidth, uint inputHeight, uint[] cropAmounts)
+        {
+
+            uint outputWidth = inputWidth - cropAmounts[0] - cropAmounts[2];
+            uint outputHeight = inputHeight - cropAmounts[1] - cropAmounts[3];
+            byte[] outputBuffer = new byte[2 * outputWidth * outputHeight];
+
+            for (int y = 0; y < outputHeight; y++)
+            {
+                for(int x = 0; x < outputWidth; x++)
+                {
+                    outputBuffer[y * outputWidth * 2 + x * 2] = buffer[(y+cropAmounts[1]) * inputWidth *2 + (x+cropAmounts[0]) * 2];
+                    outputBuffer[y * outputWidth * 2 + x * 2 +1] = buffer[(y+cropAmounts[1]) * inputWidth *2 + (x+cropAmounts[0]) * 2+1];
+                }
+            }
+
+            return outputBuffer;
+        }
     }
 }
