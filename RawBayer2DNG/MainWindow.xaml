@@ -27,11 +27,19 @@
 
             <GroupBox Header="RGB color balance"  ToolTip="{StaticResource ResourceKey=Tooltip_Magnifier_Sliders}">
                 <StackPanel>
-                    <Label>Magnifier Horizontal Position:</Label>
-                    <Slider x:Name="magnifierHorizontalPosition" Maximum="1" Minimum="0" Value="0.5" ValueChanged="MagnifierPosition_ValueChanged"></Slider>
-                    <Label>Magnifier Vertical Position:</Label>
-                    <Slider x:Name="magnifierVerticalPosition" Maximum="1" Minimum="0" Value="0.5" ValueChanged="MagnifierPosition_ValueChanged"></Slider>
-                    <Image x:Name="Magnifier"></Image>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <Label>Magnifier Horizontal Position:</Label>
+                            <Slider x:Name="magnifierHorizontalPosition" Maximum="1" Minimum="0" Value="0.5" ValueChanged="MagnifierPosition_ValueChanged"></Slider>
+                            <Label>Magnifier Vertical Position:</Label>
+                            <Slider x:Name="magnifierVerticalPosition" Maximum="1" Minimum="0" Value="0.5" ValueChanged="MagnifierPosition_ValueChanged"></Slider>
+                        </StackPanel>
+                        <Image x:Name="Magnifier" Grid.Column="1" Stretch="Uniform"></Image>
+                    </Grid>
                     <WrapPanel>
                         <StackPanel Width="60">
                             <Label HorizontalAlignment="Center">R</Label>
