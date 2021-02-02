@@ -686,6 +686,17 @@ namespace RawBayer2DNG
                     newbytes = Helpers.DrawPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, RGBamplify, subsample, doPreviewGamma);
                 }
 
+                // Draw scope
+                int scopeWidth = (int)scopeDockPanel.ActualWidth;
+                int scopeHeight = (int)scopeDockPanel.ActualHeight;
+                int newStrideScope = Helpers.getStride(scopeWidth*3);
+                byte[] scopeBytes;
+                scopeBytes = Helpers.DrawScope(buff, scopeHeight, scopeWidth, height, width, newStrideScope, byteDepth, subsample, doPreviewGamma, bayerPattern, RGBamplify);
+                Bitmap scopeImage = new Bitmap(scopeWidth, scopeHeight, Imaging.PixelFormat.Format24bppRgb);
+                Imaging.BitmapData scopePixelData = scopeImage.LockBits(new Rectangle(0, 0, scopeWidth, scopeHeight), Imaging.ImageLockMode.WriteOnly, Imaging.PixelFormat.Format24bppRgb);
+                System.Runtime.InteropServices.Marshal.Copy(scopeBytes, 0, scopePixelData.Scan0, scopeBytes.Count());
+                scopeImage.UnlockBits(scopePixelData);
+
                 // Draw magnifier rectangle
                 // Position values are in percent from 0 to 1
                 // Explanation: value 0 means left edge at left image border. value 1 means right edge at right image border.
@@ -731,6 +742,7 @@ namespace RawBayer2DNG
                 magnifierArea = Helpers.ResizeBitmapNN(magnifierArea, 200, 200);
 
                 // Do the displaying
+                mainPreviewScope.Source = Helpers.BitmapToImageSource(scopeImage);
                 mainPreview.Source = Helpers.BitmapToImageSource(manipulatedImage);
                 Magnifier.Source = Helpers.BitmapToImageSource(magnifierArea);
             }
@@ -1416,6 +1428,11 @@ namespace RawBayer2DNG
 
 
             }
+        }
+
+        private void drawScope_check_Click(object sender, RoutedEventArgs e)
+        {
+
         }
     }
 }

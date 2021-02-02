@@ -2,6 +2,30 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:RawBayer2DNG">
     
+    <!-- Magnifier color balance sliders -->
+    <ToolTip x:Key="Tooltip_Magnifier_Sliders" ToolTipService.ShowDuration="2000000000">
+        <StackPanel MaxWidth="500">
+            <WrapPanel>
+                <Image Source="images/Question_16x.png" Margin="0,0,5,0" Stretch="None" />
+                <StackPanel>
+                    <TextBlock FontWeight="Bold" FontSize="14" Margin="0,0,0,0">RGB Balance sliders</TextBlock>
+                    <TextBlock FontStyle="Italic">Lossless raw color balance</TextBlock>
+                    <TextBlock FontWeight="Bold">Does not affect raw data, which remains lossless</TextBlock>
+                    <TextBlock FontWeight="Bold">Does not affect channel separation</TextBlock>
+                    <TextBlock FontWeight="Bold">Does affect metadata in the DNG output</TextBlock>
+                </StackPanel>
+            </WrapPanel>
+            <Border BorderBrush="Silver" BorderThickness="0,1,0,0" Margin="0,8" />
+            <TextBlock TextWrapping="Wrap">
+                These sliders affect the AsShotNeutral and ColorMatrix1 TIFF tags. In effect, they are equivalent to applying digital gains during the creation of the .Raw (or other source) data. As long as you open the dng into a linear sRGB space (as you always should with data from this tool), you will retain the raw RGB data from the sensor even when using these sliders. It will merely be scaled/multiplied by the factors set with these sliders.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>The benefit of using these sliders as opposed to digital gain during capturing of the raw data is that you retain the 100% lossless sensor data, suffer no potential rounding errors and retain the full dynamic range of each color channel.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>Channel seperation is maintained when converting the DNG to sRGB.
+            </TextBlock>
+        </StackPanel>
+    </ToolTip>
+    
     <!-- sRGB gamma preview setting explanation -->
     <ToolTip x:Key="Tooltip_Preview_sRGBGamma" ToolTipService.ShowDuration="2000000000">
         <StackPanel MaxWidth="500">

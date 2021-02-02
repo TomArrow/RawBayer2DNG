@@ -6,52 +6,55 @@
         xmlns:local="clr-namespace:RawBayer2DNG"
         mc:Ignorable="d"
         DataContext="{Binding RelativeSource={RelativeSource Self}}"
-        Title="RawBayer2DNG" Height="850" Width="1000">
+        Title="RawBayer2DNG" Height="850" Width="1300">
 
 
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition></RowDefinition>
+            <RowDefinition Height="350"></RowDefinition>
             <RowDefinition Height="20">
             </RowDefinition>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="57"></ColumnDefinition>
-            <ColumnDefinition Width="143"/>
+            <ColumnDefinition Width="193"/>
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition Width="200"></ColumnDefinition>
+            <ColumnDefinition Width="200"></ColumnDefinition>
         </Grid.ColumnDefinitions>
-        <StackPanel Grid.Column="0" Grid.ColumnSpan="2">
+        <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.RowSpan="2">
 
-            <Label>Magnifier Horizontal Position:</Label>
-            <Slider x:Name="magnifierHorizontalPosition" Maximum="1" Minimum="0" Value="0.5" ValueChanged="MagnifierPosition_ValueChanged"></Slider>
-            <Label>Magnifier Vertical Position:</Label>
-            <Slider x:Name="magnifierVerticalPosition" Maximum="1" Minimum="0" Value="0.5" ValueChanged="MagnifierPosition_ValueChanged"></Slider>
-            <Image x:Name="Magnifier"></Image>
-            <WrapPanel>
-                <StackPanel Width="60">
-                    <Label HorizontalAlignment="Center">R</Label>
-                    <TextBox TextAlignment="Center" x:Name="txtRAmplify">1</TextBox>
-                    <Slider HorizontalAlignment="Center" x:Name="rAmplify" Maximum="2" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtRAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+            <GroupBox Header="RGB color balance"  ToolTip="{StaticResource ResourceKey=Tooltip_Magnifier_Sliders}">
+                <StackPanel>
+                    <Label>Magnifier Horizontal Position:</Label>
+                    <Slider x:Name="magnifierHorizontalPosition" Maximum="1" Minimum="0" Value="0.5" ValueChanged="MagnifierPosition_ValueChanged"></Slider>
+                    <Label>Magnifier Vertical Position:</Label>
+                    <Slider x:Name="magnifierVerticalPosition" Maximum="1" Minimum="0" Value="0.5" ValueChanged="MagnifierPosition_ValueChanged"></Slider>
+                    <Image x:Name="Magnifier"></Image>
+                    <WrapPanel>
+                        <StackPanel Width="60">
+                            <Label HorizontalAlignment="Center">R</Label>
+                            <TextBox TextAlignment="Center" x:Name="txtRAmplify">1</TextBox>
+                            <Slider HorizontalAlignment="Center" x:Name="rAmplify" Maximum="3" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtRAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                        </StackPanel>
+                        <StackPanel Width="60">
+                            <Label HorizontalAlignment="Center">G</Label>
+                            <TextBox TextAlignment="Center" x:Name="txtGAmplify">1</TextBox>
+                            <Slider HorizontalAlignment="Center" x:Name="gAmplify" Maximum="3" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtGAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                        </StackPanel>
+                        <StackPanel Width="60">
+                            <Label HorizontalAlignment="Center">B</Label>
+                            <TextBox TextAlignment="Center" x:Name="txtBAmplify">1</TextBox>
+                            <Slider HorizontalAlignment="Center" x:Name="bAmplify" Maximum="3" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtBAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                        </StackPanel>
+                    </WrapPanel>
+                    <TextBlock TextWrapping="Wrap">Caution: Changing these sliders DOES affect the resulting DNG look, however it does not affect the raw data saved into the DNG, which remains lossless. Channel seperation is likewise maintained when converting the DNG to sRGB.</TextBlock>
                 </StackPanel>
-                <StackPanel Width="60">
-                    <Label HorizontalAlignment="Center">G</Label>
-                    <TextBox TextAlignment="Center" x:Name="txtGAmplify">1</TextBox>
-                    <Slider HorizontalAlignment="Center" x:Name="gAmplify" Maximum="2" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtGAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
-                </StackPanel>
-                <StackPanel Width="60">
-                    <Label HorizontalAlignment="Center">B</Label>
-                    <TextBox TextAlignment="Center" x:Name="txtBAmplify">1</TextBox>
-                    <Slider HorizontalAlignment="Center" x:Name="bAmplify" Maximum="2" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtBAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
-                </StackPanel>
-            </WrapPanel>
-            <TextBlock TextWrapping="Wrap">Caution: Changing these sliders DOES affect the resulting DNG look, however it does not affect the raw data saved into the DNG, which remains lossless. These sliders affect the AsShotNeutral and ColorMatrix1 TIFF tags. In effect, they are equivalent to applying digital gains during the creation of the .Raw (or other source) data. As long as you open the dng into a linear sRGB space (as you always should with data from this tool), you will retain the raw RGB data from the sensor even when using these sliders. It will merely be scaled/multiplied by the factors set with these sliders.</TextBlock>
-            <TextBlock TextWrapping="Wrap">
-                The benefit of using these sliders as opposed to digital gain during capturing of the raw data is that you retain the 100% lossless sensor data, suffer no potential rounding errors and retain the full dynamic range of each color channel.
-            </TextBlock>
+            </GroupBox>
         </StackPanel>
 
-        <StackPanel Grid.Column="2">
+        <DockPanel Grid.Column="2" Grid.Row="0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="81*"/>
@@ -70,10 +73,13 @@
                     </WrapPanel>
                     <Slider VerticalAlignment="Bottom"  Name="slide_currentFile" Value="{Binding ElementName=currentImagNumber,Path=Text,Mode=TwoWay}" Maximum="0" Minimum="0" TickPlacement="BottomRight" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="1" ValueChanged="Slide_currentFile_ValueChanged" ></Slider>
                 </StackPanel>
-                <Image Grid.Row="1" x:Name="mainPreview" MinHeight="300" Grid.ColumnSpan="2"></Image>
+                <Image Grid.Row="1" x:Name="mainPreview" MinHeight="300" Grid.ColumnSpan="2" Stretch="Uniform"></Image>
             </Grid>
-        </StackPanel>
-        <StackPanel Grid.Column="3">
+        </DockPanel>
+        <DockPanel Grid.Column="2" Grid.Row="1" Name="scopeDockPanel">
+                <Image Grid.Row="1" x:Name="mainPreviewScope" Grid.ColumnSpan="2"></Image>
+        </DockPanel>
+        <StackPanel Grid.Column="3"  Grid.RowSpan="2">
 
             <TabControl>
                 <TabItem Header=".raw">
@@ -182,6 +188,12 @@
 
             <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_Debayer}" x:Name="previewDebayer" Click="PreviewDebayer_Click" Margin="2" IsChecked="True">Preview debayer</CheckBox>
             <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_sRGBGamma}" x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click" Margin="2">Preview with sRGB gamma</CheckBox>
+            <CheckBox x:Name="drawScope_check" IsChecked="True" Click="drawScope_check_Click" Margin="2" IsEnabled="False">Draw scope</CheckBox>
+
+        </StackPanel>
+        <StackPanel Grid.Column="4" Grid.RowSpan="2">
+            
+
             <GroupBox Header="DNG output data format">
                 <StackPanel>
 
@@ -222,12 +234,10 @@
                     <TextBlock x:Name="txtTargetFolder" TextWrapping="Wrap"></TextBlock>
                 </WrapPanel>
             </StackPanel>
-            <ProgressBar x:Name="pbStatus" Height="20" Value="{Binding CurrentProgress, Mode=OneWay}"/>
-
         </StackPanel>
 
-
-        <TextBlock x:Name="txtStatus" Grid.Row="1" Grid.ColumnSpan="3">Idle.</TextBlock>
+        <TextBlock x:Name="txtStatus" Grid.Row="2" Grid.ColumnSpan="3">Idle.</TextBlock>
+        <ProgressBar x:Name="pbStatus" Height="20"  Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="2" Value="{Binding CurrentProgress, Mode=OneWay}"/>
     </Grid>
 </Window>
 
