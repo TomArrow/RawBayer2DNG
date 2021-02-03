@@ -224,7 +224,7 @@
                     <Button ToolTip="Analyze correct exposure settings based on current frame set." x:Name="analyzeHDR_btn" Click="analyzeHDR_btn_Click">Refine exposures</Button>
                     <WrapPanel>
                         <Label>Refine precision bits</Label>
-                        <TextBox x:Name="analysisPrecision_txt" Width="40">6</TextBox>
+                        <TextBox x:Name="analysisPrecision_txt" Width="40">8</TextBox>
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>

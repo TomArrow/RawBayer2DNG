@@ -1050,7 +1050,7 @@ namespace RawBayer2DNG
                         }
 
                         // For debugging
-                        File.WriteAllText("debug.txt","Clipping point: "+shotSettings.clippingPoint+", feather "+shotSettings.featherMultiplier);
+                        //File.WriteAllText("debug.txt","Clipping point: "+shotSettings.clippingPoint+", feather "+shotSettings.featherMultiplier);
 
                         ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
                     }
