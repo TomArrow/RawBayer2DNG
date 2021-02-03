@@ -1494,5 +1494,274 @@ namespace RawBayer2DNG
                 ReDrawPreview();
             }
         }
+
+        private void analyzeHDR_btn_Click(object sender, RoutedEventArgs e)
+        {
+            if (imageSequenceSource == null)
+            {
+                return; // Nothing to do here
+            }
+
+            double analysisPrecisionLimitMultiplier = 16;
+            double.TryParse(analysisPrecision_txt.Text, out analysisPrecisionLimitMultiplier);
+            analysisPrecisionLimitMultiplier = Math.Pow(2, analysisPrecisionLimitMultiplier);
+
+            // Do this to not break functionality with the old algorithm and allow changes on the fly
+            // Might change/remove in the future.
+            if (imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
+            {
+
+                int width = int.Parse(rawWidth.Text);
+                int height = int.Parse(rawHeight.Text);
+                ((RAWSequenceSource)imageSequenceSource).width = width;
+                ((RAWSequenceSource)imageSequenceSource).height = height;
+                RAWDATAFORMAT inputFormat = getInputFormat();
+
+                ((RAWSequenceSource)imageSequenceSource).rawDataFormat = inputFormat;
+            }
+
+            bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
+            bool doPreviewGamma = (bool)previewGamma.IsChecked;
+
+            ShotSettings shotSettings = getShotSettings();
+
+            int sliderNumber = (int)slide_currentFile.Value;
+            //int index = ;
+
+            int firstIndex = (sliderNumber - 1) * shotSettings.shots.Length + shotSettings.delay;
+
+            bool anythingMissing = false;
+            string whatsMissing = "";
+
+            int[] indiziForMerge = new int[shotSettings.shots.Length];
+            byte[][] buffersForMerge = new byte[shotSettings.shots.Length][];
+
+            // Check if all necessary shots exist and add the indizi to an array.
+            int thatIndex;
+            for (int i = 0; i < shotSettings.shots.Length; i++)
+            {
+                thatIndex = firstIndex + i;
+                if (!imageSequenceSource.imageExists(i))
+                {
+                    anythingMissing = true;
+                    whatsMissing = imageSequenceSource.getImageName(i);
+                    break;
+                }
+                else
+                {
+                    indiziForMerge[i] = thatIndex;
+                    buffersForMerge[i] = imageSequenceSource.getRawImageData(thatIndex);
+                    // Convert to 16 bit if necessary
+                    if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYERRG12p)
+                    {
+                        buffersForMerge[i] = DataFormatConverter.convert12pInputto16bit(buffersForMerge[i]);
+                    }
+                    if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
+                    {
+                        buffersForMerge[i] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForMerge[i]);
+                    }
+                }
+            }
+
+            //string selectedRawFile = filesInSourceFolder[index];
+            if (anythingMissing)
+            {
+                MessageBox.Show("weirdo error, apparently image " + whatsMissing + " (no longer?) exists");
+                return;
+            } else
+            {
+                ShotSettings correctExposureSettings = HDRAnalyzeRefine(buffersForMerge, shotSettings, analysisPrecisionLimitMultiplier);
+                double[] multipliersOrdered = new double[correctExposureSettings.shots.Length];
+
+                foreach (ShotSettingBayer shotSetting in correctExposureSettings.shots)
+                {
+                    multipliersOrdered[shotSetting.orderIndex] = Math.Round( shotSetting.exposureMultiplier,2);
+                }
+                string output = "Based on the current frame set ("+sliderNumber + ") the following exposure settings were found to be the best fit: "+Environment.NewLine;
+                int index = 0;
+                foreach(double multiplier in multipliersOrdered)
+                {
+                    output += Environment.NewLine;
+                    output += "E*"+ multiplier;
+                }
+                output += Environment.NewLine + Environment.NewLine + "Would you like to apply these settings and overwrite your own?";
+                if (MessageBox.Show(output, "", MessageBoxButton.YesNoCancel) == MessageBoxResult.Yes)
+                {
+                    for(int i = 0; i < multipliersOrdered.Length; i++)
+                    {
+                        string theString = "E*" + multipliersOrdered[i];
+                        switch (i)
+                        {
+                            case 0:
+                                exposureA.Text = theString;
+                                break;
+                            case 1:
+                                exposureB.Text = theString;
+                                break;
+                            case 2:
+                                exposureC.Text = theString;
+                                break;
+                            case 3:
+                                exposureD.Text = theString;
+                                break;
+                            case 4:
+                                exposureE.Text = theString;
+                                break;
+                            case 5:
+                                exposureF.Text = theString;
+                                break;
+                            default:
+                                throw new Exception("wtf");
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+
+
+        struct AverageData
+        {
+            public double value;
+            public double divisor;
+        }
+
+        private ShotSettings HDRAnalyzeRefine(byte[][] buffers, ShotSettings shotSettings, double analysisPrecisionLimitMultiplier)
+        {
+
+            ShotSettings refinedShotSettings = new ShotSettings();
+            refinedShotSettings.delay = shotSettings.delay;
+            refinedShotSettings.clippingPoint = shotSettings.clippingPoint;
+            refinedShotSettings.featherMultiplier = shotSettings.featherMultiplier;
+            refinedShotSettings.shots = new ShotSettingBayer[shotSettings.shots.Length];
+
+
+            double maxValueToAnalyze = 1/ analysisPrecisionLimitMultiplier;  // This is about avoiding noise or low values distorting the calculated value
+
+            // Fast skip for non HDR
+            // Shouldn't really be necessary because it should be caught outside during normal raw processing. This might speed up the preview though.
+            if (buffers.Length == 1 && shotSettings.shots.Length == 1)
+            {
+                return shotSettings;
+            }
+
+            float clippingPoint = shotSettings.clippingPoint;
+            float featherMultiplier = shotSettings.featherMultiplier;
+
+            float featherBottomIntensity = clippingPoint;
+            float featherRange = 0;
+            if (featherMultiplier != 1)
+            {
+                featherBottomIntensity *= featherMultiplier;
+                featherRange = clippingPoint - featherBottomIntensity;
+            }
+
+            byte[] outputBuffer = new byte[buffers[0].Length];
+
+            int singleBufferLength = buffers[0].Length;
+
+            //double maxValue = 0;
+
+            //double Uint16MaxValueDouble = (double)UInt16.MaxValue;
+            float Uint16MaxValueFloat = (float)UInt16.MaxValue;
+
+
+            // Do one color after another
+            //for (var colorIndex = 0; colorIndex < 3; colorIndex++)
+
+
+            Vector2 Uint16Divider = new Vector2();
+            float thisMultiplierMultiplier;
+            int thisIndex;
+            ShotSettingBayer thisShotSetting;
+            float effectiveMultiplier;
+            float currentOutputValue;
+            float currentInputValue;
+            float lastInputValue;
+            bool isClipping;
+            UInt16 finalValue;
+            float inputIntensity;
+            float tmpValue;
+            byte[] sixteenbitbytes;
+
+
+            thisIndex = 0;
+            thisMultiplierMultiplier = 1;
+            for (var shotSettingIndex = 0; shotSettingIndex < shotSettings.shots.Length; shotSettingIndex++)
+            {
+                refinedShotSettings.shots[shotSettingIndex].orderIndex = shotSettings.shots[shotSettingIndex].orderIndex;
+                thisShotSetting = shotSettings.shots[shotSettingIndex];
+
+                // first image of each set just has its buffer copied for speed reasons
+                if (thisIndex == 0)
+                {
+                    //outputBuffer = buffers[thisShotSetting.orderIndex];
+                    // The darkest image's multiplier should technically be 1 by default. But if it isn't, we use this to normalize the following images.
+                    // For example, if the darkest image multiplier is 2, we record the "multiplier multiplier" as 0.5, as we aren't actually multiplying this image data by 2
+                    // and as a result we need to reduce the image multiplier of following images by multiplying it with 0.5.
+                    thisMultiplierMultiplier = 1 / thisShotSetting.exposureMultiplier;
+                    refinedShotSettings.shots[shotSettingIndex].exposureMultiplier = thisMultiplierMultiplier;
+                }
+
+                // Do actual HDR merging
+                else
+                {
+
+
+                    AverageData averageShotMultiplier = new AverageData();
+
+                    for (var i = 0; i < singleBufferLength; i += 2) // 16 bit steps
+                    {
+                        // Comments:
+                        // You might want to use Buffer.BlockCopy to convert the array from raw bytes to unsigned shorts
+                        // https://markheath.net/post/how-to-convert-byte-to-short-or-float
+                        // Or: Span<ushort> a = MemoryMarshal.Cast<byte, ushort>(data)
+                        // https://markheath.net/post/span-t-audio
+                        Uint16Divider.X = (float)BitConverter.ToUInt16(buffers[shotSettings.shots[shotSettingIndex-1].orderIndex], i);
+                        Uint16Divider.Y = (float)BitConverter.ToUInt16(buffers[thisShotSetting.orderIndex], i);
+
+
+                        /*currentOutputValue = (double)BitConverter.ToUInt16(outputBuffers[colorIndex], i) / Uint16MaxValueDouble;
+                        currentInputValue = (double)BitConverter.ToUInt16(buffers[thisShotSetting.orderIndex], i) / Uint16MaxValueDouble;*/
+                        Uint16Divider = Vector2.Divide(Uint16Divider, Uint16MaxValueFloat);
+                        lastInputValue = Uint16Divider.X;
+                        currentInputValue = Uint16Divider.Y;
+
+
+
+                        //if (currentInputValue > maxValue) { maxValue = currentInputValue; }
+                        isClipping = currentInputValue > clippingPoint;
+                        if (!isClipping && lastInputValue != 0 && currentInputValue != 0 && lastInputValue > maxValueToAnalyze && currentInputValue > maxValueToAnalyze) // zero will lead to division by zero -> bad.
+                        {
+
+                            averageShotMultiplier.value += currentInputValue / lastInputValue;
+                            averageShotMultiplier.divisor += 1;
+                            //finalValue = 0;
+                            //currentInputValue /= effectiveMultiplier;
+                            //finalValue = (UInt16)Math.Round(currentInputValue * Uint16MaxValueFloat);
+
+                            //sixteenbitbytes = BitConverter.GetBytes(finalValue);
+                            //outputBuffer[i] = sixteenbitbytes[0];
+                            //outputBuffer[i + 1] = sixteenbitbytes[1];
+                        }
+                    }
+
+                    refinedShotSettings.shots[shotSettingIndex].exposureMultiplier = thisMultiplierMultiplier * (float)(averageShotMultiplier.value / averageShotMultiplier.divisor);
+
+
+                    thisMultiplierMultiplier = thisMultiplierMultiplier * refinedShotSettings.shots[shotSettingIndex].exposureMultiplier;
+                }
+                thisIndex++;
+
+            }
+
+
+
+
+            //MessageBox.Show(maxValue.ToString());
+
+            return refinedShotSettings;
+        }
+
     }
 }

@@ -221,6 +221,11 @@
                         <Label>"Feather stops"</Label>
                         <TextBox x:Name="featherStops_txt" MinWidth="30">0</TextBox>
                     </WrapPanel>
+                    <Button ToolTip="Analyze correct exposure settings based on current frame set." x:Name="analyzeHDR_btn" Click="analyzeHDR_btn_Click">Refine exposures</Button>
+                    <WrapPanel>
+                        <Label>Refine precision bits</Label>
+                        <TextBox x:Name="analysisPrecision_txt" Width="40">6</TextBox>
+                    </WrapPanel>
                 </StackPanel>
             </GroupBox>
 
