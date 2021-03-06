@@ -83,6 +83,25 @@ namespace RawBayer2DNG
             return input;
         }
 
+        public static byte[] convert16bitIntermediateToDarkIn16bitWithLinLogV1(byte[] input, double parameterA)
+        {
+            int inputlengthBytes = input.Length;
+
+            double tmpValue;
+            UInt16 tmpValue2;
+            byte[] tmpValue2Bytes;
+            for (int i = 0; i < inputlengthBytes; i += 2)
+            {
+                tmpValue = BitConverter.ToUInt16(input,i);
+                tmpValue2 = (UInt16)Math.Min(UInt16.MaxValue,Math.Max(0, Math.Round(Math.Log(parameterA * tmpValue + 1, parameterA + 1))));
+                tmpValue2Bytes = BitConverter.GetBytes(tmpValue2);
+                input[i] = tmpValue2Bytes[0];
+                input[i+1] = tmpValue2Bytes[1];
+            }
+
+            return input;
+        }
+
 
         // Guessing...
         public static byte[] convert16BitIntermediateToTiffPacked12BitOutput(byte[] input)

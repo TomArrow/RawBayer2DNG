@@ -244,7 +244,9 @@
                         <RadioButton x:Name="output_12bitPacked_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitpacked}">12 bit packed</RadioButton>
                         <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsChecked="True" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitdarkcapsuled}">12 bit dark in 16bit</RadioButton>
                         <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitbrightcapsuled}">12 bit bright in 16bit / HDR</RadioButton>
-                        <RadioButton x:Name="output_16bitBrightCapsuledGamma10Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 16-in-10 (HDR) (unfinished)</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledGamma10Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 16-in-10 (HDR) Gamma</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog10Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 16-in-10 (HDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog8Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 16-in-8 (HDR) LinLog</RadioButton>
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>

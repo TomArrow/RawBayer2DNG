@@ -92,7 +92,10 @@ namespace RawBayer2DNG
             // Result for 16 to 12 bit: 0.749979015407929. Actual gamma thus being 1/0.749979015407929 = 1.3333706403186221
             // Result for 16 to 10 bit: Math.Log(1/(Math.Pow(2,10)-1)) / Math.Log(1/(Math.Pow(2,16)-1)) = 0.62491276165886922 or 1.6002233613303698. So pretty much 1.6
             BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO12BIT,
-            BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT
+            BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT,
+
+            BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT,
+            BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT
         };
 
         DNGOUTPUTDATAFORMAT dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
@@ -246,6 +249,11 @@ namespace RawBayer2DNG
                 bool lossyGammaModeEnabled = false;
                 double lossyGammaModeGamma = 1;
                 int lossyGammaModeOutputBitDepth = 16;
+
+                bool lossyLinLogModeEnabled = false;
+                double lossyLinLogModeParameterA = 1;
+                int lossyLinLogModeOutputBitDepth = 16;
+
                 if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT)
                 {
                 } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT)
@@ -254,6 +262,18 @@ namespace RawBayer2DNG
                     lossyGammaModeOutputBitDepth = 10;
                     lossyGammaModeGamma = Math.Log(1 / (Math.Pow(2, 10) - 1)) / Math.Log(1 / (Math.Pow(2, 16) - 1));
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithGamma(rawImageData,10, lossyGammaModeGamma);
+                } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT)
+                {
+                    lossyLinLogModeEnabled = true;
+                    lossyLinLogModeOutputBitDepth = 8;
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,8);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA);
+                }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT)
+                {
+                    lossyLinLogModeEnabled = true;
+                    lossyLinLogModeOutputBitDepth = 10;
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,10);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA);
                 } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED)
                 {
                     output.SetField(TiffTag.BITSPERSAMPLE, 12);
@@ -279,6 +299,20 @@ namespace RawBayer2DNG
                         tmpValue = (double)i / (double)outputMaxValue;
                         tmpValue = Math.Pow(tmpValue, invertedGamma) * (double)UInt16.MaxValue;
                         linearizationTable[(Int16)i] = (UInt16)Math.Max(0,Math.Min(UInt16.MaxValue, Math.Round(tmpValue))); 
+                    }
+
+                    output.SetField(TiffTag.LINEARIZATIONTABLE, Int16.MaxValue, linearizationTable);
+                }
+                if (lossyLinLogModeEnabled)
+                {
+
+                    UInt16 outputMaxValue = (UInt16)(Math.Pow(2, lossyLinLogModeOutputBitDepth) - 1);
+                    UInt16[] linearizationTable = new UInt16[outputMaxValue+1];
+
+                    for(int i=0;i<= outputMaxValue; i++)
+                    {
+
+                        linearizationTable[(Int16)i] = (UInt16)Math.Max(0, Math.Min(UInt16.MaxValue, Math.Round(LinLogLutilityClassifiedV1.LogToLin(i, lossyLinLogModeParameterA))));
                     }
 
                     output.SetField(TiffTag.LINEARIZATIONTABLE, Int16.MaxValue, linearizationTable);
@@ -1262,6 +1296,12 @@ namespace RawBayer2DNG
                     break;
                 case "output_16bitBrightCapsuledGamma10Bit_radio":
                     dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT;
+                    break;
+                case "output_16bitBrightCapsuledLinLog10Bit_radio":
+                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT;
+                    break;
+                case "output_16bitBrightCapsuledLinLog8Bit_radio":
+                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT;
                     break;
                 case "output_16bitBrightCapsuled_radio":
                 default:
