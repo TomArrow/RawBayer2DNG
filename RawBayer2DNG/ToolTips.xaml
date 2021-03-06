@@ -176,6 +176,26 @@
         </StackPanel>
     </ToolTip>
     
+    <!-- HDR refine exposures precision bits explanation -->
+    <ToolTip x:Key="Tooltip_HDR_RefinePrecisionBits" ToolTipService.ShowDuration="2000000000">
+        <StackPanel MaxWidth="400">
+            <WrapPanel>
+                <Image Source="images/Question_16x.png" Margin="0,0,5,0" Stretch="None" />
+                <StackPanel>
+                    <TextBlock FontWeight="Bold" FontSize="14" Margin="0,0,0,0">HDR processing - refine exposure precision bits</TextBlock>
+                    <TextBlock FontStyle="Italic">Bigger numbers can worsen results!</TextBlock>
+                    <TextBlock FontWeight="Bold">Excludes darker pixels from exposure refinement calculation</TextBlock>
+                </StackPanel>
+            </WrapPanel>
+            <Border BorderBrush="Silver" BorderThickness="0,1,0,0" Margin="0,8" />
+            <TextBlock TextWrapping="Wrap">
+                The darker a pixel, the more it is affected by things like incorrectly set black levels and noise. Thus, excluding pixels below a certain brightness from calculating correct exposures can actually improve results.
+                <LineBreak></LineBreak>
+                <LineBreak></LineBreak>The program logic of this setting is as follows: 2 is raised to the power of bits set here. For example 5 bits: 2^5 becomes 32. The maximum value (in this case typically of UInt16) is divided by the result, so in this case: 65535 / 32 = 2048. The resulting value of this (here: 2048) is the threshold below which a pixel will be ignored for exposure refinement.
+            </TextBlock>
+        </StackPanel>
+    </ToolTip>
+    
     
     <!-- DNG output 12 bit packed -->
     <ToolTip x:Key="Tooltip_DNGOutput_12bitpacked" ToolTipService.ShowDuration="2000000000">

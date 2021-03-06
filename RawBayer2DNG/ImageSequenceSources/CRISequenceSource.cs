@@ -290,7 +290,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                         int tileActualWidth = jpegLibraryDecoder.Width/2;
                         int tileActualHeight = jpegLibraryDecoder.Height*2;
                         byte[] tileBuff = new byte[jpegLibraryDecoder.Width * jpegLibraryDecoder.Height * 2];
-                        jpegLibraryDecoder.SetOutputWriter(new JpegDecode.JpegBufferOutputWriterGreaterThan8Bit(jpegLibraryDecoder.Width, jpegLibraryDecoder.Height, jpegLibraryDecoder.Precision, 1, tileBuff, 16));
+                        jpegLibraryDecoder.SetOutputWriter(new JpegDecode.JpegBufferOutputWriterGreaterThan8BitCRI(jpegLibraryDecoder.Width, jpegLibraryDecoder.Height, jpegLibraryDecoder.Precision-1, 1, tileBuff, 16));
                         jpegLibraryDecoder.Decode();
 
                         int actualX;
@@ -299,14 +299,15 @@ namespace RawBayer2DNG.ImageSequenceSources
                             for (int x = 0; x < tileActualWidth; x++)
                             {
                                 actualX = (Int32)horizOffset + x;
-                                decodedOutputBuffer[y * width * 2 + actualX * 2] = tileBuff[y*tileActualWidth*2+x*2];
-                                decodedOutputBuffer[y * width * 2 + actualX * 2+1] = tileBuff[y*tileActualWidth*2+x*2+1];
+                                decodedOutputBuffer[y * width * 2 + actualX * 2] = tileBuff[y*tileActualWidth*2+(x ) *2];
+                                decodedOutputBuffer[y * width * 2 + actualX * 2+1] = tileBuff[y*tileActualWidth*2+ (x) * 2+1];
 
                             }
                         }
 
                         horizOffset += (uint)tileActualWidth;
                     }
+                    File.WriteAllBytes("decoded raw cri"+width + " "+ height + ".raw", decodedOutputBuffer);
                     return decodedOutputBuffer;
                 } else
                 {

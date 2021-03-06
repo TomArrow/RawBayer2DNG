@@ -62,6 +62,26 @@ namespace RawBayer2DNG
 
             return input;
         }
+        
+        public static byte[] convert16bitIntermediateToDarkIn16bitWithGamma(byte[] input, int targetBitDepth,double gamma)
+        {
+            int inputlengthBytes = input.Length;
+
+            double tmpValue;
+            UInt16 tmpValue2;
+            byte[] tmpValue2Bytes;
+            for (int i = 0; i < inputlengthBytes; i += 2)
+            {
+                tmpValue = ((double)BitConverter.ToUInt16(input,i)) / (double)UInt16.MaxValue;
+                tmpValue = Math.Pow(tmpValue, gamma) * (Math.Pow(2,targetBitDepth)-1);
+                tmpValue2 = (UInt16)Math.Max(0,Math.Min(UInt16.MaxValue,Math.Round(tmpValue)));
+                tmpValue2Bytes = BitConverter.GetBytes(tmpValue2);
+                input[i] = tmpValue2Bytes[0];
+                input[i+1] = tmpValue2Bytes[1];
+            }
+
+            return input;
+        }
 
 
         // Guessing...

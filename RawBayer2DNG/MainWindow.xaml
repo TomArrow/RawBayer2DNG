@@ -198,12 +198,12 @@
                                 <ColumnDefinition></ColumnDefinition>
                                 <ColumnDefinition></ColumnDefinition>
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="exposureA" Grid.Column="0" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged">E</TextBox>
-                            <TextBox x:Name="exposureB" Grid.Column="1" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
-                            <TextBox x:Name="exposureC" Grid.Column="2" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
-                            <TextBox x:Name="exposureD" Grid.Column="3" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
-                            <TextBox x:Name="exposureE" Grid.Column="4" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
-                            <TextBox x:Name="exposureF" Grid.Column="5" Grid.Row="0" FontSize="15" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureA" Grid.Column="0" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged">E</TextBox>
+                            <TextBox x:Name="exposureB" Grid.Column="1" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureC" Grid.Column="2" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureD" Grid.Column="3" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureE" Grid.Column="4" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureF" Grid.Column="5" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
 
                         </Grid>
 
@@ -222,16 +222,16 @@
                         <TextBox x:Name="featherStops_txt" MinWidth="30">0</TextBox>
                     </WrapPanel>
                     <Button ToolTip="Analyze correct exposure settings based on current frame set." x:Name="analyzeHDR_btn" Click="analyzeHDR_btn_Click">Refine exposures</Button>
-                    <WrapPanel>
+                    <WrapPanel ToolTip="{StaticResource ResourceKey=Tooltip_HDR_RefinePrecisionBits}">
                         <Label>Refine precision bits</Label>
-                        <TextBox x:Name="analysisPrecision_txt" Width="40">8</TextBox>
+                        <TextBox x:Name="analysisPrecision_txt" Width="40">5</TextBox>
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>
 
             <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_Debayer}" x:Name="previewDebayer" Click="PreviewDebayer_Click" Margin="2" IsChecked="True">Preview debayer</CheckBox>
             <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_sRGBGamma}" x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click" Margin="2">Preview with sRGB gamma</CheckBox>
-            <CheckBox x:Name="drawScope_check" IsChecked="True" Click="drawScope_check_Click" Margin="2" IsEnabled="False">Draw scope</CheckBox>
+            <CheckBox x:Name="drawScope_check" IsChecked="False" Click="drawScope_check_Click" Margin="2">Draw scope</CheckBox>
 
         </StackPanel>
         <StackPanel Grid.Column="4" Grid.RowSpan="2">
@@ -244,6 +244,7 @@
                         <RadioButton x:Name="output_12bitPacked_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitpacked}">12 bit packed</RadioButton>
                         <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsChecked="True" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitdarkcapsuled}">12 bit dark in 16bit</RadioButton>
                         <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitbrightcapsuled}">12 bit bright in 16bit / HDR</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledGamma10Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 16-in-10 (HDR) (unfinished)</RadioButton>
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>

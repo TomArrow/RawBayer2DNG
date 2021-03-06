@@ -77,7 +77,22 @@ namespace RawBayer2DNG
             INVALID,
             BAYER12BITDARKCAPSULEDIN16BIT,
             BAYER12BITBRIGHTCAPSULEDIN16BIT,
-            BAYER12BITTIFFPACKED
+            BAYER12BITTIFFPACKED,
+
+            // This is a lossy method useful mostly for HDR which saves data with gamma and saves a linearization table to reverse that again. Not yet implemented, just an idea.
+            // Math:
+            // In 16 bit, 0 is 0 and the bit value of 1 is 1/(2^16-1), so 1/65535 = 0.00001525902189669642
+            // In 12 bit, 0 is 0 and the bit value of 1 is 1/(2^12-1), so 1/4095 = 0.000244200244
+            // So we need a gamma value that pushes the 16 bit value of 1 to the 12 bit value of 1.
+            // In other words, 0.00001525902189669642^x = 0.000244200244
+            // Generalize: a^x = b
+            // solution according to wolfram alpha: x = log(b)/log(a)
+            // so: double x = Math.Log(1/(Math.Pow(2,12)-1)) / Math.Log(1/(Math.Pow(2,16)-1));
+            // or: double realx = 1/( Math.Log(1/(Math.Pow(2,12)-1)) / Math.Log(1/(Math.Pow(2,16)-1)));
+            // Result for 16 to 12 bit: 0.749979015407929. Actual gamma thus being 1/0.749979015407929 = 1.3333706403186221
+            // Result for 16 to 10 bit: Math.Log(1/(Math.Pow(2,10)-1)) / Math.Log(1/(Math.Pow(2,16)-1)) = 0.62491276165886922 or 1.6002233613303698. So pretty much 1.6
+            BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO12BIT,
+            BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT
         };
 
         DNGOUTPUTDATAFORMAT dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
@@ -121,6 +136,10 @@ namespace RawBayer2DNG
 
         public MainWindow()
         {
+
+            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+            CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
             InitializeComponent();
             ToolTipService.ShowDurationProperty.OverrideMetadata(
                 typeof(DependencyObject), new FrameworkPropertyMetadata(Int32.MaxValue)); // Helps keep the Tooltips open for a longer time if we set their ShowDuration high.
@@ -224,8 +243,17 @@ namespace RawBayer2DNG
 
                 //int totalRawDataSize = width * height * 2;
                 //
+                bool lossyGammaModeEnabled = false;
+                double lossyGammaModeGamma = 1;
+                int lossyGammaModeOutputBitDepth = 16;
                 if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT)
                 {
+                } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT)
+                {
+                    lossyGammaModeEnabled = true;
+                    lossyGammaModeOutputBitDepth = 10;
+                    lossyGammaModeGamma = Math.Log(1 / (Math.Pow(2, 10) - 1)) / Math.Log(1 / (Math.Pow(2, 16) - 1));
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithGamma(rawImageData,10, lossyGammaModeGamma);
                 } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED)
                 {
                     output.SetField(TiffTag.BITSPERSAMPLE, 12);
@@ -236,6 +264,25 @@ namespace RawBayer2DNG
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
                 }
 
+                
+                if (lossyGammaModeEnabled)
+                {
+
+                    UInt16 outputMaxValue = (UInt16)(Math.Pow(2, lossyGammaModeOutputBitDepth) - 1);
+                    UInt16[] linearizationTable = new UInt16[outputMaxValue+1];
+
+
+                    double tmpValue;
+                    double invertedGamma = 1/lossyGammaModeGamma;
+                    for(int i=0;i<= outputMaxValue; i++)
+                    {
+                        tmpValue = (double)i / (double)outputMaxValue;
+                        tmpValue = Math.Pow(tmpValue, invertedGamma) * (double)UInt16.MaxValue;
+                        linearizationTable[(Int16)i] = (UInt16)Math.Max(0,Math.Min(UInt16.MaxValue, Math.Round(tmpValue))); 
+                    }
+
+                    output.SetField(TiffTag.LINEARIZATIONTABLE, Int16.MaxValue, linearizationTable);
+                }
 
 
                 output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
@@ -266,7 +313,6 @@ namespace RawBayer2DNG
                 float[] neutral = { 1f / (float)RGBAmplify[0], 1f / (float)RGBAmplify[1], 1f / (float)RGBAmplify[2] }; // my sRGB hack
                 int[] bpp = { 8, 8, 8 }; // my sRGB hack
                 short[] bayerpatterndimensions = { 2, 2 }; // my sRGB hack
-                short[] linearizationTable = new short[256];
                 //float[] neutral = { 0.807133f, 1.0f, 0.913289f };
 
                 //DNG 
@@ -617,6 +663,7 @@ namespace RawBayer2DNG
 
             bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
             bool doPreviewGamma = (bool)previewGamma.IsChecked;
+            bool doDrawPreviewScope = (bool)drawScope_check.IsChecked;
 
             ShotSettings shotSettings = getShotSettings();
 
@@ -709,16 +756,19 @@ namespace RawBayer2DNG
                     newbytes = Helpers.DrawPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, RGBamplify, subsample, doPreviewGamma);
                 }
 
+                Bitmap scopeImage = new Bitmap(1,1);
                 // Draw scope
-                int scopeWidth = (int)scopeDockPanel.ActualWidth;
-                int scopeHeight = (int)scopeDockPanel.ActualHeight;
-                int newStrideScope = Helpers.getStride(scopeWidth*3);
-                byte[] scopeBytes;
-                scopeBytes = Helpers.DrawScope(buff, scopeHeight, scopeWidth, height, width, newStrideScope, byteDepth, subsample, doPreviewGamma, bayerPattern, RGBamplify);
-                Bitmap scopeImage = new Bitmap(scopeWidth, scopeHeight, Imaging.PixelFormat.Format24bppRgb);
-                Imaging.BitmapData scopePixelData = scopeImage.LockBits(new Rectangle(0, 0, scopeWidth, scopeHeight), Imaging.ImageLockMode.WriteOnly, Imaging.PixelFormat.Format24bppRgb);
-                System.Runtime.InteropServices.Marshal.Copy(scopeBytes, 0, scopePixelData.Scan0, scopeBytes.Count());
-                scopeImage.UnlockBits(scopePixelData);
+                if (doDrawPreviewScope) { 
+                    int scopeWidth = (int)scopeDockPanel.ActualWidth;
+                    int scopeHeight = (int)scopeDockPanel.ActualHeight;
+                    int newStrideScope = Helpers.getStride(scopeWidth*3);
+                    byte[] scopeBytes;
+                    scopeBytes = Helpers.DrawScope(buff, scopeHeight, scopeWidth, height, width, newStrideScope, byteDepth, subsample, doPreviewGamma, bayerPattern, RGBamplify);
+                    scopeImage = new Bitmap(scopeWidth, scopeHeight, Imaging.PixelFormat.Format24bppRgb);
+                    Imaging.BitmapData scopePixelData = scopeImage.LockBits(new Rectangle(0, 0, scopeWidth, scopeHeight), Imaging.ImageLockMode.WriteOnly, Imaging.PixelFormat.Format24bppRgb);
+                    System.Runtime.InteropServices.Marshal.Copy(scopeBytes, 0, scopePixelData.Scan0, scopeBytes.Count());
+                    scopeImage.UnlockBits(scopePixelData);
+                }
 
                 // Draw magnifier rectangle
                 // Position values are in percent from 0 to 1
@@ -765,7 +815,10 @@ namespace RawBayer2DNG
                 magnifierArea = Helpers.ResizeBitmapNN(magnifierArea, 200, 200);
 
                 // Do the displaying
-                mainPreviewScope.Source = Helpers.BitmapToImageSource(scopeImage);
+                if (doDrawPreviewScope)
+                {
+                    mainPreviewScope.Source = Helpers.BitmapToImageSource(scopeImage);
+                }
                 mainPreview.Source = Helpers.BitmapToImageSource(manipulatedImage);
                 Magnifier.Source = Helpers.BitmapToImageSource(magnifierArea);
             }
@@ -1207,6 +1260,9 @@ namespace RawBayer2DNG
                 case "output_16bitDarkCapsuled_radio":
                     dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
                     break;
+                case "output_16bitBrightCapsuledGamma10Bit_radio":
+                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT;
+                    break;
                 case "output_16bitBrightCapsuled_radio":
                 default:
                     dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
@@ -1456,7 +1512,7 @@ namespace RawBayer2DNG
 
         private void drawScope_check_Click(object sender, RoutedEventArgs e)
         {
-
+            ReDrawPreview();
         }
 
         private void crop_txt_TextChanged(object sender, TextChangedEventArgs e)

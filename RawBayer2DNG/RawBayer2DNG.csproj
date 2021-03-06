@@ -146,6 +146,7 @@
     <Compile Include="ImageSequenceSources\DNGSequenceSource.cs" />
     <Compile Include="ImageSequenceSources\RAWSequenceSource.cs" />
     <Compile Include="ImageSequenceSources\StreampixSequenceSource.cs" />
+    <Compile Include="JpegLibraryExtensions\JpegBufferOutputWriterGreaterThan8BitCRI.cs" />
     <Compile Include="JpegLibraryExtensions\JpegBufferOutputWriterGreaterThan8Bit.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
