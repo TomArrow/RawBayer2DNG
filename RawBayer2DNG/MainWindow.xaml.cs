@@ -262,6 +262,7 @@ namespace RawBayer2DNG
                 double lossyLinLogModeParameterA = 1;
                 int lossyLinLogModeOutputBitDepth = 16;
 
+                // TODO Make lossy modes bake in the RGB sliders.
                 if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT)
                 {
                 } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT)
