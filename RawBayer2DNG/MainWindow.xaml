@@ -246,9 +246,12 @@
                         <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitbrightcapsuled}">12 bit bright in 16bit / HDR</RadioButton>
                         <RadioButton x:Name="output_16bitDarkCapsuledLinLog8Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 12-in-8 (SDR) LinLog</RadioButton>
                         <RadioButton x:Name="output_16bitDarkCapsuledLinLog7Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 12-in-7 (SDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog6Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">BAD: Lossy 12-in-6 (SDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog5Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">BAD: Lossy 12-in-5 (SDR) LinLog</RadioButton>
                         <RadioButton x:Name="output_16bitBrightCapsuledGamma10Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 16-in-10 (HDR) Gamma</RadioButton>
                         <RadioButton x:Name="output_16bitBrightCapsuledLinLog10Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 16-in-10 (HDR) LinLog</RadioButton>
                         <RadioButton x:Name="output_16bitBrightCapsuledLinLog8Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 16-in-8 (HDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog7Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">BAD: Lossy 16-in-7 (HDR) LinLog</RadioButton>
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>

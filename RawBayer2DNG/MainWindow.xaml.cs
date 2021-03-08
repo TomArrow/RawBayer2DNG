@@ -97,10 +97,13 @@ namespace RawBayer2DNG
 
             BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT,
             BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT,
+            BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO7BIT,
 
             // SDR
             BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO8BIT,
-            BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT
+            BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT,
+            BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT,
+            BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT
         };
 
         DNGOUTPUTDATAFORMAT dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
@@ -273,6 +276,12 @@ namespace RawBayer2DNG
                     lossyLinLogModeOutputBitDepth = 8;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,8);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA,_linLogDithering,width);
+                } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO7BIT)
+                {
+                    lossyLinLogModeEnabled = true;
+                    lossyLinLogModeOutputBitDepth = 7;
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,7);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA,_linLogDithering,width);
                 }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT)
                 {
                     lossyLinLogModeEnabled = true;
@@ -292,6 +301,22 @@ namespace RawBayer2DNG
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 7;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,7);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA, _linLogDithering, width);
+                    output.SetField(TiffTag.BASELINEEXPOSURE, 4);
+                }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT)
+                {
+                    lossyLinLogModeEnabled = true;
+                    lossyLinLogModeOutputBitDepth = 6;
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,6);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA, _linLogDithering, width);
+                    output.SetField(TiffTag.BASELINEEXPOSURE, 4);
+                }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT)
+                {
+                    lossyLinLogModeEnabled = true;
+                    lossyLinLogModeOutputBitDepth = 5;
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,5);
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA, _linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
@@ -1330,11 +1355,20 @@ namespace RawBayer2DNG
                 case "output_16bitBrightCapsuledLinLog8Bit_radio":
                     dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT;
                     break;
+                case "output_16bitBrightCapsuledLinLog7Bit_radio":
+                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO7BIT;
+                    break;
                 case "output_16bitDarkCapsuledLinLog8Bit_radio":
                     dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO8BIT;
                     break;
                 case "output_16bitDarkCapsuledLinLog7Bit_radio":
                     dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT;
+                    break;
+                case "output_16bitDarkCapsuledLinLog6Bit_radio":
+                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT;
+                    break;
+                case "output_16bitDarkCapsuledLinLog5Bit_radio":
+                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT;
                     break;
                 case "output_16bitBrightCapsuled_radio":
                 default:
