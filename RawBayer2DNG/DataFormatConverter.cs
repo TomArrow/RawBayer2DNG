@@ -123,9 +123,123 @@ namespace RawBayer2DNG
                         {
                             srcAsDouble[realNumber + 1] += quantizationError * 7.0 / 16.0;
                         }
-                        srcAsDouble[realNumber + pixelWidthForDithering -1] += quantizationError * 3.0 / 16.0;
+                        if(x != 0)
+                        {
+                            srcAsDouble[realNumber + pixelWidthForDithering - 1] += quantizationError * 3.0 / 16.0;
+                        }
                         srcAsDouble[realNumber + pixelWidthForDithering] += quantizationError * 5.0 / 16.0;
-                        srcAsDouble[realNumber + pixelWidthForDithering +1] += quantizationError * 1.0 / 16.0;
+                        if (x < (pixelWidthForDithering - 1))
+                        {
+                            srcAsDouble[realNumber + pixelWidthForDithering + 1] += quantizationError * 1.0 / 16.0;
+                        }
+
+                        outputValueBytes = BitConverter.GetBytes(outputValue);
+                        input[index] = outputValueBytes[0];
+                        input[index + 1] = outputValueBytes[1];
+                    }
+                }
+                /*for (int i = 0,realNumber=0; i < inputlengthBytes; i += 2,realNumber++)
+                {
+                    
+                }*/
+            } else
+            {
+                for (int i = 0; i < inputlengthBytes; i += 2)
+                {
+                    tmpValue = BitConverter.ToUInt16(input, i);
+                    outputValue = (UInt16)Math.Min(UInt16.MaxValue, Math.Max(0, Math.Round(Math.Log(parameterA * tmpValue + 1, parameterA + 1))));
+                    outputValueBytes = BitConverter.GetBytes(outputValue);
+                    input[i] = outputValueBytes[0];
+                    input[i + 1] = outputValueBytes[1];
+                }
+            }
+
+            
+
+            return input;
+        }
+
+        // Same as the main function, but diffusion is applied on same colors in Bayer pattern
+        // The green color handling is a deviation from the normal Floyd Steinberg coefficients because its diagonal, so I had to come up with some fantasy coefficients.
+        // No need to supply pixelWidthForDithering if dithering is false.
+        public static byte[] convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(byte[] input, double parameterA, byte[,] bayerPattern, bool dithering = false, int pixelWidthForDithering = 0)
+        {
+            int inputlengthBytes = input.Length;
+
+            int pixelWidthForDitheringX2 = pixelWidthForDithering * 2;
+
+            double tmpValue;
+            UInt16 outputValue;
+            byte[] outputValueBytes;
+
+            if (dithering)
+            {
+
+                int height = input.Length / 2 / pixelWidthForDithering;
+
+                double[] srcAsDouble = new double[inputlengthBytes / 2+ pixelWidthForDithering*2+2]; // Adding the image width and a single pixel as a buffer because the bayer aware error diffusion accesses the current pixel + width*2 + 2 as a maximum and its easier than to add an if.
+                for (int i = 0,realNumbery=0; i < inputlengthBytes; i += 2,realNumbery++)
+                {
+                    srcAsDouble[realNumbery] = BitConverter.ToUInt16(input, i);
+                }
+
+                //bool bayerGreenIsGXXG = bayerPattern[0, 0] == 1 && bayerPattern[1, 1] == 1; // This indicates to us the di
+
+                double quantizationError;
+                UInt16 restoredValue;
+                int realNumber, index;
+
+                int bayerPositionX, bayerPositionY;
+                // With Floyd Steinberg dithering
+                for (int y=0;y< height;y++)
+                {
+                    bayerPositionY = y % 2;
+                    for (int x = 0; x < pixelWidthForDithering; x++)
+                    {
+                        bayerPositionX = x % 2;
+
+                        realNumber = y * pixelWidthForDithering + x;
+                        index = realNumber * 2;
+
+                        tmpValue = srcAsDouble[realNumber];
+                        outputValue = (UInt16)Math.Min(UInt16.MaxValue, Math.Max(0, Math.Round(Math.Log(parameterA * tmpValue + 1, parameterA + 1))));
+                        restoredValue = (UInt16)Math.Min(UInt16.MaxValue, Math.Max(0, Math.Round((Math.Pow(parameterA + 1, outputValue) - 1) / parameterA)));
+                        quantizationError = tmpValue - (double)restoredValue;
+
+                        // Green is handled differently to other colors, with my own fantasy approach lol
+                        if(bayerPattern[bayerPositionX,bayerPositionY] == 1)
+                        {
+                            if (x < (pixelWidthForDithering - 2))
+                            {
+                                srcAsDouble[realNumber + 2] += quantizationError * 7.0 / 16.0;
+                            }
+                            if (x != 0)
+                            {
+                                srcAsDouble[realNumber + pixelWidthForDithering - 1] += quantizationError * 3.0 / 16.0;
+                            }
+                            srcAsDouble[realNumber + pixelWidthForDitheringX2] += quantizationError * 5.0 / 16.0;
+                            if (x < (pixelWidthForDithering - 2))
+                            {
+                                srcAsDouble[realNumber + pixelWidthForDithering + 1] += quantizationError * 1.0 / 16.0;
+                            }
+                        } else
+                        {
+
+                            if (x < (pixelWidthForDithering - 2))
+                            {
+                                srcAsDouble[realNumber + 2] += quantizationError * 7.0 / 16.0;
+                            }
+                            if (x > 1)
+                            {
+                                srcAsDouble[realNumber + pixelWidthForDitheringX2 - 2] += quantizationError * 3.0 / 16.0;
+                            }
+                            srcAsDouble[realNumber + pixelWidthForDitheringX2] += quantizationError * 5.0 / 16.0;
+                            if (x < (pixelWidthForDithering - 2))
+                            {
+                                srcAsDouble[realNumber + pixelWidthForDitheringX2 + 2] += quantizationError * 1.0 / 16.0;
+                            }
+                        }
+
 
                         outputValueBytes = BitConverter.GetBytes(outputValue);
                         input[index] = outputValueBytes[0];

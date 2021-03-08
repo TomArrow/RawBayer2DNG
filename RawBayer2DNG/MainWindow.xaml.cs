@@ -275,26 +275,26 @@ namespace RawBayer2DNG
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 8;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,8);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA,_linLogDithering,width);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA,bayerPattern,_linLogDithering,width);
                 } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO7BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 7;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,7);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA,_linLogDithering,width);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering,width);
                 }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 10;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,10);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA, _linLogDithering, width);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering, width);
                 }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO8BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 8;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,8);
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA, _linLogDithering, width);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
                 } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT)
                 {
@@ -302,7 +302,7 @@ namespace RawBayer2DNG
                     lossyLinLogModeOutputBitDepth = 7;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,7);
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA, _linLogDithering, width);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
                 }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT)
                 {
@@ -310,7 +310,7 @@ namespace RawBayer2DNG
                     lossyLinLogModeOutputBitDepth = 6;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,6);
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA, _linLogDithering, width);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
                 }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT)
                 {
@@ -318,7 +318,7 @@ namespace RawBayer2DNG
                     lossyLinLogModeOutputBitDepth = 5;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,5);
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA, _linLogDithering, width);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
                 } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED)
                 {
