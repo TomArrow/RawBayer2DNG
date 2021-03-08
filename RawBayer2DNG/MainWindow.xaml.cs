@@ -68,6 +68,7 @@ namespace RawBayer2DNG
         private static int _totalFiles = 0;
         private bool _compressDng = false;
         private bool _compressDngLosslessJPEG = true;
+        private bool _linLogDithering = true;
         private string _newFileName;
 
         uint[] cropAmounts = new uint[4];
@@ -271,20 +272,20 @@ namespace RawBayer2DNG
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 8;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,8);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA,_linLogDithering,width);
                 }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 10;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,10);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA, _linLogDithering, width);
                 }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO8BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 8;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,8);
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA, _linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
                 } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT)
                 {
@@ -292,7 +293,7 @@ namespace RawBayer2DNG
                     lossyLinLogModeOutputBitDepth = 7;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,7);
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1(rawImageData, lossyLinLogModeParameterA, _linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
                 } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED)
                 {
@@ -904,6 +905,12 @@ namespace RawBayer2DNG
         {
             // Use IsChecked.
             _compressDng = checkBox.IsChecked.Value;
+        }
+
+        private void LinLogDithering_UnOrChecked(object sender, RoutedEventArgs e)
+        {
+            // Use IsChecked.
+            _linLogDithering = (sender as CheckBox).IsChecked.Value;
         }
 
         private void CompressDNGLosslessJPEG_Checked(object sender, RoutedEventArgs e)

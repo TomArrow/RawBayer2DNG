@@ -83,21 +83,72 @@ namespace RawBayer2DNG
             return input;
         }
 
-        public static byte[] convert16bitIntermediateToDarkIn16bitWithLinLogV1(byte[] input, double parameterA)
+        // No need to supply pixelWidthForDithering if dithering is false.
+        public static byte[] convert16bitIntermediateToDarkIn16bitWithLinLogV1(byte[] input, double parameterA, bool dithering=false, int pixelWidthForDithering = 0)
         {
             int inputlengthBytes = input.Length;
 
             double tmpValue;
-            UInt16 tmpValue2;
-            byte[] tmpValue2Bytes;
-            for (int i = 0; i < inputlengthBytes; i += 2)
+            UInt16 outputValue;
+            byte[] outputValueBytes;
+
+            if (dithering)
             {
-                tmpValue = BitConverter.ToUInt16(input,i);
-                tmpValue2 = (UInt16)Math.Min(UInt16.MaxValue,Math.Max(0, Math.Round(Math.Log(parameterA * tmpValue + 1, parameterA + 1))));
-                tmpValue2Bytes = BitConverter.GetBytes(tmpValue2);
-                input[i] = tmpValue2Bytes[0];
-                input[i+1] = tmpValue2Bytes[1];
+
+                int height = input.Length / 2 / pixelWidthForDithering;
+
+                double[] srcAsDouble = new double[inputlengthBytes / 2+ pixelWidthForDithering+1]; // Adding the image width and a single pixel as a buffer because the error diffusion accesses the current pixel + width + 1 as a maximum and its easier than to add an if.
+                for (int i = 0,realNumbery=0; i < inputlengthBytes; i += 2,realNumbery++)
+                {
+                    srcAsDouble[realNumbery] = BitConverter.ToUInt16(input, i);
+                }
+
+                double quantizationError;
+                UInt16 restoredValue;
+                int realNumber, index;
+                // With Floyd Steinberg dithering
+                for (int y=0;y< height;y++)
+                {
+                    for (int x = 0; x < pixelWidthForDithering; x++)
+                    {
+                        realNumber = y * pixelWidthForDithering + x;
+                        index = realNumber * 2;
+
+                        tmpValue = srcAsDouble[realNumber];
+                        outputValue = (UInt16)Math.Min(UInt16.MaxValue, Math.Max(0, Math.Round(Math.Log(parameterA * tmpValue + 1, parameterA + 1))));
+                        restoredValue = (UInt16)Math.Min(UInt16.MaxValue, Math.Max(0, Math.Round((Math.Pow(parameterA + 1, outputValue) - 1) / parameterA)));
+                        quantizationError = tmpValue - (double)restoredValue;
+
+                        if(x < (pixelWidthForDithering - 1))
+                        {
+                            srcAsDouble[realNumber + 1] += quantizationError * 7.0 / 16.0;
+                        }
+                        srcAsDouble[realNumber + pixelWidthForDithering -1] += quantizationError * 3.0 / 16.0;
+                        srcAsDouble[realNumber + pixelWidthForDithering] += quantizationError * 5.0 / 16.0;
+                        srcAsDouble[realNumber + pixelWidthForDithering +1] += quantizationError * 1.0 / 16.0;
+
+                        outputValueBytes = BitConverter.GetBytes(outputValue);
+                        input[index] = outputValueBytes[0];
+                        input[index + 1] = outputValueBytes[1];
+                    }
+                }
+                /*for (int i = 0,realNumber=0; i < inputlengthBytes; i += 2,realNumber++)
+                {
+                    
+                }*/
+            } else
+            {
+                for (int i = 0; i < inputlengthBytes; i += 2)
+                {
+                    tmpValue = BitConverter.ToUInt16(input, i);
+                    outputValue = (UInt16)Math.Min(UInt16.MaxValue, Math.Max(0, Math.Round(Math.Log(parameterA * tmpValue + 1, parameterA + 1))));
+                    outputValueBytes = BitConverter.GetBytes(outputValue);
+                    input[i] = outputValueBytes[0];
+                    input[i + 1] = outputValueBytes[1];
+                }
             }
+
+            
 
             return input;
         }
