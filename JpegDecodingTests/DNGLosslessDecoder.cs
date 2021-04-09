@@ -107,11 +107,17 @@ namespace JpegDecodingTests
 		{
 			data.Add(toAdd);
 		}
-
+		*/
 		public byte[] toByteArray()
 		{
 			return data.ToArray();
-		}*/
+		}
+
+		// Add bytes, basically.
+		public void Spool(byte[] dataToAdd)
+        {
+			data.AddRange(dataToAdd); 
+        }
 	}
 
 	class DNGLosslessDecoder
@@ -508,15 +514,15 @@ namespace JpegDecodingTests
 		//dng_memory_data mcuBuffer2;
 		//dng_memory_data mcuBuffer3;
 		//dng_memory_data mcuBuffer4;
-		ComponentType[][] mcuBuffer1;
-		ComponentType[][] mcuBuffer2;
+		ComponentType[,] mcuBuffer1;
+		ComponentType[,] mcuBuffer2;
 		ComponentType[] mcuBuffer3;
 		ComponentType[] mcuBuffer4;
 
 		// MCU *mcuROW1;
 		// MCU *mcuROW2;
-		ComponentType[][] mcuROW1;
-		ComponentType[][] mcuROW2;
+		ComponentType[,] mcuROW1;
+		ComponentType[,] mcuROW2;
 
 		uint64 getBuffer;           // current bit-extraction buffer
 		int32 bitsLeft;             // # of unused bits in it
@@ -1407,8 +1413,8 @@ namespace JpegDecodingTests
 			//mcuBuffer1.Allocate(info.imageWidth, sizeof(MCU));
 			//mcuBuffer2.Allocate(info.imageWidth, sizeof(MCU));
 
-			mcuBuffer1 = new UInt16[info.imageWidth][];
-			mcuBuffer2 = new UInt16[info.imageWidth][];
+			mcuBuffer1 = new UInt16[info.imageWidth, info.compsInScan];
+			mcuBuffer2 = new UInt16[info.imageWidth, info.compsInScan];
 
 			//mcuROW1 = (MCU*)mcuBuffer1.Buffer();
 			//mcuROW2 = (MCU*)mcuBuffer2.Buffer();
@@ -1428,13 +1434,13 @@ namespace JpegDecodingTests
 			//mcuROW1[0] = mcuBuffer3;
 			//mcuROW2[0] = mcuBuffer4;
 
-			for (int32 j = 1; j < info.imageWidth; j++)
+			/*for (int32 j = 1; j < info.imageWidth; j++)
 			{
 
 				mcuROW1[j] = new ComponentType[info.compsInScan];//mcuROW1[j - 1] + info.compsInScan;
 				mcuROW2[j] = new ComponentType[info.compsInScan];//mcuROW2[j - 1] + info.compsInScan;
 
-			}
+			}*/
 
 		}
 
@@ -1592,12 +1598,12 @@ namespace JpegDecodingTests
 		 */
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		//public int32 QuickPredict (int32 col,int32 curComp,MCU *curRowBuf, MCU *prevRowBuf)
-		public int32 QuickPredict (int32 col,int32 curComp,ref ComponentType[][] curRowBuf, ref ComponentType[][] prevRowBuf)
+		public int32 QuickPredict (int32 col,int32 curComp,ref ComponentType[,] curRowBuf, ref ComponentType[,] prevRowBuf)
 			{
 
-			int32 diag = prevRowBuf[col - 1][curComp];
-			int32 upper = prevRowBuf[col][curComp];
-			int32 left = curRowBuf[col - 1][curComp];
+			int32 diag = prevRowBuf[col - 1,curComp];
+			int32 upper = prevRowBuf[col,curComp];
+			int32 left = curRowBuf[col - 1,curComp];
 
 			switch (info.Ss)
 			{
@@ -1922,20 +1928,30 @@ namespace JpegDecodingTests
 
 		/*****************************************************************************/
 
+		// My test: byte[][] abc = new byte[2][] { new byte[]{ 1, 2 }, new byte[]{ 3, 4 } }; byte[] bcd = new byte[4]; Buffer.BlockCopy(abc, 0, bcd, 0, 4); Console.WriteLine(bcd[0].ToString() + bcd[1].ToString()+ bcd[2].ToString()+ bcd[3]);
+		// My test: byte[,] abc = new byte[2,2] {{ 1, 2 },{ 3, 4 } }; byte[] bcd = new byte[4]; Buffer.BlockCopy(abc, 0, bcd, 0, 4); Console.WriteLine(bcd[0].ToString() + bcd[1].ToString()+ bcd[2].ToString()+ bcd[3]);
+
 		// Called from DecodeImage () to write one row.
 
 		//public void PmPutRow(MCU* buf,
-		public void PmPutRow(ref ComponentType[][] buf,
+		public void PmPutRow(ref ComponentType[,] buf,
 											 int32 numComp,
 											 int32 numCol,
 											 int32  row ) // row was commented out
 		{
 
-			uint16* sPtr = &buf[0][0];
 
-			uint32 pixels = numCol * numComp;
+			uint32 pixels = (uint)(numCol * numComp);
 
-			fSpooler.Spool(sPtr, pixels * (uint32)sizeof(uint16));
+			int byteCount = (int)pixels * sizeof(uint16);
+
+			byte[] dataToSend = new uint8[byteCount];
+			//uint16* sPtr = &buf[0][0];
+
+			Buffer.BlockCopy(buf, 0, dataToSend, 0, byteCount);
+
+			//fSpooler.Spool(sPtr, pixels * (uint32)sizeof(uint16));
+			fSpooler.Spool(dataToSend);
 
 		}
 
@@ -1961,7 +1977,7 @@ namespace JpegDecodingTests
 		 */
 
 		//public void DecodeFirstRow(MCU* curRowBuf)
-		public void DecodeFirstRow(ref ComponentType[][] curRowBuf)
+		public void DecodeFirstRow(ref ComponentType[,] curRowBuf)
 		{
 
 			int32 compsInScan = info.compsInScan;
@@ -2004,7 +2020,7 @@ namespace JpegDecodingTests
 				int32 Pr = info.dataPrecision;
 				int32 Pt = info.Pt;
 
-				curRowBuf[0][curComp] = (ComponentType)(d + (1 << (Pr - Pt - 1)));
+				curRowBuf[0,curComp] = (ComponentType)(d + (1 << (Pr - Pt - 1)));
 
 			}
 
@@ -2048,7 +2064,7 @@ namespace JpegDecodingTests
 
 					// Add the predictor to the difference.
 
-					curRowBuf[col][curComp] = (ComponentType)(d + curRowBuf[col - 1][curComp]);
+					curRowBuf[col,curComp] = (ComponentType)(d + curRowBuf[col - 1,curComp]);
 
 				}
 
@@ -2109,8 +2125,8 @@ namespace JpegDecodingTests
 
 			}
 
-			ComponentType[][] prevRowBuf = mcuROW1; // find out if this is by reference
-			ComponentType[][] curRowBuf = mcuROW2;
+			ComponentType[,] prevRowBuf = mcuROW1; // find out if this is by reference
+			ComponentType[,] curRowBuf = mcuROW2;
 			//MCU* prevRowBuf = mcuROW1;
 			//MCU* curRowBuf = mcuROW2;
 
@@ -2140,9 +2156,9 @@ namespace JpegDecodingTests
 				
 					else
 						{
-						p0 = prevRowBuf [0] [0];
-						p1 = prevRowBuf [0] [1];
-						p2 = prevRowBuf [0] [2];
+						p0 = prevRowBuf [0,0];
+						p1 = prevRowBuf [0,1];
+						p2 = prevRowBuf [0,2];
 						}
 			
 					for (int32 col = 0; col < numCOL; col += 2)
@@ -2174,7 +2190,7 @@ namespace JpegDecodingTests
 						
 							p0 += d;
 					
-							curRowBuf [col] [0] = (ComponentType) p0;
+							curRowBuf [col,0] = (ComponentType) p0;
 				
 							}
 				
@@ -2204,7 +2220,7 @@ namespace JpegDecodingTests
 						
 							p0 += d;
 					
-							curRowBuf [col + 1] [0] = (ComponentType) p0;
+							curRowBuf [col + 1,0] = (ComponentType) p0;
 				
 							}
 				
@@ -2234,8 +2250,8 @@ namespace JpegDecodingTests
 						
 							p1 += d;
 					
-							curRowBuf [col    ] [1] = (ComponentType) p1;
-							curRowBuf [col + 1] [1] = (ComponentType) p1;
+							curRowBuf [col    ,1] = (ComponentType) p1;
+							curRowBuf [col + 1,1] = (ComponentType) p1;
 				
 							}
 				
@@ -2265,8 +2281,8 @@ namespace JpegDecodingTests
 						
 							p2 += d;
 					
-							curRowBuf [col    ] [2] = (ComponentType) p2;
-							curRowBuf [col + 1] [2] = (ComponentType) p2;
+							curRowBuf [col    ,2] = (ComponentType) p2;
+							curRowBuf [col + 1,2] = (ComponentType) p2;
 				
 							}
 								
@@ -2304,9 +2320,9 @@ namespace JpegDecodingTests
 				
 					else
 						{
-						p0 = prevRowBuf [0] [0];
-						p1 = prevRowBuf [0] [1];
-						p2 = prevRowBuf [0] [2];
+						p0 = prevRowBuf [0,0];
+						p1 = prevRowBuf [0,1];
+						p2 = prevRowBuf [0,2];
 						}
 			
 					for (int32 col = 0; col < numCOL; col += 2)
@@ -2338,7 +2354,7 @@ namespace JpegDecodingTests
 						
 							p0 += d;
 					
-							prevRowBuf [col] [0] = (ComponentType) p0;
+							prevRowBuf [col,0] = (ComponentType) p0;
 				
 							}
 				
@@ -2368,7 +2384,7 @@ namespace JpegDecodingTests
 						
 							p0 += d;
 					
-							prevRowBuf [col + 1] [0] = (ComponentType) p0;
+							prevRowBuf [col + 1,0] = (ComponentType) p0;
 				
 							}
 				
@@ -2398,7 +2414,7 @@ namespace JpegDecodingTests
 						
 							p0 += d;
 					
-							curRowBuf [col] [0] = (ComponentType) p0;
+							curRowBuf [col,0] = (ComponentType) p0;
 				
 							}
 				
@@ -2428,7 +2444,7 @@ namespace JpegDecodingTests
 						
 							p0 += d;
 					
-							curRowBuf [col + 1] [0] = (ComponentType) p0;
+							curRowBuf [col + 1,0] = (ComponentType) p0;
 				
 							}
 				
@@ -2458,11 +2474,11 @@ namespace JpegDecodingTests
 						
 							p1 += d;
 					
-							prevRowBuf [col    ] [1] = (ComponentType) p1;
-							prevRowBuf [col + 1] [1] = (ComponentType) p1;
+							prevRowBuf [col    ,1] = (ComponentType) p1;
+							prevRowBuf [col + 1,1] = (ComponentType) p1;
 
-							curRowBuf [col    ] [1] = (ComponentType) p1;
-							curRowBuf [col + 1] [1] = (ComponentType) p1;
+							curRowBuf [col    ,1] = (ComponentType) p1;
+							curRowBuf [col + 1,1] = (ComponentType) p1;
 				
 							}
 				
@@ -2492,11 +2508,11 @@ namespace JpegDecodingTests
 						
 							p2 += d;
 					
-							prevRowBuf [col    ] [2] = (ComponentType) p2;
-							prevRowBuf [col + 1] [2] = (ComponentType) p2;
+							prevRowBuf [col    ,2] = (ComponentType) p2;
+							prevRowBuf [col + 1,2] = (ComponentType) p2;
 				
-							curRowBuf [col    ] [2] = (ComponentType) p2;
-							curRowBuf [col + 1] [2] = (ComponentType) p2;
+							curRowBuf [col    ,2] = (ComponentType) p2;
+							curRowBuf [col + 1,2] = (ComponentType) p2;
 				
 							}
 								
@@ -2560,8 +2576,8 @@ namespace JpegDecodingTests
 							p1 += d;
 							}
 
-						curRowBuf [col    ] [0] = (ComponentType) p0;
-						curRowBuf [col + 1] [0] = (ComponentType) p1;
+						curRowBuf [col    ,0] = (ComponentType) p0;
+						curRowBuf [col + 1,0] = (ComponentType) p1;
 				
 						}
 			
@@ -2643,7 +2659,7 @@ namespace JpegDecodingTests
 
 					// First column of row above is predictor for first column.
 
-					curRowBuf[0][curComp] = (ComponentType)(d + prevRowBuf[0][curComp]);
+					curRowBuf[0,curComp] = (ComponentType)(d + prevRowBuf[0,curComp]);
 
 				}
 
@@ -2656,7 +2672,7 @@ namespace JpegDecodingTests
 					// This is the combination used by both the Canon and Kodak raw formats. 
 					// Unrolling the general case logic results in a significant speed increase.
 
-					uint16* dPtr = &curRowBuf[1][0];
+					uint16* dPtr = &curRowBuf[1,0];
 
 					int32 prev0 = dPtr[-2];
 					int32 prev1 = dPtr[-1];
@@ -2757,7 +2773,7 @@ namespace JpegDecodingTests
 
 							// Save the difference.
 
-							curRowBuf[col][curComp] = (ComponentType)(d + predictor);
+							curRowBuf[col,curComp] = (ComponentType)(d + predictor);
 
 						}
 
