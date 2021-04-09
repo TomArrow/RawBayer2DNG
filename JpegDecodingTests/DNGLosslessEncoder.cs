@@ -196,63 +196,6 @@ namespace JpegDecodingTests
 	 * decompression information.
 	 */
 
-    public class DecompressInfo
-    {
-
-        /*
-		 * Image width, height, and image data precision (bits/sample)
-		 * These fields are set by ReadFileHeader or ReadScanHeader
-		 */
-        public int32 imageWidth;
-        public int32 imageHeight;
-        public int32 dataPrecision;
-
-        /*
-		 * compInfo[i] describes component that appears i'th in SOF
-		 * numComponents is the # of color components in JPEG image.
-		 */
-        public JpegComponentInfo compInfo;
-        public int16 numComponents;
-
-        /*
-		 * *curCompInfo[i] describes component that appears i'th in SOS.
-		 * compsInScan is the # of color components in current scan.
-		 */
-        public JpegComponentInfo[] curCompInfo = new JpegComponentInfo[4];
-        public int16 compsInScan;
-
-        /*
-		 * MCUmembership[i] indexes the i'th component of MCU into the
-		 * curCompInfo array.
-		 */
-        public int16[] MCUmembership = new int16[10];
-
-        /*
-		 * ptrs to Huffman coding tables, or NULL if not defined
-		 */
-        public HuffmanTable[] dcHuffTblPtrs = new HuffmanTable[4];
-
-        /* 
-		 * prediction selection value (PSV) and point transform parameter (Pt)
-		 */
-        public int32 Ss;
-        public int32 Pt;
-
-        /*
-		 * In lossless JPEG, restart interval shall be an integer
-		 * multiple of the number of MCU in a MCU row.
-		 */
-        public int32 restartInterval;/* MCUs per restart interval, 0 = no restart */
-        public int32 restartInRows; /*if > 0, MCU rows per restart interval; 0 = no restart*/
-
-        /*
-		 * these fields are private data for the entropy decoder
-		 */
-        public int32 restartRowsToGo;  /* MCUs rows left in this restart interval */
-        public int16 nextRestartNum;   /* # of next RSTn marker (0..7) */
-
-    };
-
     /*****************************************************************************/
 
     public class DNGLosslessEncoder
@@ -1654,6 +1597,31 @@ namespace JpegDecodingTests
         public byte[] toByteArray()
         {
             return data.ToArray();
+        }
+
+        // for the decoder:
+
+        private UInt64 position =0;
+
+        public uint8 Get_uint8()
+        {
+            return data[(int)position++];
+        }
+
+        public UInt64 Position()
+        {
+            return position;
+        }
+
+        public void SetReadPosition(UInt64 newPosition)
+        {
+            position = newPosition;
+        }
+
+        public void Skip(UInt64 length)
+        {
+            // Not sure about this one!
+            position += length;
         }
     }
 }
