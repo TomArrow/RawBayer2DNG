@@ -67,6 +67,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DNGLosslessDecoder.cs" />
     <Compile Include="DNGLosslessEncoder.cs" />
     <Compile Include="Helpers.cs" />
     <Compile Include="JpegLibraryExtensions\JpegBufferOutputWriterGreaterThan8Bit.cs" />

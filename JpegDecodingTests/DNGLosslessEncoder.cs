@@ -1605,6 +1605,9 @@ namespace JpegDecodingTests
 
         public uint8 Get_uint8()
         {
+            if ((int)position >= data.Count) {
+                throw new Exception("dng_error_end_of_file");
+            }
             return data[(int)position++];
         }
 

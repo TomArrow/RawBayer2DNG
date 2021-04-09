@@ -39,6 +39,9 @@
  * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  */
 
+#define qSupportCanon_sRAW
+#define qSupportHasselblad_3FR
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -235,7 +238,7 @@ namespace JpegDecodingTests
      * The following structure stores basic information about one component.
      */
 
-        public struct JpegComponentInfo
+        public class JpegComponentInfo
         {
 
             /*
@@ -526,16 +529,16 @@ namespace JpegDecodingTests
 						uint32 &imageChannels);
 
 		void FinishRead();
-
+		*/
 		#if qSupportHasselblad_3FR
 	
-				bool IsHasselblad3FR ()
-					{
-					return fHasselblad3FR;
-					}
+		public bool IsHasselblad3FR ()
+		{
+			return fHasselblad3FR;
+		}
 		
 		#endif
-
+		/*
 		private:
 
 				uint8 GetJpegChar()
@@ -648,7 +651,7 @@ namespace JpegDecodingTests
 			fStream = stream;
 			fSpooler = spooler;
 			fBug16 = bug16;
-			compInfoBuffer = new dng_memory_data();
+			compInfoBuffer = new JpegComponentInfo[1]; //new dng_memory_data(); // This will be overwritten later anyway wheren ormally it would do an allocate
 			info = new DecompressInfo();
 			mcuBuffer1 = new dng_memory_data();
 			mcuBuffer2 = new dng_memory_data();
@@ -858,7 +861,7 @@ namespace JpegDecodingTests
 		 *--------------------------------------------------------------
 		 */
 
-		public void GetSof(/*int32 code*/)
+		public void GetSof(int32 code) // the "code" part was commented out in the original for whatever reason. But the code doesnt do shit with "code" anyway, so eh.
 		{
 
 			int32 length = Get2bytes();
@@ -993,11 +996,11 @@ namespace JpegDecodingTests
 							throw new Exception("bad format");
 						}
 
-				JpegComponentInfo* compptr = &info.compInfo[ci];
+				JpegComponentInfo compptr = info.compInfo[ci];
 
 				info.curCompInfo[i] = compptr;
 
-				compptr->dcTblNo = (int16)((c >> 4) & 15);
+				compptr.dcTblNo = (int16)((c >> 4) & 15);
 
 			}
 
@@ -1005,1620 +1008,941 @@ namespace JpegDecodingTests
 
 			info.Ss = GetJpegChar();
 
-			(void)GetJpegChar();
+			/*(void)*/GetJpegChar();
 
 			info.Pt = GetJpegChar() & 0x0F;
 
 		}
 
-/*****************************************************************************/
+		/*****************************************************************************/
 
-/*
- *--------------------------------------------------------------
- *
- * GetSoi --
- *
- *	Process an SOI marker
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Bitstream is parsed.
- *	Exits on error.
- *
- *--------------------------------------------------------------
- */
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * GetSoi --
+		 *
+		 *	Process an SOI marker
+		 *
+		 * Results:
+		 *	None.
+		 *
+		 * Side effects:
+		 *	Bitstream is parsed.
+		 *	Exits on error.
+		 *
+		 *--------------------------------------------------------------
+		 */
 
-void dng_lossless_decoder::GetSoi()
-{
-
-	// Reset all parameters that are defined to be reset by SOI
-
-	info.restartInterval = 0;
-
-}
-
-/*****************************************************************************/
-
-/*
- *--------------------------------------------------------------
- *
- * NextMarker --
- *
- *      Find the next JPEG marker Note that the output might not
- *	be a valid marker code but it will never be 0 or FF
- *
- * Results:
- *	The marker found.
- *
- * Side effects:
- *	Bitstream is parsed.
- *
- *--------------------------------------------------------------
- */
-
-int32 dng_lossless_decoder::NextMarker()
-{
-
-	int32 c;
-
-	do
-	{
-
-		// skip any non-FF bytes
-
-		do
-		{
-			c = GetJpegChar();
-		}
-		while (c != 0xFF);
-
-		// skip any duplicate FFs, since extra FFs are legal
-
-		do
-		{
-			c = GetJpegChar();
-		}
-		while (c == 0xFF);
-
-	}
-	while (c == 0);     // repeat if it was a stuffed FF/00
-
-	return c;
-
-}
-
-/*****************************************************************************/
-
-/*
- *--------------------------------------------------------------
- *
- * ProcessTables --
- *
- *	Scan and process JPEG markers that can appear in any order
- *	Return when an SOI, EOI, SOFn, or SOS is found
- *
- * Results:
- *	The marker found.
- *
- * Side effects:
- *	Bitstream is parsed.
- *
- *--------------------------------------------------------------
- */
-
-JpegMarker dng_lossless_decoder::ProcessTables()
-{
-
-	while (true)
-	{
-
-		int32 c = NextMarker();
-
-		switch (c)
+		public void GetSoi()
 		{
 
-			case M_SOF0:
-			case M_SOF1:
-			case M_SOF2:
-			case M_SOF3:
-			case M_SOF5:
-			case M_SOF6:
-			case M_SOF7:
-			case M_JPG:
-			case M_SOF9:
-			case M_SOF10:
-			case M_SOF11:
-			case M_SOF13:
-			case M_SOF14:
-			case M_SOF15:
-			case M_SOI:
-			case M_EOI:
-			case M_SOS:
-				return (JpegMarker)c;
+			// Reset all parameters that are defined to be reset by SOI
 
-			case M_DHT:
-				GetDht();
-				break;
-
-			case M_DQT:
-				break;
-
-			case M_DRI:
-				GetDri();
-				break;
-
-			case M_APP0:
-				GetApp0();
-				break;
-
-			case M_RST0:    // these are all parameterless
-			case M_RST1:
-			case M_RST2:
-			case M_RST3:
-			case M_RST4:
-			case M_RST5:
-			case M_RST6:
-			case M_RST7:
-			case M_TEM:
-				break;
-
-			default:        // must be DNL, DHP, EXP, APPn, JPGn, COM, or RESn
-				SkipVariable();
-				break;
+			info.restartInterval = 0;
 
 		}
 
-	}
+		/*****************************************************************************/
 
-	return M_ERROR;
-}
+		/*
+		*--------------------------------------------------------------
+		*
+		* NextMarker --
+		*
+		*      Find the next JPEG marker Note that the output might not
+		*	be a valid marker code but it will never be 0 or FF
+		*
+		* Results:
+		*	The marker found.
+		*
+		* Side effects:
+		*	Bitstream is parsed.
+		*
+		*--------------------------------------------------------------
+		*/
 
-/*****************************************************************************/
+		public int32 NextMarker()
+		{
 
-/*
- *--------------------------------------------------------------
- *
- * ReadFileHeader --
- *
- *	Initialize and read the stream header (everything through
- *	the SOF marker).
- *
- * Results:
- *	None
- *
- * Side effects:
- *	Exit on error.
- *
- *--------------------------------------------------------------
- */
+			int32 c;
 
-void dng_lossless_decoder::ReadFileHeader()
-{
+			do
+			{
 
-	// Demand an SOI marker at the start of the stream --- otherwise it's
-	// probably not a JPEG stream at all.
+				// skip any non-FF bytes
 
-	int32 c = GetJpegChar();
-	int32 c2 = GetJpegChar();
+				do
+				{
+					c = GetJpegChar();
+				}
+				while (c != 0xFF);
 
-	if ((c != 0xFF) || (c2 != M_SOI))
-	{
+				// skip any duplicate FFs, since extra FFs are legal
+
+				do
+				{
+					c = GetJpegChar();
+				}
+				while (c == 0xFF);
+
+			}
+			while (c == 0);     // repeat if it was a stuffed FF/00
+
+			return c;
+
+		}
+
+		/*****************************************************************************/
+
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * ProcessTables --
+		 *
+		 *	Scan and process JPEG markers that can appear in any order
+		 *	Return when an SOI, EOI, SOFn, or SOS is found
+		 *
+		 * Results:
+		 *	The marker found.
+		 *
+		 * Side effects:
+		 *	Bitstream is parsed.
+		 *
+		 *--------------------------------------------------------------
+		 */
+
+		public JpegMarker ProcessTables()
+		{
+
+			while (true)
+			{
+
+				int32 c = NextMarker();
+
+				switch ((JpegMarker)c)
+				{
+
+					case JpegMarker.M_SOF0:
+					case JpegMarker.M_SOF1:
+					case JpegMarker.M_SOF2:
+					case JpegMarker.M_SOF3:
+					case JpegMarker.M_SOF5:
+					case JpegMarker.M_SOF6:
+					case JpegMarker.M_SOF7:
+					case JpegMarker.M_JPG:
+					case JpegMarker.M_SOF9:
+					case JpegMarker.M_SOF10:
+					case JpegMarker.M_SOF11:
+					case JpegMarker.M_SOF13:
+					case JpegMarker.M_SOF14:
+					case JpegMarker.M_SOF15:
+					case JpegMarker.M_SOI:
+					case JpegMarker.M_EOI:
+					case JpegMarker.M_SOS:
+						return (JpegMarker)c;
+
+					case JpegMarker.M_DHT:
+						GetDht();
+						break;
+
+					case JpegMarker.M_DQT:
+						break;
+
+					case JpegMarker.M_DRI:
+						GetDri();
+						break;
+
+					case JpegMarker.M_APP0:
+						GetApp0();
+						break;
+
+					case JpegMarker.M_RST0:    // these are all parameterless
+					case JpegMarker.M_RST1:
+					case JpegMarker.M_RST2:
+					case JpegMarker.M_RST3:
+					case JpegMarker.M_RST4:
+					case JpegMarker.M_RST5:
+					case JpegMarker.M_RST6:
+					case JpegMarker.M_RST7:
+					case JpegMarker.M_TEM:
+						break;
+
+					default:        // must be DNL, DHP, EXP, APPn, JPGn, COM, or RESn
+						SkipVariable();
+						break;
+
+				}
+
+			}
+
+			return JpegMarker.M_ERROR;
+		}
+
+		/*****************************************************************************/
+
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * ReadFileHeader --
+		 *
+		 *	Initialize and read the stream header (everything through
+		 *	the SOF marker).
+		 *
+		 * Results:
+		 *	None
+		 *
+		 * Side effects:
+		 *	Exit on error.
+		 *
+		 *--------------------------------------------------------------
+		 */
+
+		public void ReadFileHeader()
+		{
+
+			// Demand an SOI marker at the start of the stream --- otherwise it's
+			// probably not a JPEG stream at all.
+
+			int32 c = GetJpegChar();
+			int32 c2 = GetJpegChar();
+
+			if ((c != 0xFF) || ((JpegMarker)c2 != JpegMarker.M_SOI))
+			{
 				throw new Exception("bad format");
 			}
 
-	// OK, process SOI
+			// OK, process SOI
 
-	GetSoi();
+			GetSoi();
 
-	// Process markers until SOF
+			// Process markers until SOF
 
-	c = ProcessTables();
+			c = (int)ProcessTables();
 
-	switch (c)
-	{
+			switch ((JpegMarker)c)
+			{
 
-		case M_SOF0:
-		case M_SOF1:
-		case M_SOF3:
-			GetSof(c);
-			break;
-
-		default:
-					throw new Exception("bad format");
+				case JpegMarker.M_SOF0:
+				case JpegMarker.M_SOF1:
+				case JpegMarker.M_SOF3:
+					GetSof(c);
 					break;
 
-	}
+				default:
+							throw new Exception("bad format");
+							break;
 
-}
+			}
 
-/*****************************************************************************/
+		}
 
-/*
- *--------------------------------------------------------------
- *
- * ReadScanHeader --
- *
- *	Read the start of a scan (everything through the SOS marker).
- *
- * Results:
- *	1 if find SOS, 0 if find EOI
- *
- * Side effects:
- *	Bitstream is parsed, may exit on errors.
- *
- *--------------------------------------------------------------
- */
+		/*****************************************************************************/
 
-int32 dng_lossless_decoder::ReadScanHeader()
-{
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * ReadScanHeader --
+		 *
+		 *	Read the start of a scan (everything through the SOS marker).
+		 *
+		 * Results:
+		 *	1 if find SOS, 0 if find EOI
+		 *
+		 * Side effects:
+		 *	Bitstream is parsed, may exit on errors.
+		 *
+		 *--------------------------------------------------------------
+		 */
 
-	// Process markers until SOS or EOI
-
-	int32 c = ProcessTables();
-
-	switch (c)
-	{
-
-		case M_SOS:
-			GetSos();
-			return 1;
-
-		case M_EOI:
-			return 0;
-
-		default:
-					throw new Exception("bad format");
-					break;
-
-	}
-
-	return 0;
-
-}
-
-/*****************************************************************************/
-
-/*
- *--------------------------------------------------------------
- *
- * DecoderStructInit --
- *
- *	Initalize the rest of the fields in the decompression
- *	structure.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None.
- *
- *--------------------------------------------------------------
- */
-
-void dng_lossless_decoder::DecoderStructInit()
-{
-
-	int32 ci;
-
-#if qSupportCanon_sRAW
-	
-	bool canon_sRAW = (info.numComponents == 3) &&
-					  (info.compInfo [0].hSampFactor == 2) &&
-					  (info.compInfo [1].hSampFactor == 1) &&
-					  (info.compInfo [2].hSampFactor == 1) &&
-					  (info.compInfo [0].vSampFactor == 1) &&
-					  (info.compInfo [1].vSampFactor == 1) &&
-					  (info.compInfo [2].vSampFactor == 1) &&
-					  (info.dataPrecision == 15) &&
-					  (info.Ss == 1) &&
-					  ((info.imageWidth & 1) == 0);
-					  
-	bool canon_sRAW2 = (info.numComponents == 3) &&
-					   (info.compInfo [0].hSampFactor == 2) &&
-					   (info.compInfo [1].hSampFactor == 1) &&
-					   (info.compInfo [2].hSampFactor == 1) &&
-					   (info.compInfo [0].vSampFactor == 2) &&
-					   (info.compInfo [1].vSampFactor == 1) &&
-					   (info.compInfo [2].vSampFactor == 1) &&
-					   (info.dataPrecision == 15) &&
-					   (info.Ss == 1) &&
-					   ((info.imageWidth  & 1) == 0) &&
-					   ((info.imageHeight & 1) == 0);
-					   
-	if (!canon_sRAW && !canon_sRAW2)
-	
-#endif
-
-	{
-
-		// Check sampling factor validity.
-
-		for (ci = 0; ci < info.numComponents; ci++)
+		public int32 ReadScanHeader()
 		{
 
-			JpegComponentInfo* compPtr = &info.compInfo[ci];
+			// Process markers until SOS or EOI
 
-			if (compPtr->hSampFactor != 1 ||
-				compPtr->vSampFactor != 1)
+			int32 c = (int)ProcessTables();
+
+			switch ((JpegMarker)c)
+			{
+
+				case JpegMarker.M_SOS:
+					GetSos();
+					return 1;
+
+				case JpegMarker.M_EOI:
+					return 0;
+
+				default:
+					throw new Exception("bad format");
+					break;
+
+			}
+
+			return 0;
+
+		}
+
+		/*****************************************************************************/
+
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * DecoderStructInit --
+		 *
+		 *	Initalize the rest of the fields in the decompression
+		 *	structure.
+		 *
+		 * Results:
+		 *	None.
+		 *
+		 * Side effects:
+		 *	None.
+		 *
+		 *--------------------------------------------------------------
+		 */
+
+		public void DecoderStructInit()
+		{
+
+			int32 ci;
+
+		#if qSupportCanon_sRAW
+	
+			bool canon_sRAW = (info.numComponents == 3) &&
+							  (info.compInfo [0].hSampFactor == 2) &&
+							  (info.compInfo [1].hSampFactor == 1) &&
+							  (info.compInfo [2].hSampFactor == 1) &&
+							  (info.compInfo [0].vSampFactor == 1) &&
+							  (info.compInfo [1].vSampFactor == 1) &&
+							  (info.compInfo [2].vSampFactor == 1) &&
+							  (info.dataPrecision == 15) &&
+							  (info.Ss == 1) &&
+							  ((info.imageWidth & 1) == 0);
+					  
+			bool canon_sRAW2 = (info.numComponents == 3) &&
+							   (info.compInfo [0].hSampFactor == 2) &&
+							   (info.compInfo [1].hSampFactor == 1) &&
+							   (info.compInfo [2].hSampFactor == 1) &&
+							   (info.compInfo [0].vSampFactor == 2) &&
+							   (info.compInfo [1].vSampFactor == 1) &&
+							   (info.compInfo [2].vSampFactor == 1) &&
+							   (info.dataPrecision == 15) &&
+							   (info.Ss == 1) &&
+							   ((info.imageWidth  & 1) == 0) &&
+							   ((info.imageHeight & 1) == 0);
+					   
+			if (!canon_sRAW && !canon_sRAW2)
+	
+		#endif
+
+			{
+
+				// Check sampling factor validity.
+
+				for (ci = 0; ci < info.numComponents; ci++)
+				{
+
+					JpegComponentInfo compPtr = info.compInfo[ci];
+
+					if (compPtr.hSampFactor != 1 ||
+						compPtr.vSampFactor != 1)
+					{
+								throw new Exception("bad format");
+							}
+
+				}
+
+			}
+
+			// Prepare array describing MCU composition.
+
+			if (info.compsInScan < 0 ||
+				info.compsInScan > 4)
 			{
 						throw new Exception("bad format");
 					}
 
-		}
-
-	}
-
-	// Prepare array describing MCU composition.
-
-	if (info.compsInScan < 0 ||
-		info.compsInScan > 4)
-	{
-				throw new Exception("bad format");
+			for (ci = 0; ci < info.compsInScan; ci++)
+			{
+				info.MCUmembership[ci] = (int16)ci;
 			}
 
-	for (ci = 0; ci < info.compsInScan; ci++)
-	{
-		info.MCUmembership[ci] = (int16)ci;
-	}
+			// Initialize mucROW1 and mcuROW2 which buffer two rows of
+			// pixels for predictor calculation.
 
-	// Initialize mucROW1 and mcuROW2 which buffer two rows of
-	// pixels for predictor calculation.
+			// This multiplication cannot overflow because info.compsInScan is
+			// guaranteed to be between 0 and 4 inclusive (see checks above).
 
-	// This multiplication cannot overflow because info.compsInScan is
-	// guaranteed to be between 0 and 4 inclusive (see checks above).
+			int32 mcuSize = (int32)(info.compsInScan * (uint32)sizeof(ComponentType));
 
-	int32 mcuSize = info.compsInScan * (uint32)sizeof(ComponentType);
+			mcuBuffer1.Allocate(info.imageWidth, sizeof(MCU));
+			mcuBuffer2.Allocate(info.imageWidth, sizeof(MCU));
 
-	mcuBuffer1.Allocate(info.imageWidth, sizeof(MCU));
-	mcuBuffer2.Allocate(info.imageWidth, sizeof(MCU));
+			mcuROW1 = (MCU*)mcuBuffer1.Buffer();
+			mcuROW2 = (MCU*)mcuBuffer2.Buffer();
 
-	mcuROW1 = (MCU*)mcuBuffer1.Buffer();
-	mcuROW2 = (MCU*)mcuBuffer2.Buffer();
+			mcuBuffer3.Allocate(info.imageWidth, mcuSize);
+			mcuBuffer4.Allocate(info.imageWidth, mcuSize);
 
-	mcuBuffer3.Allocate(info.imageWidth, mcuSize);
-	mcuBuffer4.Allocate(info.imageWidth, mcuSize);
+			mcuROW1[0] = (ComponentType*)mcuBuffer3.Buffer();
+			mcuROW2[0] = (ComponentType*)mcuBuffer4.Buffer();
 
-	mcuROW1[0] = (ComponentType*)mcuBuffer3.Buffer();
-	mcuROW2[0] = (ComponentType*)mcuBuffer4.Buffer();
+			for (int32 j = 1; j < info.imageWidth; j++)
+			{
 
-	for (int32 j = 1; j < info.imageWidth; j++)
-	{
+				mcuROW1[j] = mcuROW1[j - 1] + info.compsInScan;
+				mcuROW2[j] = mcuROW2[j - 1] + info.compsInScan;
 
-		mcuROW1[j] = mcuROW1[j - 1] + info.compsInScan;
-		mcuROW2[j] = mcuROW2[j - 1] + info.compsInScan;
+			}
 
-	}
+		}
 
-}
+		/*****************************************************************************/
 
-/*****************************************************************************/
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * HuffDecoderInit --
+		 *
+		 *	Initialize for a Huffman-compressed scan.
+		 *	This is invoked after reading the SOS marker.
+		 *
+		 * Results:
+		 *	None
+		 *
+		 * Side effects:
+		 *	None.
+		 *
+		 *--------------------------------------------------------------
+		 */
 
-/*
- *--------------------------------------------------------------
- *
- * HuffDecoderInit --
- *
- *	Initialize for a Huffman-compressed scan.
- *	This is invoked after reading the SOS marker.
- *
- * Results:
- *	None
- *
- * Side effects:
- *	None.
- *
- *--------------------------------------------------------------
- */
-
-void dng_lossless_decoder::HuffDecoderInit()
-{
-
-	// Initialize bit parser state
-
-	getBuffer = 0;
-	bitsLeft = 0;
-
-	// Prepare Huffman tables.
-
-	for (int16 ci = 0; ci < info.compsInScan; ci++)
-	{
-
-		JpegComponentInfo* compptr = info.curCompInfo[ci];
-
-		// Make sure requested tables are present
-
-		if (compptr->dcTblNo < 0 || compptr->dcTblNo > 3)
+		public void HuffDecoderInit()
 		{
+
+			// Initialize bit parser state
+
+			getBuffer = 0;
+			bitsLeft = 0;
+
+			// Prepare Huffman tables.
+
+			for (int16 ci = 0; ci < info.compsInScan; ci++)
+			{
+
+				JpegComponentInfo compptr = info.curCompInfo[ci];
+
+				// Make sure requested tables are present
+
+				if (compptr.dcTblNo < 0 || compptr.dcTblNo > 3)
+				{
 					throw new Exception("bad format");
 				}
 
-		if (info.dcHuffTblPtrs[compptr->dcTblNo] == NULL)
-		{
+				if (info.dcHuffTblPtrs[compptr.dcTblNo] == null)
+				{
 					throw new Exception("bad format");
 				}
 
-		// Compute derived values for Huffman tables.
-		// We may do this more than once for same table, but it's not a
-		// big deal
+				// Compute derived values for Huffman tables.
+				// We may do this more than once for same table, but it's not a
+				// big deal
 
-		FixHuffTbl(info.dcHuffTblPtrs[compptr->dcTblNo]);
+				FixHuffTbl(ref info.dcHuffTblPtrs[compptr.dcTblNo]);
 
-	}
+			}
 
-	// Initialize restart stuff
+			// Initialize restart stuff
 
-	info.restartInRows = info.restartInterval / info.imageWidth;
-	info.restartRowsToGo = info.restartInRows;
-	info.nextRestartNum = 0;
+			info.restartInRows = info.restartInterval / info.imageWidth;
+			info.restartRowsToGo = info.restartInRows;
+			info.nextRestartNum = 0;
 
-}
-
-/*****************************************************************************/
-
-/*
- *--------------------------------------------------------------
- *
- * ProcessRestart --
- *
- *	Check for a restart marker & resynchronize decoder.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	BitStream is parsed, bit buffer is reset, etc.
- *
- *--------------------------------------------------------------
- */
-
-void dng_lossless_decoder::ProcessRestart()
-{
-
-	// Throw away and unused odd bits in the bit buffer.
-
-	fStream->SetReadPosition(fStream->Position() - bitsLeft / 8);
-
-	bitsLeft = 0;
-	getBuffer = 0;
-
-	// Scan for next JPEG marker
-
-	int32 c;
-
-	do
-	{
-
-		// skip any non-FF bytes
-
-		do
-		{
-			c = GetJpegChar();
 		}
-		while (c != 0xFF);
 
-		// skip any duplicate FFs
+		/*****************************************************************************/
 
-		do
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * ProcessRestart --
+		 *
+		 *	Check for a restart marker & resynchronize decoder.
+		 *
+		 * Results:
+		 *	None.
+		 *
+		 * Side effects:
+		 *	BitStream is parsed, bit buffer is reset, etc.
+		 *
+		 *--------------------------------------------------------------
+		 */
+
+		public void ProcessRestart()
 		{
-			c = GetJpegChar();
+
+			// Throw away and unused odd bits in the bit buffer.
+
+			fStream.SetReadPosition((UInt64)((int)fStream.Position() - bitsLeft / 8));
+
+			bitsLeft = 0;
+			getBuffer = 0;
+
+			// Scan for next JPEG marker
+
+			int32 c;
+
+			do
+			{
+
+				// skip any non-FF bytes
+
+				do
+				{
+					c = GetJpegChar();
+				}
+				while (c != 0xFF);
+
+				// skip any duplicate FFs
+
+				do
+				{
+					c = GetJpegChar();
+				}
+				while (c == 0xFF);
+
+			}
+			while (c == 0);     // repeat if it was a stuffed FF/00
+
+			// Verify correct restart code.
+
+			if (c != (M_RST0 + info.nextRestartNum))
+			{
+						throw new Exception("bad format");
+					}
+
+			// Update restart state.
+
+			info.restartRowsToGo = info.restartInRows;
+			info.nextRestartNum = (int16)((info.nextRestartNum + 1) & 7);
+
 		}
-		while (c == 0xFF);
 
-	}
-	while (c == 0);     // repeat if it was a stuffed FF/00
+		/*****************************************************************************/
 
-	// Verify correct restart code.
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * QuickPredict --
+		 *
+		 *      Calculate the predictor for sample curRowBuf[col][curComp].
+		 *	It does not handle the special cases at image edges, such 
+		 *      as first row and first column of a scan. We put the special 
+		 *	case checkings outside so that the computations in main
+		 *	loop can be simpler. This has enhenced the performance
+		 *	significantly.
+		 *
+		 * Results:
+		 *      predictor is passed out.
+		 *
+		 * Side effects:
+		 *      None.
+		 *
+		 *--------------------------------------------------------------
+		 */
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public int32 QuickPredict (int32 col,
+														  int32 curComp,
+														  MCU *curRowBuf,
+														  MCU *prevRowBuf)
+			{
 
-	if (c != (M_RST0 + info.nextRestartNum))
-	{
+			int32 diag = prevRowBuf[col - 1][curComp];
+			int32 upper = prevRowBuf[col][curComp];
+			int32 left = curRowBuf[col - 1][curComp];
+
+			switch (info.Ss)
+			{
+
+				case 0:
+					return 0;
+
+				case 1:
+					return left;
+
+				case 2:
+					return upper;
+
+				case 3:
+					return diag;
+
+				case 4:
+					return left + upper - diag;
+
+				case 5:
+					return left + ((upper - diag) >> 1);
+
+				case 6:
+					return upper + ((left - diag) >> 1);
+
+				case 7:
+					return (left + upper) >> 1;
+
+				default:
+					{
+						throw new Exception("bad format");
+						return 0;
+					}
+
+			}
+
+		}
+
+		/*****************************************************************************/
+
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * FillBitBuffer --
+		 *
+		 *	Load up the bit buffer with at least nbits
+		 *	Process any stuffed bytes at this time.
+		 *
+		 * Results:
+		 *	None
+		 *
+		 * Side effects:
+		 *	The bitwise global variables are updated.
+		 *
+		 *--------------------------------------------------------------
+		 */
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public void FillBitBuffer(int32 nbits)
+		{
+
+			const int32 kMinGetBits = sizeof(uint32) * 8 - 7;
+
+		#if qSupportHasselblad_3FR
+	
+			if (fHasselblad3FR)
+				{
+		
+				while (bitsLeft < kMinGetBits)
+					{
+			
+					int32 c0 = 0;
+					int32 c1 = 0;
+					int32 c2 = 0;
+					int32 c3 = 0;
+			
+					try
+						{
+						c0 = GetJpegChar ();
+						c1 = GetJpegChar ();
+						c2 = GetJpegChar ();
+						c3 = GetJpegChar ();
+						}
+				
+					catch (Exception except)
+						{
+				
+						// If we got any exception other than EOF, rethrow.
+				
+						if (except.Message != "dng_error_end_of_file")
+							{
+							throw except;
+							}
+					
+						// Some Hasselblad files now use the JPEG end of image marker.
+						// If we DIDN'T hit that, rethrow.
+						// This sequence also sometimes occurs in the image data, so
+						// we can't simply check for it and exit - we need to wait until
+						// we throw the EOF and then look to see if we had it.
+					
+						// Look for the marker in c1 and c2 as well.
+						// (if we get it in c2 and c3, we won't throw.)
+				
+						if (!((c0 == 0xFF && c1 == 0xD9) ||
+							  (c1 == 0xFF && c2 == 0xD9)))
+							{
+							throw except;
+							}
+				
+						// Swallow the case where we hit EOF with the JPEG EOI marker.
+					
+						}
+			
+					getBuffer = (getBuffer << 8) | (uint64)c3;
+					getBuffer = (getBuffer << 8) | (uint64)c2;
+					getBuffer = (getBuffer << 8) | (uint64)c1;
+					getBuffer = (getBuffer << 8) | (uint64)c0;
+			
+					bitsLeft += 32;
+			
+					}
+			
+				return;
+		
+				}
+	
+		#endif
+
+			while (bitsLeft < kMinGetBits)
+			{
+
+				int32 c = GetJpegChar();
+
+				// If it's 0xFF, check and discard stuffed zero byte
+
+				if (c == 0xFF)
+				{
+
+					int32 c2 = GetJpegChar();
+
+					if (c2 != 0)
+					{
+
+						// Oops, it's actually a marker indicating end of
+						// compressed data.  Better put it back for use later.
+
+						UnGetJpegChar();
+						UnGetJpegChar();
+
+						// There should be enough bits still left in the data
+						// segment; if so, just break out of the while loop.
+
+						if (bitsLeft >= nbits)
+							break;
+
+						// Uh-oh.  Corrupted data: stuff zeroes into the data
+						// stream, since this sometimes occurs when we are on the
+						// last show_bits8 during decoding of the Huffman
+						// segment.
+
+						c = 0;
+
+					}
+
+				}
+
+				getBuffer = (getBuffer << 8) | (uint64)c;
+
+				bitsLeft += 8;
+
+			}
+
+		}
+
+		/*****************************************************************************/
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public int32 show_bits8()
+		{
+
+			if (bitsLeft < 8)
+				FillBitBuffer(8);
+
+			return (int32)((getBuffer >> (bitsLeft - 8)) & 0xff);
+
+		}
+
+		/*****************************************************************************/
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public void flush_bits(int32 nbits)
+		{
+
+			bitsLeft -= nbits;
+
+		}
+
+		/*****************************************************************************/
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public int32 get_bits(int32 nbits)
+		{
+
+			if (nbits > 16)
+			{
 				throw new Exception("bad format");
 			}
 
-	// Update restart state.
+			if (bitsLeft < nbits)
+				FillBitBuffer(nbits);
 
-	info.restartRowsToGo = info.restartInRows;
-	info.nextRestartNum = (info.nextRestartNum + 1) & 7;
+			return (int32)((getBuffer >> (bitsLeft -= nbits)) & (uint64)(0x0FFFF >> (16 - nbits)));
 
-}
-
-/*****************************************************************************/
-
-/*
- *--------------------------------------------------------------
- *
- * QuickPredict --
- *
- *      Calculate the predictor for sample curRowBuf[col][curComp].
- *	It does not handle the special cases at image edges, such 
- *      as first row and first column of a scan. We put the special 
- *	case checkings outside so that the computations in main
- *	loop can be simpler. This has enhenced the performance
- *	significantly.
- *
- * Results:
- *      predictor is passed out.
- *
- * Side effects:
- *      None.
- *
- *--------------------------------------------------------------
- */
-
-inline int32 dng_lossless_decoder::QuickPredict (int32 col,
-												  int32 curComp,
-												  MCU *curRowBuf,
-												  MCU *prevRowBuf)
-	{
-
-	int32 diag = prevRowBuf[col - 1][curComp];
-	int32 upper = prevRowBuf[col][curComp];
-	int32 left = curRowBuf[col - 1][curComp];
-
-	switch (info.Ss)
-	{
-
-		case 0:
-			return 0;
-
-		case 1:
-			return left;
-
-		case 2:
-			return upper;
-
-		case 3:
-			return diag;
-
-		case 4:
-			return left + upper - diag;
-
-		case 5:
-			return left + ((upper - diag) >> 1);
-
-		case 6:
-			return upper + ((left - diag) >> 1);
-
-		case 7:
-			return (left + upper) >> 1;
-
-		default:
-			{
-				throw new Exception("bad format");
-				return 0;
-			}
-
-	}
-
-}
-
-/*****************************************************************************/
-
-/*
- *--------------------------------------------------------------
- *
- * FillBitBuffer --
- *
- *	Load up the bit buffer with at least nbits
- *	Process any stuffed bytes at this time.
- *
- * Results:
- *	None
- *
- * Side effects:
- *	The bitwise global variables are updated.
- *
- *--------------------------------------------------------------
- */
-
-inline void dng_lossless_decoder::FillBitBuffer(int32 nbits)
-{
-
-	const int32 kMinGetBits = sizeof(uint32) * 8 - 7;
-
-#if qSupportHasselblad_3FR
-	
-	if (fHasselblad3FR)
-		{
-		
-		while (bitsLeft < kMinGetBits)
-			{
-			
-			int32 c0 = 0;
-			int32 c1 = 0;
-			int32 c2 = 0;
-			int32 c3 = 0;
-			
-			try
-				{
-				c0 = GetJpegChar ();
-				c1 = GetJpegChar ();
-				c2 = GetJpegChar ();
-				c3 = GetJpegChar ();
-				}
-				
-			catch (dng_exception &except)
-				{
-				
-				// If we got any exception other than EOF, rethrow.
-				
-				if (except.ErrorCode () != dng_error_end_of_file)
-					{
-					throw except;
-					}
-					
-				// Some Hasselblad files now use the JPEG end of image marker.
-				// If we DIDN'T hit that, rethrow.
-				// This sequence also sometimes occurs in the image data, so
-				// we can't simply check for it and exit - we need to wait until
-				// we throw the EOF and then look to see if we had it.
-					
-				// Look for the marker in c1 and c2 as well.
-				// (if we get it in c2 and c3, we won't throw.)
-				
-				if (!((c0 == 0xFF && c1 == 0xD9) ||
-					  (c1 == 0xFF && c2 == 0xD9)))
-					{
-					throw except;
-					}
-				
-				// Swallow the case where we hit EOF with the JPEG EOI marker.
-					
-				}
-			
-			getBuffer = (getBuffer << 8) | c3;
-			getBuffer = (getBuffer << 8) | c2;
-			getBuffer = (getBuffer << 8) | c1;
-			getBuffer = (getBuffer << 8) | c0;
-			
-			bitsLeft += 32;
-			
-			}
-			
-		return;
-		
 		}
-	
-#endif
 
-	while (bitsLeft < kMinGetBits)
-	{
-
-		int32 c = GetJpegChar();
-
-		// If it's 0xFF, check and discard stuffed zero byte
-
-		if (c == 0xFF)
-		{
-
-			int32 c2 = GetJpegChar();
-
-			if (c2 != 0)
+		/*****************************************************************************/
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public int32 get_bit ()
 			{
 
-				// Oops, it's actually a marker indicating end of
-				// compressed data.  Better put it back for use later.
+			//if (!bitsLeft)
+			if (!(bitsLeft != 0))
+				FillBitBuffer(1);
 
-				UnGetJpegChar();
-				UnGetJpegChar();
-
-				// There should be enough bits still left in the data
-				// segment; if so, just break out of the while loop.
-
-				if (bitsLeft >= nbits)
-					break;
-
-				// Uh-oh.  Corrupted data: stuff zeroes into the data
-				// stream, since this sometimes occurs when we are on the
-				// last show_bits8 during decoding of the Huffman
-				// segment.
-
-				c = 0;
-
-			}
+			return (int32)((getBuffer >> (--bitsLeft)) & 1);
 
 		}
 
-		getBuffer = (getBuffer << 8) | c;
-
-		bitsLeft += 8;
-
-	}
-
-}
-
-/*****************************************************************************/
-
-inline int32 dng_lossless_decoder::show_bits8 ()
-	{
-
-	if (bitsLeft < 8)
-		FillBitBuffer(8);
-
-	return (int32)((getBuffer >> (bitsLeft - 8)) & 0xff);
-
-}
-
-/*****************************************************************************/
-
-inline void dng_lossless_decoder::flush_bits(int32 nbits)
-{
-
-	bitsLeft -= nbits;
-
-}
-
-/*****************************************************************************/
-
-inline int32 dng_lossless_decoder::get_bits (int32 nbits)
-	{
-
-	if (nbits > 16)
-	{
-		throw new Exception("bad format");
-	}
-
-	if (bitsLeft < nbits)
-		FillBitBuffer(nbits);
-
-	return (int32)((getBuffer >> (bitsLeft -= nbits)) & (0x0FFFF >> (16 - nbits)));
-
-}
-
-/*****************************************************************************/
-
-inline int32 dng_lossless_decoder::get_bit ()
-	{
-
-	if (!bitsLeft)
-		FillBitBuffer(1);
-
-	return (int32)((getBuffer >> (--bitsLeft)) & 1);
-
-}
-
-/*****************************************************************************/
-
-/*
- *--------------------------------------------------------------
- *
- * HuffDecode --
- *
- *	Taken from Figure F.16: extract next coded symbol from
- *	input stream.  This should becode a macro.
- *
- * Results:
- *	Next coded symbol
- *
- * Side effects:
- *	Bitstream is parsed.
- *
- *--------------------------------------------------------------
- */
-
-inline int32 dng_lossless_decoder::HuffDecode (HuffmanTable *htbl)
-	{
-
-	// If the huffman code is less than 8 bits, we can use the fast
-	// table lookup to get its value.  It's more than 8 bits about
-	// 3-4% of the time.
-
-	int32 code = show_bits8();
-
-	if (htbl->numbits[code])
-	{
-
-		flush_bits(htbl->numbits[code]);
-
-		return htbl->value[code];
-
-	}
-
-	else
-	{
-
-		flush_bits(8);
-
-		int32 l = 8;
-
-		while (code > htbl->maxcode[l])
-		{
-			code = (code << 1) | get_bit();
-			l++;
-		}
-
-		// With garbage input we may reach the sentinel value l = 17.
-
-		if (l > 16)
-		{
-			return 0;       // fake a zero as the safest result
-		}
-		else
-		{
-			return htbl->huffval[htbl->valptr[l] +
-								  ((int32)(code - htbl->mincode[l]))];
-		}
-
-	}
-
-}
-
-/*****************************************************************************/
-
-/*
- *--------------------------------------------------------------
- *
- * HuffExtend --
- *
- *	Code and table for Figure F.12: extend sign bit
- *
- * Results:
- *	The extended value.
- *
- * Side effects:
- *	None.
- *
- *--------------------------------------------------------------
- */
-
-DNG_ATTRIB_NO_SANITIZE("undefined")
-inline void dng_lossless_decoder::HuffExtend(int32 &x, int32 s)
-{
-
-	if (x < (0x08000 >> (16 - s)))
-	{
-		x += (-1 << s) + 1;
-	}
-
-}
-
-/*****************************************************************************/
-
-// Called from DecodeImage () to write one row.
-
-void dng_lossless_decoder::PmPutRow(MCU* buf,
-									 int32 numComp,
-									 int32 numCol,
-									 int32 /* row */)
-{
-
-	uint16* sPtr = &buf[0][0];
-
-	uint32 pixels = numCol * numComp;
-
-	fSpooler->Spool(sPtr, pixels * (uint32)sizeof(uint16));
-
-}
-
-/*****************************************************************************/
-
-/*
- *--------------------------------------------------------------
- *
- * DecodeFirstRow --
- *
- *	Decode the first raster line of samples at the start of 
- *      the scan and at the beginning of each restart interval.
- *	This includes modifying the component value so the real
- *      value, not the difference is returned.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Bitstream is parsed.
- *
- *--------------------------------------------------------------
- */
-
-void dng_lossless_decoder::DecodeFirstRow(MCU* curRowBuf)
-{
-
-	int32 compsInScan = info.compsInScan;
-
-	// Process the first column in the row.
-
-	for (int32 curComp = 0; curComp < compsInScan; curComp++)
-	{
-
-		int32 ci = info.MCUmembership[curComp];
-
-		JpegComponentInfo* compptr = info.curCompInfo[ci];
-
-		HuffmanTable* dctbl = info.dcHuffTblPtrs[compptr->dcTblNo];
-
-		// Section F.2.2.1: decode the difference
-
-		int32 d = 0;
-
-		int32 s = HuffDecode(dctbl);
-
-		if (s)
-		{
-
-			if (s == 16 && !fBug16)
+		/*****************************************************************************/
+
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * HuffDecode --
+		 *
+		 *	Taken from Figure F.16: extract next coded symbol from
+		 *	input stream.  This should becode a macro.
+		 *
+		 * Results:
+		 *	Next coded symbol
+		 *
+		 * Side effects:
+		 *	Bitstream is parsed.
+		 *
+		 *--------------------------------------------------------------
+		 */
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public int32 HuffDecode (ref HuffmanTable htbl)
 			{
-				d = -32768;
+
+			// If the huffman code is less than 8 bits, we can use the fast
+			// table lookup to get its value.  It's more than 8 bits about
+			// 3-4% of the time.
+
+			int32 code = show_bits8();
+
+			//if (htbl.numbits[code])
+			if (htbl.numbits[code] != 0)
+			{
+
+				flush_bits(htbl.numbits[code]);
+
+				return htbl.value[code];
+
 			}
 
 			else
 			{
-				d = get_bits(s);
-				HuffExtend(d, s);
-			}
 
-		}
+				flush_bits(8);
 
-		// Add the predictor to the difference.
+				int32 l = 8;
 
-		int32 Pr = info.dataPrecision;
-		int32 Pt = info.Pt;
-
-		curRowBuf[0][curComp] = (ComponentType)(d + (1 << (Pr - Pt - 1)));
-
-	}
-
-	// Process the rest of the row.
-
-	int32 numCOL = info.imageWidth;
-
-	for (int32 col = 1; col < numCOL; col++)
-	{
-
-		for (int32 curComp = 0; curComp < compsInScan; curComp++)
-		{
-
-			int32 ci = info.MCUmembership[curComp];
-
-			JpegComponentInfo* compptr = info.curCompInfo[ci];
-
-			HuffmanTable* dctbl = info.dcHuffTblPtrs[compptr->dcTblNo];
-
-			// Section F.2.2.1: decode the difference
-
-			int32 d = 0;
-
-			int32 s = HuffDecode(dctbl);
-
-			if (s)
-			{
-
-				if (s == 16 && !fBug16)
+				while (code > htbl.maxcode[l])
 				{
-					d = -32768;
+					code = (code << 1) | get_bit();
+					l++;
 				}
 
+				// With garbage input we may reach the sentinel value l = 17.
+
+				if (l > 16)
+				{
+					return 0;       // fake a zero as the safest result
+				}
 				else
 				{
-					d = get_bits(s);
-					HuffExtend(d, s);
+					return htbl.huffval[htbl.valptr[l] +
+										  ((int32)(code - htbl.mincode[l]))];
 				}
 
 			}
 
-			// Add the predictor to the difference.
-
-			curRowBuf[col][curComp] = (ComponentType)(d + curRowBuf[col - 1][curComp]);
-
 		}
 
-	}
+		/*****************************************************************************/
 
-	// Update the restart counter
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * HuffExtend --
+		 *
+		 *	Code and table for Figure F.12: extend sign bit
+		 *
+		 * Results:
+		 *	The extended value.
+		 *
+		 * Side effects:
+		 *	None.
+		 *
+		 *--------------------------------------------------------------
+		 */
 
-	if (info.restartInRows)
-	{
-		info.restartRowsToGo--;
-	}
-
-}
-
-/*****************************************************************************/
-
-/*
- *--------------------------------------------------------------
- *
- * DecodeImage --
- *
- *      Decode the input stream. This includes modifying
- *      the component value so the real value, not the
- *      difference is returned.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Bitstream is parsed.
- *
- *--------------------------------------------------------------
- */
-
-void dng_lossless_decoder::DecodeImage()
-{
-
-#define swap(type,a,b) {type c; c=(a); (a)=(b); (b)=c;}
-
-	int32 numCOL = info.imageWidth;
-	int32 numROW = info.imageHeight;
-	int32 compsInScan = info.compsInScan;
-
-	// Precompute the decoding table for each table.
-
-	HuffmanTable* ht[4];
-
-	memset(ht, 0, sizeof(ht));
-
-	for (int32 curComp = 0; curComp < compsInScan; curComp++)
-	{
-
-		int32 ci = info.MCUmembership[curComp];
-
-		JpegComponentInfo* compptr = info.curCompInfo[ci];
-
-		ht[curComp] = info.dcHuffTblPtrs[compptr->dcTblNo];
-
-	}
-
-	MCU* prevRowBuf = mcuROW1;
-	MCU* curRowBuf = mcuROW2;
-
-#if qSupportCanon_sRAW
-		
-	// Canon sRAW support
-	
-	if (info.compInfo [0].hSampFactor == 2 &&
-		info.compInfo [0].vSampFactor == 1)
+		//DNG_ATTRIB_NO_SANITIZE("undefined")
+		// No idea what this does ^, let's ignore it
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		void HuffExtend(ref int32 x, int32 s)
 		{
-	
-		for (int32 row = 0; row < numROW; row++)
+
+			if (x < (0x08000 >> (16 - s)))
 			{
-			
-			// Initialize predictors.
-			
-			int32 p0;
-			int32 p1;
-			int32 p2;
-			
-			if (row == 0)
-				{
-				p0 = 1 << 14;
-				p1 = 1 << 14;
-				p2 = 1 << 14;
-				}
-				
-			else
-				{
-				p0 = prevRowBuf [0] [0];
-				p1 = prevRowBuf [0] [1];
-				p2 = prevRowBuf [0] [2];
-				}
-			
-			for (int32 col = 0; col < numCOL; col += 2)
-				{
-				
-				// Read first luminance component.
-				
-					{
-				
-					int32 d = 0;
-				
-					int32 s = HuffDecode (ht [0]);
-					
-					if (s)
-						{
-
-						if (s == 16)
-							{
-							d = -32768;
-							}
-						
-						else
-							{
-							d = get_bits (s);
-							HuffExtend (d, s);
-							}
-
-						}
-						
-					p0 += d;
-					
-					curRowBuf [col] [0] = (ComponentType) p0;
-				
-					}
-				
-				// Read second luminance component.
-				
-					{
-				
-					int32 d = 0;
-				
-					int32 s = HuffDecode (ht [0]);
-					
-					if (s)
-						{
-
-						if (s == 16)
-							{
-							d = -32768;
-							}
-						
-						else
-							{
-							d = get_bits (s);
-							HuffExtend (d, s);
-							}
-
-						}
-						
-					p0 += d;
-					
-					curRowBuf [col + 1] [0] = (ComponentType) p0;
-				
-					}
-				
-				// Read first chroma component.
-				
-					{
-				
-					int32 d = 0;
-				
-					int32 s = HuffDecode (ht [1]);
-					
-					if (s)
-						{
-
-						if (s == 16)
-							{
-							d = -32768;
-							}
-						
-						else
-							{
-							d = get_bits (s);
-							HuffExtend (d, s);
-							}
-
-						}
-						
-					p1 += d;
-					
-					curRowBuf [col    ] [1] = (ComponentType) p1;
-					curRowBuf [col + 1] [1] = (ComponentType) p1;
-				
-					}
-				
-				// Read second chroma component.
-				
-					{
-				
-					int32 d = 0;
-				
-					int32 s = HuffDecode (ht [2]);
-					
-					if (s)
-						{
-
-						if (s == 16)
-							{
-							d = -32768;
-							}
-						
-						else
-							{
-							d = get_bits (s);
-							HuffExtend (d, s);
-							}
-
-						}
-						
-					p2 += d;
-					
-					curRowBuf [col    ] [2] = (ComponentType) p2;
-					curRowBuf [col + 1] [2] = (ComponentType) p2;
-				
-					}
-								
-				}
-			
-			PmPutRow (curRowBuf, compsInScan, numCOL, row);
-
-			swap (MCU *, prevRowBuf, curRowBuf);
-			
-			}
-			
-		return;
-		
-		}
-		
-	if (info.compInfo [0].hSampFactor == 2 &&
-		info.compInfo [0].vSampFactor == 2)
-		{
-	
-		for (int32 row = 0; row < numROW; row += 2)
-			{
-			
-			// Initialize predictors.
-			
-			int32 p0;
-			int32 p1;
-			int32 p2;
-			
-			if (row == 0)
-				{
-				p0 = 1 << 14;
-				p1 = 1 << 14;
-				p2 = 1 << 14;
-				}
-				
-			else
-				{
-				p0 = prevRowBuf [0] [0];
-				p1 = prevRowBuf [0] [1];
-				p2 = prevRowBuf [0] [2];
-				}
-			
-			for (int32 col = 0; col < numCOL; col += 2)
-				{
-				
-				// Read first luminance component.
-				
-					{
-				
-					int32 d = 0;
-				
-					int32 s = HuffDecode (ht [0]);
-					
-					if (s)
-						{
-
-						if (s == 16)
-							{
-							d = -32768;
-							}
-						
-						else
-							{
-							d = get_bits (s);
-							HuffExtend (d, s);
-							}
-
-						}
-						
-					p0 += d;
-					
-					prevRowBuf [col] [0] = (ComponentType) p0;
-				
-					}
-				
-				// Read second luminance component.
-				
-					{
-				
-					int32 d = 0;
-				
-					int32 s = HuffDecode (ht [0]);
-					
-					if (s)
-						{
-
-						if (s == 16)
-							{
-							d = -32768;
-							}
-						
-						else
-							{
-							d = get_bits (s);
-							HuffExtend (d, s);
-							}
-
-						}
-						
-					p0 += d;
-					
-					prevRowBuf [col + 1] [0] = (ComponentType) p0;
-				
-					}
-				
-				// Read third luminance component.
-				
-					{
-				
-					int32 d = 0;
-				
-					int32 s = HuffDecode (ht [0]);
-					
-					if (s)
-						{
-
-						if (s == 16)
-							{
-							d = -32768;
-							}
-						
-						else
-							{
-							d = get_bits (s);
-							HuffExtend (d, s);
-							}
-
-						}
-						
-					p0 += d;
-					
-					curRowBuf [col] [0] = (ComponentType) p0;
-				
-					}
-				
-				// Read fourth luminance component.
-				
-					{
-				
-					int32 d = 0;
-				
-					int32 s = HuffDecode (ht [0]);
-					
-					if (s)
-						{
-
-						if (s == 16)
-							{
-							d = -32768;
-							}
-						
-						else
-							{
-							d = get_bits (s);
-							HuffExtend (d, s);
-							}
-
-						}
-						
-					p0 += d;
-					
-					curRowBuf [col + 1] [0] = (ComponentType) p0;
-				
-					}
-				
-				// Read first chroma component.
-				
-					{
-				
-					int32 d = 0;
-				
-					int32 s = HuffDecode (ht [1]);
-					
-					if (s)
-						{
-
-						if (s == 16)
-							{
-							d = -32768;
-							}
-						
-						else
-							{
-							d = get_bits (s);
-							HuffExtend (d, s);
-							}
-
-						}
-						
-					p1 += d;
-					
-					prevRowBuf [col    ] [1] = (ComponentType) p1;
-					prevRowBuf [col + 1] [1] = (ComponentType) p1;
-
-					curRowBuf [col    ] [1] = (ComponentType) p1;
-					curRowBuf [col + 1] [1] = (ComponentType) p1;
-				
-					}
-				
-				// Read second chroma component.
-				
-					{
-				
-					int32 d = 0;
-				
-					int32 s = HuffDecode (ht [2]);
-					
-					if (s)
-						{
-
-						if (s == 16)
-							{
-							d = -32768;
-							}
-						
-						else
-							{
-							d = get_bits (s);
-							HuffExtend (d, s);
-							}
-
-						}
-						
-					p2 += d;
-					
-					prevRowBuf [col    ] [2] = (ComponentType) p2;
-					prevRowBuf [col + 1] [2] = (ComponentType) p2;
-				
-					curRowBuf [col    ] [2] = (ComponentType) p2;
-					curRowBuf [col + 1] [2] = (ComponentType) p2;
-				
-					}
-								
-				}
-			
-			PmPutRow (prevRowBuf, compsInScan, numCOL, row);
-			PmPutRow (curRowBuf, compsInScan, numCOL, row);
-
-			}
-			
-		return;
-		
-		}
-
-#endif
-
-#if qSupportHasselblad_3FR
-	
-	if (info.Ss == 8 && (numCOL & 1) == 0)
-		{
-		
-		fHasselblad3FR = true;
-		
-		for (int32 row = 0; row < numROW; row++)
-			{
-			
-			int32 p0 = 32768;
-			int32 p1 = 32768;
-			
-			for (int32 col = 0; col < numCOL; col += 2)
-				{
-				
-				int32 s0 = HuffDecode (ht [0]);
-				int32 s1 = HuffDecode (ht [0]);
-				
-				if (s0)
-					{
-					int32 d = get_bits (s0);
-					if (s0 == 16)
-						{
-						d = -32768;
-						}
-					else
-						{
-						HuffExtend (d, s0);
-						}
-					p0 += d;
-					}
-
-				if (s1)
-					{
-					int32 d = get_bits (s1);
-					if (s1 == 16)
-						{
-						d = -32768;
-						}
-					else
-						{
-						HuffExtend (d, s1);
-						}
-					p1 += d;
-					}
-
-				curRowBuf [col    ] [0] = (ComponentType) p0;
-				curRowBuf [col + 1] [0] = (ComponentType) p1;
-				
-				}
-			
-			PmPutRow (curRowBuf, compsInScan, numCOL, row);
-
+				x += (-1 << s) + 1;
 			}
 
-		return;
-		
 		}
-	
-#endif
 
-	// Decode the first row of image. Output the row and
-	// turn this row into a previous row for later predictor
-	// calculation.
+		/*****************************************************************************/
 
-	DecodeFirstRow(mcuROW1);
+		// Called from DecodeImage () to write one row.
 
-	PmPutRow(mcuROW1, compsInScan, numCOL, 0);
-
-	// Process each row.
-
-	for (int32 row = 1; row < numROW; row++)
-	{
-
-		// Account for restart interval, process restart marker if needed.
-
-		if (info.restartInRows)
+		public void PmPutRow(MCU* buf,
+											 int32 numComp,
+											 int32 numCol,
+											 int32  row ) // row was commented out
 		{
 
-			if (info.restartRowsToGo == 0)
-			{
+			uint16* sPtr = &buf[0][0];
 
-				ProcessRestart();
+			uint32 pixels = numCol * numComp;
 
-				// Reset predictors at restart.
-
-				DecodeFirstRow(curRowBuf);
-
-				PmPutRow(curRowBuf, compsInScan, numCOL, row);
-
-				swap(MCU *, prevRowBuf, curRowBuf);
-
-				continue;
-
-			}
-
-			info.restartRowsToGo--;
+			fSpooler.Spool(sPtr, pixels * (uint32)sizeof(uint16));
 
 		}
 
-		// The upper neighbors are predictors for the first column.
+		/*****************************************************************************/
 
-		for (int32 curComp = 0; curComp < compsInScan; curComp++)
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * DecodeFirstRow --
+		 *
+		 *	Decode the first raster line of samples at the start of 
+		 *      the scan and at the beginning of each restart interval.
+		 *	This includes modifying the component value so the real
+		 *      value, not the difference is returned.
+		 *
+		 * Results:
+		 *	None.
+		 *
+		 * Side effects:
+		 *	Bitstream is parsed.
+		 *
+		 *--------------------------------------------------------------
+		 */
+
+		public void DecodeFirstRow(MCU* curRowBuf)
 		{
 
-			// Section F.2.2.1: decode the difference
+			int32 compsInScan = info.compsInScan;
 
-			int32 d = 0;
+			// Process the first column in the row.
 
-			int32 s = HuffDecode(ht[curComp]);
-
-			if (s)
+			for (int32 curComp = 0; curComp < compsInScan; curComp++)
 			{
 
-				if (s == 16 && !fBug16)
+				int32 ci = info.MCUmembership[curComp];
+
+				JpegComponentInfo compptr = info.curCompInfo[ci];
+
+				HuffmanTable dctbl = info.dcHuffTblPtrs[compptr.dcTblNo];
+
+				// Section F.2.2.1: decode the difference
+
+				int32 d = 0;
+
+				int32 s = HuffDecode(ref dctbl);
+
+				if (s != 0)
 				{
-					d = -32768;
-				}
-
-				else
-				{
-					d = get_bits(s);
-					HuffExtend(d, s);
-				}
-
-			}
-
-			// First column of row above is predictor for first column.
-
-			curRowBuf[0][curComp] = (ComponentType)(d + prevRowBuf[0][curComp]);
-
-		}
-
-		// For the rest of the column on this row, predictor
-		// calculations are based on PSV. 
-
-		if (compsInScan == 2 && info.Ss == 1 && numCOL > 1)
-		{
-
-			// This is the combination used by both the Canon and Kodak raw formats. 
-			// Unrolling the general case logic results in a significant speed increase.
-
-			uint16* dPtr = &curRowBuf[1][0];
-
-			int32 prev0 = dPtr[-2];
-			int32 prev1 = dPtr[-1];
-
-			for (int32 col = 1; col < numCOL; col++)
-			{
-
-				int32 s = HuffDecode(ht[0]);
-
-				if (s)
-				{
-
-					int32 d;
 
 					if (s == 16 && !fBug16)
 					{
@@ -2628,49 +1952,625 @@ void dng_lossless_decoder::DecodeImage()
 					else
 					{
 						d = get_bits(s);
-						HuffExtend(d, s);
+						HuffExtend(ref d, s);
 					}
-
-					prev0 += d;
 
 				}
 
-				s = HuffDecode(ht[1]);
+				// Add the predictor to the difference.
 
-				if (s)
+				int32 Pr = info.dataPrecision;
+				int32 Pt = info.Pt;
+
+				curRowBuf[0][curComp] = (ComponentType)(d + (1 << (Pr - Pt - 1)));
+
+			}
+
+			// Process the rest of the row.
+
+			int32 numCOL = info.imageWidth;
+
+			for (int32 col = 1; col < numCOL; col++)
+			{
+
+				for (int32 curComp = 0; curComp < compsInScan; curComp++)
 				{
 
-					int32 d;
+					int32 ci = info.MCUmembership[curComp];
 
-					if (s == 16 && !fBug16)
+					JpegComponentInfo compptr = info.curCompInfo[ci];
+
+					HuffmanTable dctbl = info.dcHuffTblPtrs[compptr.dcTblNo];
+
+					// Section F.2.2.1: decode the difference
+
+					int32 d = 0;
+
+					int32 s = HuffDecode(ref dctbl);
+
+					if (s != 0)
 					{
-						d = -32768;
+
+						if (s == 16 && !fBug16)
+						{
+							d = -32768;
+						}
+
+						else
+						{
+							d = get_bits(s);
+							HuffExtend(ref d, s);
+						}
+
 					}
 
-					else
-					{
-						d = get_bits(s);
-						HuffExtend(d, s);
-					}
+					// Add the predictor to the difference.
 
-					prev1 += d;
+					curRowBuf[col][curComp] = (ComponentType)(d + curRowBuf[col - 1][curComp]);
 
 				}
 
-				dPtr[0] = (uint16)prev0;
-				dPtr[1] = (uint16)prev1;
+			}
 
-				dPtr += 2;
+			// Update the restart counter
 
+			if (info.restartInRows != 0)
+			{
+				info.restartRowsToGo--;
 			}
 
 		}
 
-		else
+		/*****************************************************************************/
+
+		/*
+		 *--------------------------------------------------------------
+		 *
+		 * DecodeImage --
+		 *
+		 *      Decode the input stream. This includes modifying
+		 *      the component value so the real value, not the
+		 *      difference is returned.
+		 *
+		 * Results:
+		 *      None.
+		 *
+		 * Side effects:
+		 *      Bitstream is parsed.
+		 *
+		 *--------------------------------------------------------------
+		 */
+
+		public void DecodeImage()
 		{
 
-			for (int32 col = 1; col < numCOL; col++)
+		#define swap(type,a,b) {type c; c=(a); (a)=(b); (b)=c;}
+
+			int32 numCOL = info.imageWidth;
+			int32 numROW = info.imageHeight;
+			int32 compsInScan = info.compsInScan;
+
+			// Precompute the decoding table for each table.
+
+			HuffmanTable[] ht = new HuffmanTable[4];
+
+			//memset(ht, 0, sizeof(ht));
+
+			for (int32 curComp = 0; curComp < compsInScan; curComp++)
 			{
+
+				int32 ci = info.MCUmembership[curComp];
+
+				JpegComponentInfo compptr = info.curCompInfo[ci];
+
+				ht[curComp] = info.dcHuffTblPtrs[compptr.dcTblNo];
+
+			}
+
+			MCU* prevRowBuf = mcuROW1;
+			MCU* curRowBuf = mcuROW2;
+
+		#if qSupportCanon_sRAW
+		
+			// Canon sRAW support
+	
+			if (info.compInfo [0].hSampFactor == 2 &&
+				info.compInfo [0].vSampFactor == 1)
+				{
+	
+				for (int32 row = 0; row < numROW; row++)
+					{
+			
+					// Initialize predictors.
+			
+					int32 p0;
+					int32 p1;
+					int32 p2;
+			
+					if (row == 0)
+						{
+						p0 = 1 << 14;
+						p1 = 1 << 14;
+						p2 = 1 << 14;
+						}
+				
+					else
+						{
+						p0 = prevRowBuf [0] [0];
+						p1 = prevRowBuf [0] [1];
+						p2 = prevRowBuf [0] [2];
+						}
+			
+					for (int32 col = 0; col < numCOL; col += 2)
+						{
+				
+						// Read first luminance component.
+				
+							{
+				
+							int32 d = 0;
+				
+							int32 s = HuffDecode (ref ht [0]);
+					
+							if (s != 0)
+								{
+
+								if (s == 16)
+									{
+									d = -32768;
+									}
+						
+								else
+									{
+									d = get_bits (s);
+									HuffExtend (d, s);
+									}
+
+								}
+						
+							p0 += d;
+					
+							curRowBuf [col] [0] = (ComponentType) p0;
+				
+							}
+				
+						// Read second luminance component.
+				
+							{
+				
+							int32 d = 0;
+				
+							int32 s = HuffDecode (ref ht [0]);
+					
+							if (s != 0)
+								{
+
+								if (s == 16)
+									{
+									d = -32768;
+									}
+						
+								else
+									{
+									d = get_bits (s);
+									HuffExtend (d, s);
+									}
+
+								}
+						
+							p0 += d;
+					
+							curRowBuf [col + 1] [0] = (ComponentType) p0;
+				
+							}
+				
+						// Read first chroma component.
+				
+							{
+				
+							int32 d = 0;
+				
+							int32 s = HuffDecode (ref ht [1]);
+					
+							if (s != 0)
+								{
+
+								if (s == 16)
+									{
+									d = -32768;
+									}
+						
+								else
+									{
+									d = get_bits (s);
+									HuffExtend (d, s);
+									}
+
+								}
+						
+							p1 += d;
+					
+							curRowBuf [col    ] [1] = (ComponentType) p1;
+							curRowBuf [col + 1] [1] = (ComponentType) p1;
+				
+							}
+				
+						// Read second chroma component.
+				
+							{
+				
+							int32 d = 0;
+				
+							int32 s = HuffDecode (ref ht [2]);
+					
+							if (s != 0)
+								{
+
+								if (s == 16)
+									{
+									d = -32768;
+									}
+						
+								else
+									{
+									d = get_bits (s);
+									HuffExtend (d, s);
+									}
+
+								}
+						
+							p2 += d;
+					
+							curRowBuf [col    ] [2] = (ComponentType) p2;
+							curRowBuf [col + 1] [2] = (ComponentType) p2;
+				
+							}
+								
+						}
+			
+					PmPutRow (curRowBuf, compsInScan, numCOL, row);
+
+					swap (MCU *, prevRowBuf, curRowBuf);
+			
+					}
+			
+				return;
+		
+				}
+		
+			if (info.compInfo [0].hSampFactor == 2 &&
+				info.compInfo [0].vSampFactor == 2)
+				{
+	
+				for (int32 row = 0; row < numROW; row += 2)
+					{
+			
+					// Initialize predictors.
+			
+					int32 p0;
+					int32 p1;
+					int32 p2;
+			
+					if (row == 0)
+						{
+						p0 = 1 << 14;
+						p1 = 1 << 14;
+						p2 = 1 << 14;
+						}
+				
+					else
+						{
+						p0 = prevRowBuf [0] [0];
+						p1 = prevRowBuf [0] [1];
+						p2 = prevRowBuf [0] [2];
+						}
+			
+					for (int32 col = 0; col < numCOL; col += 2)
+						{
+				
+						// Read first luminance component.
+				
+							{
+				
+							int32 d = 0;
+				
+							int32 s = HuffDecode (ref ht [0]);
+					
+							if (s != 0)
+								{
+
+								if (s == 16)
+									{
+									d = -32768;
+									}
+						
+								else
+									{
+									d = get_bits (s);
+									HuffExtend (d, s);
+									}
+
+								}
+						
+							p0 += d;
+					
+							prevRowBuf [col] [0] = (ComponentType) p0;
+				
+							}
+				
+						// Read second luminance component.
+				
+							{
+				
+							int32 d = 0;
+				
+							int32 s = HuffDecode (ref ht [0]);
+					
+							if (s != 0)
+								{
+
+								if (s == 16)
+									{
+									d = -32768;
+									}
+						
+								else
+									{
+									d = get_bits (s);
+									HuffExtend (d, s);
+									}
+
+								}
+						
+							p0 += d;
+					
+							prevRowBuf [col + 1] [0] = (ComponentType) p0;
+				
+							}
+				
+						// Read third luminance component.
+				
+							{
+				
+							int32 d = 0;
+				
+							int32 s = HuffDecode (ref ht [0]);
+					
+							if (s != 0)
+								{
+
+								if (s == 16)
+									{
+									d = -32768;
+									}
+						
+								else
+									{
+									d = get_bits (s);
+									HuffExtend (d, s);
+									}
+
+								}
+						
+							p0 += d;
+					
+							curRowBuf [col] [0] = (ComponentType) p0;
+				
+							}
+				
+						// Read fourth luminance component.
+				
+							{
+				
+							int32 d = 0;
+				
+							int32 s = HuffDecode (ref ht [0]);
+					
+							if (s != 0)
+								{
+
+								if (s == 16)
+									{
+									d = -32768;
+									}
+						
+								else
+									{
+									d = get_bits (s);
+									HuffExtend (d, s);
+									}
+
+								}
+						
+							p0 += d;
+					
+							curRowBuf [col + 1] [0] = (ComponentType) p0;
+				
+							}
+				
+						// Read first chroma component.
+				
+							{
+				
+							int32 d = 0;
+				
+							int32 s = HuffDecode (ref ht [1]);
+					
+							if (s != 0)
+								{
+
+								if (s == 16)
+									{
+									d = -32768;
+									}
+						
+								else
+									{
+									d = get_bits (s);
+									HuffExtend (d, s);
+									}
+
+								}
+						
+							p1 += d;
+					
+							prevRowBuf [col    ] [1] = (ComponentType) p1;
+							prevRowBuf [col + 1] [1] = (ComponentType) p1;
+
+							curRowBuf [col    ] [1] = (ComponentType) p1;
+							curRowBuf [col + 1] [1] = (ComponentType) p1;
+				
+							}
+				
+						// Read second chroma component.
+				
+							{
+				
+							int32 d = 0;
+				
+							int32 s = HuffDecode (ref ht [2]);
+					
+							if (s != 0)
+								{
+
+								if (s == 16)
+									{
+									d = -32768;
+									}
+						
+								else
+									{
+									d = get_bits (s);
+									HuffExtend (d, s);
+									}
+
+								}
+						
+							p2 += d;
+					
+							prevRowBuf [col    ] [2] = (ComponentType) p2;
+							prevRowBuf [col + 1] [2] = (ComponentType) p2;
+				
+							curRowBuf [col    ] [2] = (ComponentType) p2;
+							curRowBuf [col + 1] [2] = (ComponentType) p2;
+				
+							}
+								
+						}
+			
+					PmPutRow (prevRowBuf, compsInScan, numCOL, row);
+					PmPutRow (curRowBuf, compsInScan, numCOL, row);
+
+					}
+			
+				return;
+		
+				}
+
+		#endif
+
+		#if qSupportHasselblad_3FR
+	
+			if (info.Ss == 8 && (numCOL & 1) == 0)
+				{
+		
+				fHasselblad3FR = true;
+		
+				for (int32 row = 0; row < numROW; row++)
+					{
+			
+					int32 p0 = 32768;
+					int32 p1 = 32768;
+			
+					for (int32 col = 0; col < numCOL; col += 2)
+						{
+				
+						int32 s0 = HuffDecode (ref ht [0]);
+						int32 s1 = HuffDecode (ref ht [0]);
+				
+						if (s0 != 0)
+							{
+							int32 d = get_bits (s0);
+							if (s0 == 16)
+								{
+								d = -32768;
+								}
+							else
+								{
+								HuffExtend (d, s0);
+								}
+							p0 += d;
+							}
+
+						if (s1 != 0)
+							{
+							int32 d = get_bits (s1);
+							if (s1 == 16)
+								{
+								d = -32768;
+								}
+							else
+								{
+								HuffExtend (d, s1);
+								}
+							p1 += d;
+							}
+
+						curRowBuf [col    ] [0] = (ComponentType) p0;
+						curRowBuf [col + 1] [0] = (ComponentType) p1;
+				
+						}
+			
+					PmPutRow (curRowBuf, compsInScan, numCOL, row);
+
+					}
+
+				return;
+		
+				}
+	
+		#endif
+
+			// Decode the first row of image. Output the row and
+			// turn this row into a previous row for later predictor
+			// calculation.
+
+			DecodeFirstRow(mcuROW1);
+
+			PmPutRow(mcuROW1, compsInScan, numCOL, 0);
+
+			// Process each row.
+
+			for (int32 row = 1; row < numROW; row++)
+			{
+
+				// Account for restart interval, process restart marker if needed.
+
+				if (info.restartInRows != 0)
+				{
+
+					if (info.restartRowsToGo == 0)
+					{
+
+						ProcessRestart();
+
+						// Reset predictors at restart.
+
+						DecodeFirstRow(curRowBuf);
+
+						PmPutRow(curRowBuf, compsInScan, numCOL, row);
+
+						swap(MCU *, prevRowBuf, curRowBuf);
+
+						continue;
+
+					}
+
+					info.restartRowsToGo--;
+
+				}
+
+				// The upper neighbors are predictors for the first column.
 
 				for (int32 curComp = 0; curComp < compsInScan; curComp++)
 				{
@@ -2679,9 +2579,9 @@ void dng_lossless_decoder::DecodeImage()
 
 					int32 d = 0;
 
-					int32 s = HuffDecode(ht[curComp]);
+					int32 s = HuffDecode(ref ht[curComp]);
 
-					if (s)
+					if (s != 0)
 					{
 
 						if (s == 16 && !fBug16)
@@ -2697,123 +2597,230 @@ void dng_lossless_decoder::DecodeImage()
 
 					}
 
-					// Predict the pixel value.
+					// First column of row above is predictor for first column.
 
-					int32 predictor = QuickPredict(col,
-													curComp,
-													curRowBuf,
-													prevRowBuf);
-
-					// Save the difference.
-
-					curRowBuf[col][curComp] = (ComponentType)(d + predictor);
+					curRowBuf[0][curComp] = (ComponentType)(d + prevRowBuf[0][curComp]);
 
 				}
 
+				// For the rest of the column on this row, predictor
+				// calculations are based on PSV. 
+
+				if (compsInScan == 2 && info.Ss == 1 && numCOL > 1)
+				{
+
+					// This is the combination used by both the Canon and Kodak raw formats. 
+					// Unrolling the general case logic results in a significant speed increase.
+
+					uint16* dPtr = &curRowBuf[1][0];
+
+					int32 prev0 = dPtr[-2];
+					int32 prev1 = dPtr[-1];
+
+					for (int32 col = 1; col < numCOL; col++)
+					{
+
+						int32 s = HuffDecode(ref ht[0]);
+
+						if (s != 0)
+						{
+
+							int32 d;
+
+							if (s == 16 && !fBug16)
+							{
+								d = -32768;
+							}
+
+							else
+							{
+								d = get_bits(s);
+								HuffExtend(d, s);
+							}
+
+							prev0 += d;
+
+						}
+
+						s = HuffDecode(ref ht[1]);
+
+						if (s != 0)
+						{
+
+							int32 d;
+
+							if (s == 16 && !fBug16)
+							{
+								d = -32768;
+							}
+
+							else
+							{
+								d = get_bits(s);
+								HuffExtend(ref d, s);
+							}
+
+							prev1 += d;
+
+						}
+
+						dPtr[0] = (uint16)prev0;
+						dPtr[1] = (uint16)prev1;
+
+						dPtr += 2;
+
+					}
+
+				}
+
+				else
+				{
+
+					for (int32 col = 1; col < numCOL; col++)
+					{
+
+						for (int32 curComp = 0; curComp < compsInScan; curComp++)
+						{
+
+							// Section F.2.2.1: decode the difference
+
+							int32 d = 0;
+
+							int32 s = HuffDecode(ref ht[curComp]);
+
+							if (s != 0)
+							{
+
+								if (s == 16 && !fBug16)
+								{
+									d = -32768;
+								}
+
+								else
+								{
+									d = get_bits(s);
+									HuffExtend(ref d, s);
+								}
+
+							}
+
+							// Predict the pixel value.
+
+							int32 predictor = QuickPredict(col,
+															curComp,
+															curRowBuf,
+															prevRowBuf);
+
+							// Save the difference.
+
+							curRowBuf[col][curComp] = (ComponentType)(d + predictor);
+
+						}
+
+					}
+
+				}
+
+				PmPutRow(curRowBuf, compsInScan, numCOL, row);
+
+				swap(MCU *, prevRowBuf, curRowBuf);
+
+			}
+
+		#undef swap
+
+		}
+
+		/*****************************************************************************/
+
+		public void StartRead(ref uint32 imageWidth,
+											  ref uint32 imageHeight,
+											  ref uint32 imageChannels)
+		{
+
+			ReadFileHeader();
+			ReadScanHeader();
+			DecoderStructInit();
+			HuffDecoderInit();
+
+			imageWidth = (uint)info.imageWidth;
+			imageHeight = (uint)info.imageHeight;
+			imageChannels = (uint)info.compsInScan;
+
+		}
+
+		/*****************************************************************************/
+
+		public void FinishRead()
+		{
+
+			DecodeImage();
+
+		}
+
+		/*****************************************************************************/
+
+		public void DecodeLosslessJPEG(dng_stream stream,
+								 dng_spooler spooler,
+								 uint32 minDecodedSize,
+								 uint32 maxDecodedSize,
+								 bool bug16,
+								 uint64 endOfData)
+		{
+
+			DNGLosslessDecoder decoder = new DNGLosslessDecoder(stream,
+								  spooler,
+								  bug16);
+
+			uint32 imageWidth = 0;
+			uint32 imageHeight = 0;
+			uint32 imageChannels = 0;
+
+			decoder.StartRead(ref imageWidth,
+							   ref imageHeight,
+							   ref imageChannels);
+
+			uint32 decodedSize = imageWidth *
+								 imageHeight *
+								 imageChannels *
+								 (uint32)sizeof(uint16);
+
+			if (decodedSize < minDecodedSize ||
+				decodedSize > maxDecodedSize)
+			{
+				throw new Exception("bad format");
+			}
+
+			decoder.FinishRead();
+
+			uint64 streamPos = stream.Position();
+
+			if (streamPos > endOfData)
+			{
+
+				bool throwBadFormat = true;
+
+				// Per Hasselblad's request:
+				// If we have a Hassy file with exactly four extra bytes,
+				// let it through; the file is likely still valid.
+
+#if qSupportHasselblad_3FR
+
+				if (decoder.IsHasselblad3FR() &&
+					streamPos - endOfData == 4)
+				{
+					throwBadFormat = false;
+				}
+
+#endif
+
+				if (throwBadFormat)
+				{
+					throw new Exception("bad format");
+				}
 			}
 
 		}
 
-		PmPutRow(curRowBuf, compsInScan, numCOL, row);
-
-		swap(MCU *, prevRowBuf, curRowBuf);
-
 	}
-
-#undef swap
-
-}
-
-/*****************************************************************************/
-
-void dng_lossless_decoder::StartRead(uint32 &imageWidth,
-									  uint32 &imageHeight,
-									  uint32 &imageChannels)
-{
-
-	ReadFileHeader();
-	ReadScanHeader();
-	DecoderStructInit();
-	HuffDecoderInit();
-
-	imageWidth = info.imageWidth;
-	imageHeight = info.imageHeight;
-	imageChannels = info.compsInScan;
-
-}
-
-/*****************************************************************************/
-
-void dng_lossless_decoder::FinishRead()
-{
-
-	DecodeImage();
-
-}
-
-/*****************************************************************************/
-
-void DecodeLosslessJPEG(dng_stream &stream,
-						 dng_spooler &spooler,
-						 uint32 minDecodedSize,
-						 uint32 maxDecodedSize,
-						 bool bug16,
-						 uint64 endOfData)
-{
-
-	dng_lossless_decoder decoder(&stream,
-							      &spooler,
-							      bug16);
-
-uint32 imageWidth;
-uint32 imageHeight;
-uint32 imageChannels;
-
-decoder.StartRead(imageWidth,
-				   imageHeight,
-				   imageChannels);
-
-uint32 decodedSize = imageWidth *
-					 imageHeight *
-					 imageChannels *
-					 (uint32)sizeof(uint16);
-
-if (decodedSize < minDecodedSize ||
-	decodedSize > maxDecodedSize)
-{
-	throw new Exception("bad format");
-}
-
-decoder.FinishRead();
-
-uint64 streamPos = stream.Position();
-
-if (streamPos > endOfData)
-{
-
-	bool throwBadFormat = true;
-
-	// Per Hasselblad's request:
-	// If we have a Hassy file with exactly four extra bytes,
-	// let it through; the file is likely still valid.
-
-#if qSupportHasselblad_3FR
-		
-		if (decoder.IsHasselblad3FR () &&
-			streamPos - endOfData == 4)
-			{
-			throwBadFormat = false;
-			}
-			
-#endif
-
-	if (throwBadFormat)
-	{
-		throw new Exception("bad format");
-	}
-}
-	
-	}
-
-    }
 }
