@@ -48,7 +48,22 @@ namespace JpegDecodingTests
             //testAdobeJPG();
             //testCRIJPG();
             //testAdobeJPGEncode();
-            testWriteCRIJpegIntoDNG();
+            //testWriteCRIJpegIntoDNG();
+            testDecodeCRIJpeg();
+        }
+
+        private static void testDecodeCRIJpeg()
+        {
+
+            byte[] jpegData = File.ReadAllBytes("Cintel_00094268.cri.tile.3.jpg");
+
+            dng_stream stream = new dng_stream(jpegData);
+            dng_spooler spooler = new dng_spooler();
+
+            DNGLosslessDecoder.DecodeLosslessJPEG(stream, spooler, 10, 10000000, false, (UInt64)jpegData.Length);
+
+            byte[] output = spooler.toByteArray();
+            File.WriteAllBytes("Cintel_00094268.cri.tile.3.jpg-adobeSDKdecodetest.raw",output);
         }
 
         private static void testWriteCRIJpegIntoDNG()

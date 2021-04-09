@@ -39,6 +39,8 @@
  * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  */
 
+
+
 #define qSupportCanon_sRAW
 #define qSupportHasselblad_3FR
 
@@ -76,6 +78,18 @@ using ComponentType = System.UInt16;
 
 namespace JpegDecodingTests
 {
+
+
+	public class MCURow
+    {
+
+
+
+		public MCURow(int width, int components)
+        {
+
+        }
+    }
 
 	public class dng_memory_data
     {
@@ -329,6 +343,14 @@ namespace JpegDecodingTests
              */
             public int32 restartRowsToGo;  /* MCUs rows left in this restart interval */
             public int16 nextRestartNum;   /* # of next RSTn marker (0..7) */
+
+			public DecompressInfo()
+            {
+				for(int i = 0; i < 4; i++)
+                {
+					dcHuffTblPtrs[i] = new HuffmanTable();
+                }
+            }
 
         };
 
@@ -920,6 +942,11 @@ namespace JpegDecodingTests
 
 			//compInfoBuffer.Allocate((uint32)info.numComponents,	sizeof(JpegComponentInfo));
 			compInfoBuffer = new JpegComponentInfo[info.numComponents];
+			for(int i = 0; i < compInfoBuffer.Length; i++)
+            {
+				compInfoBuffer[i] = new JpegComponentInfo();
+
+			}
 
 			//info.compInfo = (JpegComponentInfo*)compInfoBuffer.Buffer();
 			info.compInfo = compInfoBuffer;
@@ -2102,7 +2129,7 @@ namespace JpegDecodingTests
 		public void DecodeImage()
 		{
 
-		#define swap(type,a,b) {type c; c=(a); (a)=(b); (b)=c;}
+		//#define swap(type,a,b) {type c; c=(a); (a)=(b); (b)=c;}
 
 			int32 numCOL = info.imageWidth;
 			int32 numROW = info.imageHeight;
@@ -2290,9 +2317,11 @@ namespace JpegDecodingTests
 			
 					PmPutRow (ref curRowBuf, compsInScan, numCOL, row);
 
-					swap (MCU *, prevRowBuf, curRowBuf);
-			
-					}
+					//#define swap(type,a,b) {type c; c=(a); (a)=(b); (b)=c;}
+					//swap(ComponentType[,], prevRowBuf, curRowBuf);
+					ComponentType[,] c0; c0 = (prevRowBuf); (prevRowBuf) = (curRowBuf); (curRowBuf) = c0;
+
+				}
 			
 				return;
 		
@@ -2620,7 +2649,9 @@ namespace JpegDecodingTests
 
 						PmPutRow(ref curRowBuf, compsInScan, numCOL, row);
 
-						swap(MCU *, prevRowBuf, curRowBuf);
+						//#define swap(type,a,b) {type c; c=(a); (a)=(b); (b)=c;}
+						//swap(ComponentType[,], prevRowBuf, curRowBuf);
+						ComponentType[,] c1; c1 = (prevRowBuf); (prevRowBuf) = (curRowBuf); (curRowBuf) = c1;
 
 						continue;
 
@@ -2652,7 +2683,7 @@ namespace JpegDecodingTests
 						else
 						{
 							d = get_bits(s);
-							HuffExtend(d, s);
+							HuffExtend(ref d, s);
 						}
 
 					}
@@ -2672,10 +2703,15 @@ namespace JpegDecodingTests
 					// This is the combination used by both the Canon and Kodak raw formats. 
 					// Unrolling the general case logic results in a significant speed increase.
 
-					uint16* dPtr = &curRowBuf[1,0];
+					//uint16* dPtr = &curRowBuf[1,0];
 
-					int32 prev0 = dPtr[-2];
-					int32 prev1 = dPtr[-1];
+					//int32 prev0 = dPtr[-2];
+					//int32 prev1 = dPtr[-1];
+
+					int32 prev0 = curRowBuf[0, 0];
+					int32 prev1 = curRowBuf[0, 1];
+
+					int dPtrReplacement = 0;
 
 					for (int32 col = 1; col < numCOL; col++)
 					{
@@ -2695,7 +2731,7 @@ namespace JpegDecodingTests
 							else
 							{
 								d = get_bits(s);
-								HuffExtend(d, s);
+								HuffExtend(ref d, s);
 							}
 
 							prev0 += d;
@@ -2724,10 +2760,13 @@ namespace JpegDecodingTests
 
 						}
 
-						dPtr[0] = (uint16)prev0;
-						dPtr[1] = (uint16)prev1;
+						//dPtr[0] = (uint16)prev0;
+						//dPtr[1] = (uint16)prev1;
+						curRowBuf[1+ dPtrReplacement, 0] = (uint16)prev0;
+						curRowBuf[1+ dPtrReplacement, 1] = (uint16)prev1;
 
-						dPtr += 2;
+						//dPtr += 2;
+						dPtrReplacement += 1;
 
 					}
 
@@ -2783,11 +2822,13 @@ namespace JpegDecodingTests
 
 				PmPutRow(ref curRowBuf, compsInScan, numCOL, row);
 
-				swap(MCU *, prevRowBuf, curRowBuf);
+				//#define swap(type,a,b) {type c; c=(a); (a)=(b); (b)=c;}
+				//swap(ComponentType[,], prevRowBuf, curRowBuf);
+				ComponentType[,] c2; c2 = (prevRowBuf);(prevRowBuf) = (curRowBuf);(curRowBuf) = c2;
 
 			}
 
-		#undef swap
+		//#undef swap
 
 		}
 
@@ -2820,7 +2861,7 @@ namespace JpegDecodingTests
 
 		/*****************************************************************************/
 
-		public void DecodeLosslessJPEG(dng_stream stream,
+		public static void DecodeLosslessJPEG(dng_stream stream,
 								 dng_spooler spooler,
 								 uint32 minDecodedSize,
 								 uint32 maxDecodedSize,

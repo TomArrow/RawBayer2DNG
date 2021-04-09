@@ -1601,6 +1601,16 @@ namespace JpegDecodingTests
 
         // for the decoder:
 
+        // Create stream with data already in it.
+        public dng_stream()
+        {
+
+        }
+        public dng_stream(byte[] dataIn)
+        {
+            data.AddRange(dataIn);
+        }
+
         private UInt64 position =0;
 
         public uint8 Get_uint8()
