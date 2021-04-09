@@ -258,7 +258,7 @@ namespace RawBayer2DNG.ImageSequenceSources
         override public byte[] getRawImageData(int index)
         {
 
-            Dictionary<UInt32, byte[]> tagData = readCRITagData(paths[0]);
+            Dictionary<UInt32, byte[]> tagData = readCRITagData(paths[index]);
 
             if (tagData.ContainsKey((UInt32)Key.FrameData))
             {
