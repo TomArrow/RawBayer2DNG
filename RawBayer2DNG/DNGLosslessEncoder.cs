@@ -1655,5 +1655,44 @@ namespace RawBayer2DNG
         {
             return data.ToArray();
         }
+
+        // for the decoder:
+
+        // Create stream with data already in it.
+        public dng_stream()
+        {
+
+        }
+        public dng_stream(byte[] dataIn)
+        {
+            data.AddRange(dataIn);
+        }
+
+        private UInt64 position = 0;
+
+        public uint8 Get_uint8()
+        {
+            if ((int)position >= data.Count)
+            {
+                throw new Exception("dng_error_end_of_file");
+            }
+            return data[(int)position++];
+        }
+
+        public UInt64 Position()
+        {
+            return position;
+        }
+
+        public void SetReadPosition(UInt64 newPosition)
+        {
+            position = newPosition;
+        }
+
+        public void Skip(UInt64 length)
+        {
+            // Not sure about this one!
+            position += length;
+        }
     }
 }

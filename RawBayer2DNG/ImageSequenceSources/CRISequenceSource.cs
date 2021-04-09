@@ -148,19 +148,19 @@ namespace RawBayer2DNG.ImageSequenceSources
                     // 16 bit modes
                     case (UInt32)ColorModel.COLOR_MODEL_BAYER_BGGR_CINTEL_16:
                         bayerPattern = new byte[2, 2] { { 2, 1 }, { 1, 0 } };
-                        rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+                        rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
                         break;
                     case (UInt32)ColorModel.COLOR_MODEL_BAYER_GBGB_CINTEL_16:
                         bayerPattern = new byte[2, 2] { { 1, 2 }, { 0, 1 } };
-                        rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+                        rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
                         break;
                     case (UInt32)ColorModel.COLOR_MODEL_BAYER_RGRG_CINTEL_16:
                         bayerPattern = new byte[2,2] { {0, 1},{1 ,2} };
-                        rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+                        rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
                         break;
                     case (UInt32)ColorModel.COLOR_MODEL_BAYER_GRGR_CINTEL_16:
                         bayerPattern = new byte[2, 2] { { 1, 0 }, { 2, 1 } };
-                        rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+                        rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
                         break;
 
                     default:
@@ -253,6 +253,101 @@ namespace RawBayer2DNG.ImageSequenceSources
         byte[] compressedFileCache;
         int compressedFileCacheIndex = -1;
 
+
+
+        override public byte[] getRawImageData(int index)
+        {
+
+            Dictionary<UInt32, byte[]> tagData = readCRITagData(paths[0]);
+
+            if (tagData.ContainsKey((UInt32)Key.FrameData))
+            {
+
+                // Detect compression
+                // Only horizontal tiles are supported so far. Assuming there is no vertical tiling.
+                if (tagData.ContainsKey((UInt32)Key.TileSizes))
+                {
+                    byte[] decodedOutputBuffer = new byte[width*height*2];
+
+                    byte[] tileSizeData = tagData[(UInt32)Key.TileSizes];
+                    int tileCount = tileSizeData.Length / 8; // The tilesizes are saved as Uint64s I think, so dividing by 8 should give the right number.
+
+                    UInt64 totalSizeFromTileSizes = 0;
+                    UInt64[] tileSizes = new UInt64[tileCount];
+                    for(int i = 0; i < tileCount; i++)
+                    {
+                        tileSizes[i] = BitConverter.ToUInt64(tileSizeData,i*8);
+                        totalSizeFromTileSizes += tileSizes[i];
+                    }
+
+                    byte[] compressedData = tagData[(UInt32)Key.FrameData];
+
+
+                    //JpegDecoder jpegLibraryDecoder = new JpegDecoder();
+                    //ReadOnlyMemory<byte> rawTileReadOnlyMemory;
+
+                    byte[] tmpBuffer;
+                    UInt64 alreadyRead = 0;
+                    UInt32 horizOffset = 0;
+                    foreach(UInt64 tileSize in tileSizes)
+                    {
+                        tmpBuffer = new byte[tileSize];
+
+                        Array.Copy(compressedData, (int)alreadyRead, tmpBuffer,0,(int)tileSize);
+                        alreadyRead += tileSize;
+
+                        //rawTileReadOnlyMemory = new ReadOnlyMemory<byte>(tmpBuffer);
+                        //jpegLibraryDecoder.SetInput(rawTileReadOnlyMemory);
+                        //jpegLibraryDecoder.SetFrameHeader()
+                        //jpegLibraryDecoder.Identify(); // fails to identify. missing markers or whatever: Failed to decode JPEG data at offset 91149. No marker found.'
+
+
+                        dng_stream stream = new dng_stream(tmpBuffer);
+                        dng_spooler spooler = new dng_spooler();
+
+                        uint tileWidth = 0, tileHeight = 0;
+
+                        DNGLosslessDecoder.DecodeLosslessJPEGProper(stream, spooler, ref tileWidth, ref tileHeight, false);
+
+                         
+
+                        uint tileActualWidth = tileWidth / 2;
+                        uint tileActualHeight = tileHeight * 2;
+                        //byte[] tileBuff = new byte[jpegLibraryDecoder.Width * jpegLibraryDecoder.Height * 2];
+                        byte[] tileBuff = spooler.toByteArray();
+
+                        int actualX;
+                        for (int y = 0; y < tileActualHeight; y++)
+                        {
+                            for (int x = 0; x < tileActualWidth; x++)
+                            {
+                                actualX = (Int32)horizOffset + x;
+                                decodedOutputBuffer[y * width * 2 + actualX * 2] = tileBuff[y*tileActualWidth*2+(x ) *2];
+                                decodedOutputBuffer[y * width * 2 + actualX * 2+1] = tileBuff[y*tileActualWidth*2+ (x) * 2+1];
+
+                            }
+                        }
+
+                        horizOffset += (uint)tileActualWidth;
+                    }
+                    //File.WriteAllBytes("decoded raw cri"+width + " "+ height + ".raw", decodedOutputBuffer);
+                    return decodedOutputBuffer;
+                } else
+                {
+
+                    // Presuming uncompressed
+                    return tagData[(UInt32)Key.FrameData];
+                }
+
+                //File.WriteAllBytes("rawcri.jpg", tagData[(UInt32)Key.FrameData]);
+                
+            }
+            else
+            {
+                throw new Exception("CRI file contains no image data apparently.");
+            }
+        }
+        /* old version:
         override public byte[] getRawImageData(int index)
         {
 
@@ -336,7 +431,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                 throw new Exception("CRI file contains no image data apparently.");
             }
         }
-
+        */
         public override bool imageExists(int index)
         {
             if (index < paths.Length)

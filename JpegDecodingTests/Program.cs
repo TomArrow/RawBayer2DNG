@@ -60,7 +60,7 @@ namespace JpegDecodingTests
             dng_stream stream = new dng_stream(jpegData);
             dng_spooler spooler = new dng_spooler();
 
-            DNGLosslessDecoder.DecodeLosslessJPEG(stream, spooler, 10, 10000000, false, (UInt64)jpegData.Length);
+            DNGLosslessDecoder.DecodeLosslessJPEG(stream, spooler, 0, uint.MaxValue, false, (UInt64)jpegData.Length);
 
             byte[] output = spooler.toByteArray();
             File.WriteAllBytes("Cintel_00094268.cri.tile.3.jpg-adobeSDKdecodetest.raw",output);
