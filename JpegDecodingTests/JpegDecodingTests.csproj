@@ -35,6 +35,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="BitMiracle.LibTiff.NET, Version=2.4.639.0, Culture=neutral, PublicKeyToken=53879b3e20e7a7d6, processorArchitecture=MSIL">
+      <HintPath>..\packages\BitMiracle.LibTiff.NET.2.4.639\lib\net40\BitMiracle.LibTiff.NET.dll</HintPath>
+    </Reference>
     <Reference Include="JpegLibrary, Version=0.3.0.0, Culture=neutral, PublicKeyToken=de87648d2f33c03a, processorArchitecture=MSIL">
       <HintPath>..\packages\JpegLibrary.0.3.30\lib\net45\JpegLibrary.dll</HintPath>
     </Reference>
