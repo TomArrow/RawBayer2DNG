@@ -201,7 +201,7 @@ namespace RawBayer2DNG.ImageSequenceSources
             UInt32 currentTag;
             UInt32 currentTagLength;
             byte[] currentTagData;
-            using (BinaryReader reader = new BinaryReader(File.Open(paths[0], FileMode.Open, FileAccess.Read, FileShare.Read)))
+            using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read)))
             {
                 /*while (reader.BaseStream.Position < (reader.BaseStream.Length-1))
                 {
