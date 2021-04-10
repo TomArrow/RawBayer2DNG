@@ -293,7 +293,22 @@ namespace RawBayer2DNG.ImageSequenceSources
                     {
                         tmpBuffer = new byte[tileSize];
 
-                        Array.Copy(compressedData, (int)alreadyRead, tmpBuffer,0,(int)tileSize);
+                        // Catch damaged CRI files:
+                        // 
+                        bool isDamaged = false;
+                        if(alreadyRead + tileSize <= (ulong)compressedData.Length) { 
+                            Array.Copy(compressedData, (int)alreadyRead, tmpBuffer,0,(int)tileSize);
+                        } else if (alreadyRead>((ulong)compressedData.Length-1)) // See if we can get anything at all out of this...
+                        {
+                            // completely broken. No use messing with this file anymore. 
+                            break;
+                        } else
+                        { // If there's a little bit of stuff, try rescuing what we can.
+                            ulong amountToCopy = (ulong)compressedData.Length - alreadyRead;
+                            isDamaged = true;
+                            Array.Copy(compressedData, (int)alreadyRead, tmpBuffer, 0, (int)amountToCopy);
+                        }
+
                         alreadyRead += tileSize;
 
                         //rawTileReadOnlyMemory = new ReadOnlyMemory<byte>(tmpBuffer);
@@ -307,7 +322,23 @@ namespace RawBayer2DNG.ImageSequenceSources
 
                         uint tileWidth = 0, tileHeight = 0;
 
-                        DNGLosslessDecoder.DecodeLosslessJPEGProper(stream, spooler, ref tileWidth, ref tileHeight, false);
+                        if (isDamaged)
+                        {
+                            // Be careful if damaged. 
+                            try
+                            {
+
+                                DNGLosslessDecoder.DecodeLosslessJPEGProper(stream, spooler, ref tileWidth, ref tileHeight, false);
+                            }
+                            catch (Exception e)
+                            {
+
+                            }
+                        } else
+                        {
+
+                            DNGLosslessDecoder.DecodeLosslessJPEGProper(stream, spooler, ref tileWidth, ref tileHeight, false);
+                        }
 
                          
 
@@ -315,6 +346,16 @@ namespace RawBayer2DNG.ImageSequenceSources
                         uint tileActualHeight = tileHeight * 2;
                         //byte[] tileBuff = new byte[jpegLibraryDecoder.Width * jpegLibraryDecoder.Height * 2];
                         byte[] tileBuff = spooler.toByteArray();
+
+                        if (isDamaged)
+                        {
+                            tileBuff = new byte[tileActualWidth * tileActualHeight * 2];
+                            byte[] tileBuffTmp = spooler.toByteArray();
+                            Array.Copy(tileBuffTmp,0,tileBuff,0,tileBuffTmp.Length);
+                        } else
+                        {
+                            tileBuff = spooler.toByteArray();
+                        }
 
                         int actualX;
                         for (int y = 0; y < tileActualHeight; y++)
