@@ -1145,9 +1145,6 @@ namespace RawBayer2DNG
                         return;
                     }
 
-                    _counter++;
-                    var percentage = (double)_counter / _totalFiles * 100.0;
-                    lock (countLock) { worker?.ReportProgress((int)percentage); }
 
                     // check to see if output file already exists
                     if (File.Exists(currentImage.Value.outputName))
@@ -1194,7 +1191,12 @@ namespace RawBayer2DNG
 
                         ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
                     }
-                    
+
+
+                    _counter++;
+                    var percentage = (double)_counter / _totalFiles * 100.0;
+                    lock (countLock) { worker?.ReportProgress((int)percentage); }
+
                 });
 
             worker?.ReportProgress(100);
