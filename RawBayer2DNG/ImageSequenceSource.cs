@@ -10,53 +10,78 @@ namespace RawBayer2DNG
     // This is for passing metadata worthy of preservation out of getRawImageData()
     class ISSMetaInfo
     {
-        public List<byte[]> additionalFrameMetaBinary = new List<byte[]>();
-        public List<string> additionalFrameMetaReadable = new List<string>();
-        public List<string> additionalFrameMetaOriginalFilenames = new List<string>();
+        public List<ISSMeta> metaChunks = new List<ISSMeta>();
 
-        public byte[] metaBinary = new byte[0];
-        public string metaReadable = "";
-        public string metaOriginalFilename = "";
+        public void addMeta(ISSMeta metaChunk)
+        {
+            metaChunks.Add(metaChunk);
+        }
 
         // For example for HDR merging there may be multiple source frames for a single output image. So we can combine multiple metadata chunks to preserve them all.
         public void mergeAdditionalMetaInfo(ISSMetaInfo additionalMetaInfo)
         {
-            additionalFrameMetaBinary.Add(additionalMetaInfo.metaBinary);
-            additionalFrameMetaBinary.AddRange(additionalMetaInfo.additionalFrameMetaBinary); // This technically shouldn't happen but we cover for it anyway.
-            additionalFrameMetaReadable.Add(additionalMetaInfo.metaReadable);
-            additionalFrameMetaReadable.AddRange(additionalMetaInfo.additionalFrameMetaReadable); // This technically shouldn't happen but we cover for it anyway.
-            additionalFrameMetaOriginalFilenames.Add(additionalMetaInfo.metaOriginalFilename);
-            additionalFrameMetaOriginalFilenames.AddRange(additionalMetaInfo.additionalFrameMetaOriginalFilenames); // This technically shouldn't happen but we cover for it anyway.
+            metaChunks.AddRange(additionalMetaInfo.metaChunks);
         }
 
-        public byte[] getMergedMetaBinary()
+        public void mergeErrors(ISSErrorInfo errorInfo)
+        {
+            metaChunks.Add(new ISSMeta(ISSMeta.MetaFormat.ERROR_INFO,errorInfo.getMergedBinary(),"","")); // No need to replicate filename and human readable here, that's already within the merged binary of the errorInfo
+        }
+
+        public byte[] getMergedBinary(byte[] prepend = null)
         {
             List<byte> retVal = new List<byte>();
 
-            retVal.AddRange(BitConverter.GetBytes((UInt32)(additionalFrameMetaBinary.Count+1))); // First we encode the total count of metadata chunks as a UInt32
+            if(prepend != null)
+            {
+                retVal.AddRange(prepend);
+            }
+
+            retVal.AddRange(BitConverter.GetBytes((UInt32)metaChunks.Count)); // First we encode the total count of metadata chunks as a UInt32
 
             // Now for each metadata chunk
             // Main chunk
-            retVal.AddRange(encodeChunk(metaOriginalFilename,metaBinary));
             // Additional chunks
-            for(int i = 0; i < additionalFrameMetaBinary.Count; i++)
+            for(int i = 0; i < metaChunks.Count; i++)
             {
-                retVal.AddRange(encodeChunk(additionalFrameMetaOriginalFilenames[i], additionalFrameMetaBinary[i]));
+                retVal.AddRange(encodeChunk(metaChunks[i]));
             }
 
             return retVal.ToArray();
         }
 
-        private List<byte> encodeChunk(string originalFilename, byte[] binaryMetadata)
+        // Each individual chunk in binary consists of 7 elements:
+        // MetaFormat as UInt32
+        // Length of binary data as UInt32
+        // Binary data
+        // Length of human readable metadata as UInt32
+        // Human readable metadata as bytes (from UTF8 getbytes)
+        // Length of original filename as UInt32
+        // Original filename as bytes (from UTF8 getbytes)
+        private List<byte> encodeChunk(ISSMeta metaChunk)
         {
+
+            ISSMeta.MetaFormat metaFormat = metaChunk.metaFormat;
+            string originalFilename = metaChunk.originalFilename;
+            byte[] binaryMetadata = metaChunk.binaryData;
+            string humanReadable = metaChunk.metaHumanReadable;
+
             List<byte> retVal = new List<byte>();
 
             byte[] originalFileNameBytes = Encoding.UTF8.GetBytes(originalFilename);
-            retVal.AddRange(BitConverter.GetBytes((UInt32)(originalFileNameBytes.Length))); // Encode the length of the original filename as a UInt32
-            retVal.AddRange(originalFileNameBytes); // Add the bytes of the original filename
+            byte[] humanReadableBytes = Encoding.UTF8.GetBytes(humanReadable);
+
+            retVal.AddRange(BitConverter.GetBytes((UInt32)metaFormat)); // First the metadata format, so we know what exactly we're encoding here, in case we ever need to decode it again.
 
             retVal.AddRange(BitConverter.GetBytes((UInt32)(binaryMetadata.Length))); // Encode the length of the metadata as a UInt32
             retVal.AddRange(binaryMetadata); // Add the bytes of binary metadata
+
+            retVal.AddRange(BitConverter.GetBytes((UInt32)(humanReadableBytes.Length))); // Encode the length of the original filename as a UInt32
+            retVal.AddRange(humanReadableBytes); // Add the bytes of the original filename
+
+            retVal.AddRange(BitConverter.GetBytes((UInt32)(originalFileNameBytes.Length))); // Encode the length of the original filename as a UInt32
+            retVal.AddRange(originalFileNameBytes); // Add the bytes of the original filename
+
 
             return retVal;
         }
@@ -68,7 +93,8 @@ namespace RawBayer2DNG
         public enum MetaFormat
         {
             UNDEFINED = 0,
-            CRI_METADATA = 1
+            CRI_METADATA = 10,
+            ERROR_INFO = 200,
         }
 
         public MetaFormat metaFormat = MetaFormat.UNDEFINED;
@@ -101,6 +127,61 @@ namespace RawBayer2DNG
         {
             errors.AddRange(errorInfo.errors);
         }
+
+        public byte[] getMergedBinary()
+        {
+            List<byte> retVal = new List<byte>();
+
+            retVal.AddRange(BitConverter.GetBytes((UInt32)errors.Count)); // First we encode the total count of metadata chunks as a UInt32
+
+            // Now for each metadata chunk
+            // Main chunk
+            // Additional chunks
+            for (int i = 0; i < errors.Count; i++)
+            {
+                retVal.AddRange(encodeError(errors[i]));
+            }
+
+            return retVal.ToArray();
+        }
+
+        // Each individual chunk in binary consists of 8 elements:
+        // Errorcode as UInt32
+        // Error severity as UInt32
+        // Length of binary data as UInt32
+        // Binary data
+        // Length of human readable error as UInt32
+        // Human readable error  as bytes (from UTF8 getbytes)
+        // Length of original filename as UInt32
+        // Original filename as bytes (from UTF8 getbytes)
+        private List<byte> encodeError(ISSError anError)
+        {
+            ISSError.ErrorCode errorCode = anError.errorCode;
+            ISSError.ErrorSeverity errorSeverity = anError.errorSeverity;
+            string originalFilename = anError.originalFilename;
+            byte[] binaryMetadata = anError.binaryData;
+            string humanReadable = anError.description;
+
+            List<byte> retVal = new List<byte>();
+
+            byte[] originalFileNameBytes = Encoding.UTF8.GetBytes(originalFilename);
+            byte[] humanReadableBytes = Encoding.UTF8.GetBytes(humanReadable);
+
+            retVal.AddRange(BitConverter.GetBytes((UInt32)errorCode)); // First the error type, so we know what exactly we're encoding here, in case we ever need to decode it again.
+            retVal.AddRange(BitConverter.GetBytes((UInt32)errorSeverity)); // 
+
+            retVal.AddRange(BitConverter.GetBytes((UInt32)(binaryMetadata.Length))); // Encode the length of the metadata as a UInt32
+            retVal.AddRange(binaryMetadata); // Add the bytes of binary metadata
+
+            retVal.AddRange(BitConverter.GetBytes((UInt32)(humanReadableBytes.Length))); // Encode the length of the original filename as a UInt32
+            retVal.AddRange(humanReadableBytes); // Add the bytes of the original filename
+
+            retVal.AddRange(BitConverter.GetBytes((UInt32)(originalFileNameBytes.Length))); // Encode the length of the original filename as a UInt32
+            retVal.AddRange(originalFileNameBytes); // Add the bytes of the original filename
+
+
+            return retVal;
+        }
     }
 
     class ISSError
@@ -111,15 +192,25 @@ namespace RawBayer2DNG
             ORIGINAL_FILE_CORRUPTED = 1,
             ORIGINAL_FILE_PARTIALLY_CORRUPTED_RESCUE = 2,
         }
+        public enum ErrorSeverity
+        {
+            UNDEFINED = 0,
+            NOTE = 1,
+            WARNING = 2,
+            SEVERE = 3,
+            CRITICAL = 4,
+        }
 
         public ErrorCode errorCode = ErrorCode.UNDEFINED;
+        public ErrorSeverity errorSeverity = ErrorSeverity.UNDEFINED;
         public string originalFilename = "";
         public string description = "";
         public byte[] binaryData = new byte[0];
 
-        public ISSError(ErrorCode errorCodeA, string originalFileNameA, string descriptionA, byte[] binaryDataA)
+        public ISSError(ErrorCode errorCodeA, ErrorSeverity errorSeverityA, string originalFileNameA, string descriptionA, byte[] binaryDataA)
         {
             errorCode = errorCodeA;
+            errorSeverity = errorSeverityA;
             originalFilename = originalFileNameA;
             description = descriptionA;
             binaryData = binaryDataA;
@@ -138,22 +229,22 @@ namespace RawBayer2DNG
         abstract public int getWidth();
         abstract public int getHeight();
         abstract public byte[,] getBayerPattern();
-        abstract public byte[] getRawImageData(int index,out ISSMetaInfo metaInfo,out ISSErrorInfo errorInfo);
+        abstract public byte[] getRawImageData(int index,ref ISSMetaInfo metaInfo,ref ISSErrorInfo errorInfo);
         public byte[] getRawImageData(int index) // Alternative when metadata or error info return is not required and should be discardedo. Just for comfort.
         {
-            ISSMetaInfo metaInfo;
-            ISSErrorInfo errorInfo;
-            return getRawImageData(index,out metaInfo, out errorInfo);
+            ISSMetaInfo metaInfo = new ISSMetaInfo();
+            ISSErrorInfo errorInfo = new ISSErrorInfo();
+            return getRawImageData(index,ref metaInfo, ref errorInfo);
         }
-        public byte[] getRawImageData(int index, out ISSMetaInfo metaInfo) // Alternative when only metadata is desired, but no error infoo. Just for comfort.
+        public byte[] getRawImageData(int index, ref ISSMetaInfo metaInfo) // Alternative when only metadata is desired, but no error infoo. Just for comfort.
         {
-            ISSErrorInfo errorInfo;
-            return getRawImageData(index,out metaInfo, out errorInfo);
+            ISSErrorInfo errorInfo = new ISSErrorInfo();
+            return getRawImageData(index,ref metaInfo, ref errorInfo);
         }
-        public byte[] getRawImageData(int index, out ISSErrorInfo errorInfo) // Alternative when only error info is desired, but no meta info. Just for comfort.
+        public byte[] getRawImageData(int index, ref ISSErrorInfo errorInfo) // Alternative when only error info is desired, but no meta info. Just for comfort.
         {
-            ISSMetaInfo metaInfo;
-            return getRawImageData(index,out metaInfo, out errorInfo);
+            ISSMetaInfo metaInfo = new ISSMetaInfo();
+            return getRawImageData(index,ref metaInfo, ref errorInfo);
         }
         abstract public bool imageExists(int index);
         abstract public int getImageCount();

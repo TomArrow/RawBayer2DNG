@@ -92,6 +92,26 @@ namespace RawBayer2DNG.ImageSequenceSources
             CODEC_TYPE_NONE = 0,
             CODEC_TYPE_VIDEO
         };
+        enum FilmType
+        {
+            Positive = 0,
+            Negative = 1,
+            InterPositive = 2,
+            InterNegative = 3
+        };
+
+        enum FilmGauge
+        {
+            Gauge16mm = 0,
+            Gauge35mm2Perf = 1,
+            Gauge35mm3Perf = 2,
+            Gauge35mm4Perf = 3
+        };
+        enum Endianness
+        {
+            ENDIAN_BIG = 0,
+            ENDIAN_LITTLE
+        };
         // End of Blackmagic Cintel SDK content
 
         public int width;
@@ -331,16 +351,126 @@ namespace RawBayer2DNG.ImageSequenceSources
             return retVal.ToArray();
         }
 
-        override public byte[] getRawImageData(int index, out ISSMetaInfo metaInfo, out ISSErrorInfo errorInfo)
+        private string getHumanReadableTagData(ref Dictionary<UInt32, byte[]> tags)
+        {
+
+            string genericSeparator = ",";
+
+            StringBuilder sb = new StringBuilder();
+            //sb.AppendLine("tagname/number,interpreted,hex");
+            sb.AppendLine("tagname/number,interpreted");
+            foreach (KeyValuePair<UInt32, byte[]> tag in tags)
+            {
+                if ((Key)tag.Key != Key.FrameData && (Key)tag.Key != Key.Filler)
+                {
+
+
+                    sb.Append((Key)tag.Key);
+                    sb.Append(",");
+                    sb.Append('"');
+
+                    string stuff;
+
+                    switch ((Key)tag.Key)
+                    {
+                        case Key.FrameInfo:
+                            int width = (int)BitConverter.ToUInt32(tag.Value, 0);
+                            int height = (int)BitConverter.ToUInt32(tag.Value, 4);
+                            ColorModel colorModel = (ColorModel)BitConverter.ToUInt32(tag.Value, 8);
+                            Endianness endianness = (Endianness)BitConverter.ToUInt32(tag.Value, 12);
+                            sb.Append(width + "x" + height + genericSeparator + colorModel + genericSeparator + endianness);
+                            break;
+
+                        // Bool
+                        case Key.ExtendedRange: // Unverified
+                        case Key.StabilizerEnabledH:
+                        case Key.StabilizerEnabledV:
+                        case Key.FlipHorizontal:
+                        case Key.FlipVertical:
+                        case Key.Negative: // Unverified
+                            stuff = Helpers.byteArrayToString<bool>(tag.Value, genericSeparator);
+                            sb.Append(stuff);
+                            break;
+                        // UInt64
+                        case Key.Keykode: // Unverified
+                        case Key.TileSizes:
+                            stuff = Helpers.byteArrayToString<UInt64>(tag.Value, genericSeparator);
+                            sb.Append(stuff);
+                            break;
+                        // UInt16
+                        case Key.OffsetDetectedH: // Unverified
+                        case Key.OffsetDetectedV:// Unverified
+                            stuff = Helpers.byteArrayToString<UInt16>(tag.Value, genericSeparator);
+                            sb.Append(stuff);
+                            break;
+
+                        // String
+                        case Key.Header:
+                        case Key.CodecName:
+                        case Key.TimeCode:
+                            stuff = System.Text.Encoding.Default.GetString(tag.Value);
+                            sb.Append(stuff);
+                            break;
+
+                        // Specialized
+                        case Key.CodecType:
+                            stuff = ((ContainerCodecType)BitConverter.ToUInt32(tag.Value,0)).ToString();
+                            sb.Append(stuff);
+                            break;
+                        case Key.FilmType:
+                            stuff = ((FilmType)tag.Value[0]).ToString();
+                            sb.Append(stuff);
+                            break;
+                        case Key.FilmGauge:
+                            stuff = ((FilmGauge)tag.Value[0]).ToString();
+                            sb.Append(stuff);
+                            break;
+
+                        // floats
+                        case Key.FilmFrameRate:
+                        case Key.OffsetToApplyH:
+                        case Key.OffsetToApplyV:
+                        case Key.SkewToApply:
+                        case Key.LinearMask:
+                        case Key.LogMask:
+                        case Key.Gains:
+                        case Key.Lifts:
+                        case Key.HDRGains:
+                            //string stuff = Helpers.arrayToString<float>(Helpers.byteArrayTo<float>(tag.Value), genericSeparator);
+                            stuff = Helpers.byteArrayToString<float>(tag.Value, genericSeparator);
+                            sb.Append(stuff);
+                            break;
+                        default:
+                            sb.Append("[no interpretation implemented]");
+                            break;
+                    }
+                    sb.Append('"');
+                    /*sb.Append(",");
+                    
+                    foreach (byte b in tag.Value)
+                    {
+
+                        sb.AppendFormat("{0:x2}", b);
+                    }*/
+                    sb.AppendLine();
+                }
+            }
+
+            return sb.ToString();
+        }
+            
+
+        override public byte[] getRawImageData(int index, ref ISSMetaInfo metaInfo, ref ISSErrorInfo errorInfo)
         {
 
 
-            metaInfo = new ISSMetaInfo();
-            errorInfo = new ISSErrorInfo();
 
             Dictionary<UInt32, byte[]> tagData = readCRITagData(paths[index]);
 
-            metaInfo.metaBinary = CRITagDataBackToBinary(ref tagData,new UInt32[] { (UInt32)Key.FrameData,(UInt32)Key.Filler});
+            metaInfo.addMeta(new ISSMeta(ISSMeta.MetaFormat.CRI_METADATA,
+                CRITagDataBackToBinary(ref tagData, new UInt32[] { (UInt32)Key.FrameData, (UInt32)Key.Filler }),
+                getHumanReadableTagData(ref tagData),
+                getImageName(index)));
 
             if (tagData.ContainsKey((UInt32)Key.FrameData))
             {

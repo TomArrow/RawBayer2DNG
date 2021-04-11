@@ -188,19 +188,22 @@ namespace RawBayer2DNG
 
             if (ofd.ShowDialog() == true)
             {
+                ISSErrorInfo errorInfo = new ISSErrorInfo();
+                ISSMetaInfo metaInfo = new ISSMetaInfo();
+
                 string fileNameWithoutExtension = Path.GetDirectoryName(ofd.FileName) + "\\" + Path.GetFileNameWithoutExtension(ofd.FileName);
                 string fileName = fileNameWithoutExtension + ".dng";
 
                 byte[,] bayerPattern = getBayerPattern();
                 double[]  RGBamplify =  { rAmplify.Value, gAmplify.Value, bAmplify.Value };
 
-                ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, RGBamplify, cropAmounts, Path.GetFileNameWithoutExtension(ofd.FileName));
+                ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, RGBamplify, cropAmounts, metaInfo, errorInfo, Path.GetFileNameWithoutExtension(ofd.FileName));
             }
         }
 
 
 
-        private void ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, uint[] cropAmounts, string sourceFileNameForTIFFTag = "")
+        private void ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, uint[] cropAmounts, ISSMetaInfo metaInfo, ISSErrorInfo errorInfo, string sourceFileNameForTIFFTag = "")
         {
 
 
@@ -367,8 +370,11 @@ namespace RawBayer2DNG
                     output.SetField(TiffTag.LINEARIZATIONTABLE, Int16.MaxValue, linearizationTable);
                 }
 
+                metaInfo.mergeErrors(errorInfo);
+                const string DNGPRIVDATA_START = "RAWBAYER2DNG\0";
+                byte[] dngPrivData = metaInfo.getMergedBinary(Encoding.UTF8.GetBytes(DNGPRIVDATA_START));
+                output.SetField(TiffTag.DNGPRIVATEDATA, dngPrivData.Length, dngPrivData);
 
-                //output.SetField(TiffTag.DNGPRIVATEDATA, Orientation.TOPLEFT);
                 output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
                 output.SetField(TiffTag.ROWSPERSTRIP, height);
                 output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
@@ -1164,6 +1170,9 @@ namespace RawBayer2DNG
                     var percentage = (double)_counter / _totalFiles * 100.0;
                     lock (countLock) { worker?.ReportProgress((int)percentage); }
 
+                    ISSMetaInfo metaInfo = new ISSMetaInfo();
+                    ISSErrorInfo errorInfo = new ISSErrorInfo();
+
                     // check to see if output file already exists
                     if (File.Exists(currentImage.Value.outputName))
                     {
@@ -1174,7 +1183,7 @@ namespace RawBayer2DNG
 
                     if(shotSettings.shots.Length == 1) // SDR (single image)
                     {
-                        byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.Value.shotIndizi[0]);
+                        byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.Value.shotIndizi[0], ref metaInfo, ref errorInfo);
                         if (inputFormat == RAWDATAFORMAT.BAYERRG12p)
                         {
                             tmpBuff = DataFormatConverter.convert12pInputto16bit(tmpBuff);
@@ -1184,7 +1193,7 @@ namespace RawBayer2DNG
                             tmpBuff = DataFormatConverter.convert12paddedto16Inputto16bit(tmpBuff);
                         }
 
-                        ProcessRAW(tmpBuff, currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                        ProcessRAW(tmpBuff, currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
                     } else // HDR
                     {
                         byte[][] buffersForHDR = new byte[3][];
@@ -1192,7 +1201,7 @@ namespace RawBayer2DNG
                         foreach (int thisThereThatIndex in currentImage.Value.shotIndizi)
                         {
 
-                            buffersForHDR[c] = imageSequenceSource.getRawImageData(thisThereThatIndex);
+                            buffersForHDR[c] = imageSequenceSource.getRawImageData(thisThereThatIndex, ref metaInfo, ref errorInfo);
                             if (inputFormat == RAWDATAFORMAT.BAYERRG12p)
                             {
                                 buffersForHDR[c] = DataFormatConverter.convert12pInputto16bit(buffersForHDR[c]);
@@ -1207,7 +1216,7 @@ namespace RawBayer2DNG
                         // For debugging
                         //File.WriteAllText("debug.txt","Clipping point: "+shotSettings.clippingPoint+", feather "+shotSettings.featherMultiplier);
 
-                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
                     }
                     
                 });

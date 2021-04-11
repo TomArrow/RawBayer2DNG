@@ -106,11 +106,9 @@ namespace RawBayer2DNG.ImageSequenceSources
         byte[] compressedFileCache;
         int compressedFileCacheIndex = -1;
 
-        override public byte[] getRawImageData(int index, out ISSMetaInfo metaInfo, out ISSErrorInfo errorInfo)
+        override public byte[] getRawImageData(int index, ref ISSMetaInfo metaInfo, ref ISSErrorInfo errorInfo)
         {
 
-            metaInfo = new ISSMetaInfo();
-            errorInfo = new ISSErrorInfo();
             using (Tiff input = Tiff.Open(paths[index], "r"))
             {
                 // Try to make Adobe DNG work

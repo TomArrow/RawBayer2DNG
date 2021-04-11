@@ -165,10 +165,9 @@ namespace RawBayer2DNG.ImageSequenceSources
         {
             return bayerPattern;
         }
-        override public byte[] getRawImageData(int index, out ISSMetaInfo metaInfo, out ISSErrorInfo errorInfo)
+        override public byte[] getRawImageData(int index, ref ISSMetaInfo metaInfo, ref ISSErrorInfo errorInfo)
         {
-            metaInfo = new ISSMetaInfo();
-            errorInfo = new ISSErrorInfo();
+
             using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open,FileAccess.Read,FileShare.Read), Encoding.Unicode))
             {
                 reader.BaseStream.Seek(8192+ index*singleImageRealByteSize,SeekOrigin.Begin);
