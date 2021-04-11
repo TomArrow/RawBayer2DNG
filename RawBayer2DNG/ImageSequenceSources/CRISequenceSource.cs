@@ -298,10 +298,49 @@ namespace RawBayer2DNG.ImageSequenceSources
             return stabilizationInfo;
         }
 
-        override public byte[] getRawImageData(int index)
+        private byte[] CRITagDataBackToBinary(ref Dictionary<UInt32, byte[]> criTagData, UInt32[] tagsToExclude = null)
+        {
+            List<byte> retVal  = new List<byte>();
+
+            if(tagsToExclude == null)
+            {
+                tagsToExclude = new UInt32[0];
+            }
+
+            foreach(KeyValuePair<UInt32,byte[]> kvPair in criTagData)
+            {
+                // Ignore exluded keys
+                bool excludeThis = false;
+                foreach(UInt32 excludedTag in tagsToExclude)
+                {
+                    if(excludedTag == kvPair.Key)
+                    {
+                        excludeThis = true;
+                    }
+                }
+                if (excludeThis)
+                {
+                    continue;
+                }
+
+                retVal.AddRange(BitConverter.GetBytes(kvPair.Key));
+                retVal.AddRange(BitConverter.GetBytes((UInt32)kvPair.Value.Length));
+                retVal.AddRange(kvPair.Value);
+            }
+
+            return retVal.ToArray();
+        }
+
+        override public byte[] getRawImageData(int index, out ISSMetaInfo metaInfo, out ISSErrorInfo errorInfo)
         {
 
+
+            metaInfo = new ISSMetaInfo();
+            errorInfo = new ISSErrorInfo();
+
             Dictionary<UInt32, byte[]> tagData = readCRITagData(paths[index]);
+
+            metaInfo.metaBinary = CRITagDataBackToBinary(ref tagData,new UInt32[] { (UInt32)Key.FrameData,(UInt32)Key.Filler});
 
             if (tagData.ContainsKey((UInt32)Key.FrameData))
             {

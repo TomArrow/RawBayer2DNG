@@ -69,6 +69,8 @@ namespace RawBayer2DNG
         private bool _compressDng = false;
         private bool _compressDngLosslessJPEG = true;
         private bool _linLogDithering = true;
+        private bool _writeErrorReports = true;
+        private bool _writeMetaDataHumanReadable = true;
         private string _newFileName;
 
         uint[] cropAmounts = new uint[4];
@@ -366,6 +368,7 @@ namespace RawBayer2DNG
                 }
 
 
+                //output.SetField(TiffTag.DNGPRIVATEDATA, Orientation.TOPLEFT);
                 output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
                 output.SetField(TiffTag.ROWSPERSTRIP, height);
                 output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
@@ -937,6 +940,18 @@ namespace RawBayer2DNG
         {
             // Use IsChecked.
             _linLogDithering = (sender as CheckBox).IsChecked.Value;
+        }
+
+        private void WriteErrorReports_UnOrChecked(object sender, RoutedEventArgs e)
+        {
+            // Use IsChecked.
+            _writeErrorReports = (sender as CheckBox).IsChecked.Value;
+        }
+
+        private void WriteMetaDataHumanReadable_UnOrChecked(object sender, RoutedEventArgs e)
+        {
+            // Use IsChecked.
+            _writeMetaDataHumanReadable = (sender as CheckBox).IsChecked.Value;
         }
 
         private void CompressDNGLosslessJPEG_Checked(object sender, RoutedEventArgs e)

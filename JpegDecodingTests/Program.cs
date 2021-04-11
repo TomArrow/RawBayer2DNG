@@ -48,8 +48,8 @@ namespace JpegDecodingTests
             //testAdobeJPG();
             //testCRIJPG();
             //testAdobeJPGEncode();
-            //testWriteCRIJpegIntoDNG();
-            testDecodeCRIJpeg();
+            testWriteCRIJpegIntoDNG();
+            //testDecodeCRIJpeg();
         }
 
         private static void testDecodeCRIJpeg()
@@ -80,7 +80,7 @@ namespace JpegDecodingTests
             int height = 3072;
 
 
-            string fileName = "Cintel_00094268.cri.tile.3.jpg.dng";
+            string fileName = "Cintel_00094268.cri.tile.3.jpg-privdat.dng";
 
             using (Tiff output = Tiff.Open(fileName, "w"))
             {
@@ -95,7 +95,12 @@ namespace JpegDecodingTests
 
                 //rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                 output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                
+
+
+                string blah = "RawBayer2DNG\0blahblahblah";
+                output.SetField(TiffTag.DNGPRIVATEDATA,blah.Length, blah);
+                output.SetField(TiffTag.EXIF_MAKERNOTE,blah.Length, blah);
+                output.SetField(TiffTag.MAKERNOTESAFETY,1);
 
 
                 output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);

@@ -44,8 +44,10 @@ namespace RawBayer2DNG.ImageSequenceSources
         {
             return bayerPattern;
         }
-        override public byte[] getRawImageData(int index)
+        override public byte[] getRawImageData(int index, out ISSMetaInfo metaInfo, out ISSErrorInfo errorInfo)
         {
+            metaInfo = new ISSMetaInfo();
+            errorInfo = new ISSErrorInfo();
             return File.ReadAllBytes(paths[index]);
         }
         public override bool imageExists(int index)
