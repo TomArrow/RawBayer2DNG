@@ -253,7 +253,50 @@ namespace RawBayer2DNG.ImageSequenceSources
         byte[] compressedFileCache;
         int compressedFileCacheIndex = -1;
 
+        // fast(er?) access to stabilization data
+        public float[] getStabilizationInfo(int index)
+        {
+            float[] stabilizationInfo = new float[2] { 0f, 0f }; //H,V
+            string path = paths[index];
+            UInt32 currentTag;
+            UInt32 currentTagLength;
+            byte[] currentTagData;
+            bool Hfound = false;
+            bool Vfound = false;
+            using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read)))
+            {
+                while ((!Hfound || !Vfound)  && reader.BaseStream.Position < (reader.BaseStream.Length - 3))
+                {
 
+                    currentTag = reader.ReadUInt32();
+                    if (currentTag == 0)
+                    {
+                        continue;
+                    }
+                    currentTagLength = reader.ReadUInt32();
+                    if((Key)currentTag == Key.OffsetToApplyH)
+                    {
+
+                        currentTagData = reader.ReadBytes((int)currentTagLength);
+                        stabilizationInfo[0] = BitConverter.ToSingle(currentTagData,0);
+                        Hfound = true;
+
+                    } else if ((Key)currentTag == Key.OffsetToApplyV)
+                    {
+
+                        currentTagData = reader.ReadBytes((int)currentTagLength);
+                        stabilizationInfo[1] = BitConverter.ToSingle(currentTagData, 0);
+                        Vfound = true;
+                    }
+                    else
+                    {
+
+                        reader.BaseStream.Seek(currentTagLength, SeekOrigin.Current); // Skip it!
+                    }
+                }
+            }
+            return stabilizationInfo;
+        }
 
         override public byte[] getRawImageData(int index)
         {

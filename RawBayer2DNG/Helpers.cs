@@ -6,11 +6,22 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Windows.Media.Imaging;
 using System.Drawing;
+using System.Globalization;
 
 namespace RawBayer2DNG
 {
     static class Helpers
     {
+        static string numberFormat = "0." + new string('#', 339);
+
+        public static string doubleToString(double number)
+        {
+            return number.ToString(numberFormat, CultureInfo.InvariantCulture);
+        }
+        public static string floatToString(float number)
+        {
+            return number.ToString(numberFormat, CultureInfo.InvariantCulture);
+        }
         static public BitmapImage BitmapToImageSource(Bitmap bitmap)
         {
             using (MemoryStream memory = new MemoryStream())

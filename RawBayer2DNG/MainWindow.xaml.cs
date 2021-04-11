@@ -1612,6 +1612,8 @@ namespace RawBayer2DNG
                     filesAreReversed = true;
                 }
 
+                btnCRIStabExport.IsEnabled = true;
+
                 loadedSequenceGUIUpdate("[CRI Folder] " + sourceFolder);
 
 
@@ -1925,6 +1927,94 @@ namespace RawBayer2DNG
             //MessageBox.Show(maxValue.ToString());
 
             return refinedShotSettings;
+        }
+
+
+        private float[][] getCRIStabilizationData()
+        {
+            float[][] retVal = new float[1][];
+            if (imageSequenceSource is CRISequenceSource) {
+
+
+                ulong count = (ulong)imageSequenceSource.getImageCount();
+                retVal = new float[count][];
+
+                for(ulong i = 0; i < count; i++)
+                {
+
+                    retVal[i] = (imageSequenceSource as CRISequenceSource).getStabilizationInfo((int)i);
+                }
+
+            } else
+            {
+                // Shouldn't do this!
+            }
+            return retVal;
+        }
+
+        private void btnCRIStabExport_Click(object sender, RoutedEventArgs e)
+        {
+            if (imageSequenceSource is CRISequenceSource)
+            {
+
+                float[][] stabData = getCRIStabilizationData();
+
+                // CSV
+                StringBuilder csv = new StringBuilder();
+                csv.AppendLine("frame,H,V");
+
+                // AE
+                StringBuilder ae = new StringBuilder();
+                ae.AppendLine("Adobe After Effects 8.0 Keyframe Data");
+                ae.AppendLine();
+                ae.AppendLine("\tUnits Per Second\t24");
+                ae.AppendLine("\tSource Width\t"+imageSequenceSource.getWidth());
+                ae.AppendLine("\tSource Height\t"+imageSequenceSource.getHeight());
+                ae.AppendLine("\tSource Pixel Aspect Ratio\t1");
+                ae.AppendLine("\tComp Pixel Aspect Ratio\t1");
+                ae.AppendLine();
+                ae.AppendLine("Effects	Point Control\tPoint");
+                ae.AppendLine("\tFrame\tX pixels\tY pixels\t");
+
+                string x, y;
+
+                for(int i = 0; i < stabData.Length; i++)
+                {
+                    x = Helpers.floatToString(stabData[i][0]);
+                    y = Helpers.floatToString(stabData[i][1]);
+                    // CSV
+                    csv.AppendLine(i+ ","+ x+","+ y);
+
+                    // AE
+                    ae.AppendLine("\t"+i+"\t"+x+"\t"+y+"\t");
+                }
+
+
+                // End files
+                ae.AppendLine();
+                ae.AppendLine();
+                ae.AppendLine("End of Keyframe Data");
+
+                SaveFileDialog sfd = new SaveFileDialog();
+                sfd.Title = "Save stabilization data in CSV Format?";
+                sfd.FileName = "Stabilization CSV.csv";
+                if (sfd.ShowDialog() == true)
+                {
+                    File.WriteAllText(sfd.FileName,csv.ToString());
+                }
+
+                sfd = new SaveFileDialog();
+                sfd.Title = "Save stabilization data in After Effects Keyframe Format?";
+                sfd.FileName = "Stabilization AE.txt";
+                if (sfd.ShowDialog() == true)
+                {
+                    File.WriteAllText(sfd.FileName, ae.ToString());
+                }
+            }
+            else {
+
+                MessageBox.Show("Error. Cannot export stabilization data from non-CRI sources.");
+            }
         }
 
     }
