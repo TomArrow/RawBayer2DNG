@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -102,12 +103,21 @@ namespace RawBayer2DNG
         public string metaHumanReadable = "";
         public string originalFilename = "";
 
-        public ISSMeta(MetaFormat metaFormatA, byte[] binaryDataA, string metaHumanReadableA, string originalFilenameA)
+        public ISSMeta(MetaFormat metaFormatA, byte[] binaryDataA, string metaHumanReadableA, string originalFilenameA,bool keepFullFilepath = false)
         {
             metaFormat = metaFormatA;
             binaryData = binaryDataA;
             metaHumanReadable = metaHumanReadableA;
-            originalFilename = originalFilenameA;
+            if (keepFullFilepath)
+            {
+
+                originalFilename = originalFilenameA;
+            }
+            else
+            {
+
+                originalFilename = Path.GetFileName(originalFilenameA);
+            }
         }
 
     }
@@ -117,7 +127,8 @@ namespace RawBayer2DNG
     class ISSErrorInfo
     {
 
-        List<ISSError> errors = new List<ISSError>();
+        public List<ISSError> errors = new List<ISSError>();
+
         public void addError(ISSError error)
         {
             errors.Add(error);
@@ -127,6 +138,34 @@ namespace RawBayer2DNG
         {
             errors.AddRange(errorInfo.errors);
         }
+
+        public string getHumanReadableErrorsCSV()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine("ErrorCode,Severity,\"Error Description\",\"Original Filename\",\"Binary Data\"");
+            foreach(ISSError error in errors)
+            {
+
+                sb.Append(error.errorCode);
+                sb.Append(",");
+                sb.Append(error.errorSeverity);
+                sb.Append(",");
+                sb.Append("\"");
+                sb.Append(error.description.Replace("\"", "\"\"")); // Turn quotes into double quotes to escpae them for CSV
+                sb.Append("\"");
+                sb.Append(",");
+                sb.Append("\"");
+                sb.Append(error.originalFilename.Replace("\"", "\"\"")); // Turn quotes into double quotes to escpae them for CSV
+                sb.Append("\"");
+                sb.Append(",");
+                sb.Append(Helpers.byteArrayToHexString(error.binaryData));
+                sb.AppendLine();
+            }
+
+            return sb.ToString();
+        }
+
 
         public byte[] getMergedBinary()
         {
@@ -207,11 +246,20 @@ namespace RawBayer2DNG
         public string description = "";
         public byte[] binaryData = new byte[0];
 
-        public ISSError(ErrorCode errorCodeA, ErrorSeverity errorSeverityA, string originalFileNameA, string descriptionA, byte[] binaryDataA)
+        public ISSError(ErrorCode errorCodeA, ErrorSeverity errorSeverityA, string originalFileNameA, string descriptionA, byte[] binaryDataA,bool keepFullFilepath = false)
         {
             errorCode = errorCodeA;
             errorSeverity = errorSeverityA;
-            originalFilename = originalFileNameA;
+
+            if (keepFullFilepath)
+            {
+
+                originalFilename = originalFileNameA;
+            } else
+            {
+
+                originalFilename = Path.GetFileName(originalFileNameA);
+            }
             description = descriptionA;
             binaryData = binaryDataA;
         }

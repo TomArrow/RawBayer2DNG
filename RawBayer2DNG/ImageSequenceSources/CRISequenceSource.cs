@@ -512,10 +512,13 @@ namespace RawBayer2DNG.ImageSequenceSources
                             Array.Copy(compressedData, (int)alreadyRead, tmpBuffer,0,(int)tileSize);
                         } else if (alreadyRead>((ulong)compressedData.Length-1)) // See if we can get anything at all out of this...
                         {
+                            errorInfo.addError(new ISSError(ISSError.ErrorCode.ORIGINAL_FILE_PARTIALLY_CORRUPTED_RESCUE,ISSError.ErrorSeverity.SEVERE,getImageName(index),"Source CRI file corrupted! Image info for tile starting at "+alreadyRead+" completely missing. Ignoring, but output image will be obviously missing that part.",new byte[0]));
                             // completely broken. No use messing with this file anymore. 
                             break;
                         } else
                         { // If there's a little bit of stuff, try rescuing what we can.
+                            errorInfo.addError(new ISSError(ISSError.ErrorCode.ORIGINAL_FILE_PARTIALLY_CORRUPTED_RESCUE, ISSError.ErrorSeverity.SEVERE, getImageName(index), "Source CRI file corrupted! Image info for tile starting at " + alreadyRead + " partially missing. Attempting to rescue what's left.", new byte[0]));
+
                             ulong amountToCopy = (ulong)compressedData.Length - alreadyRead;
                             isDamaged = true;
                             Array.Copy(compressedData, (int)alreadyRead, tmpBuffer, 0, (int)amountToCopy);
@@ -544,6 +547,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                             }
                             catch (Exception e)
                             {
+                                errorInfo.addError(new ISSError(ISSError.ErrorCode.ORIGINAL_FILE_PARTIALLY_CORRUPTED_RESCUE, ISSError.ErrorSeverity.SEVERE, getImageName(index), "Source CRI file corrupted! A rescue of remaining data was attempted but possibly failed with error: "+e.Message, new byte[0]));
 
                             }
                         } else

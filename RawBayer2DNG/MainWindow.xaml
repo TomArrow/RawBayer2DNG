@@ -180,7 +180,7 @@
                 <TabItem Header=".cri">
                     <StackPanel>
                         <Button x:Name="btnLoadCRIFolder" Click="btnLoadCRIFolder_Click">Select folder of .cri files</Button>
-                        <Button x:Name="btnCRIStabExport" Click="btnCRIStabExport_Click">Export stabilization keyframe data</Button>
+                        <Button x:Name="btnCRIStabExport" Click="btnCRIStabExport_Click" IsEnabled="False">Export stabilization keyframe data</Button>
                     </StackPanel>
                 </TabItem>
             </TabControl>
@@ -258,7 +258,7 @@
             <CheckBox ToolTip="lossless JPEG compression" x:Name="compressDNGLosslessJPEG" IsChecked="True" Checked="CompressDNGLosslessJPEG_Checked" Unchecked="CompressDNGLosslessJPEG_Unchecked" Margin="2">Lossless JPEG (16 bit formats)</CheckBox>
             <CheckBox ToolTip="Floyd-Steinberg Dithering when reducing the bit depth in the LinLog modes" x:Name="linLogDithering" Checked="LinLogDithering_UnOrChecked" Unchecked="LinLogDithering_UnOrChecked" IsChecked="True"  Margin="2">Dithering (in case of lossy LinLog)</CheckBox>
             <CheckBox ToolTip="Will write an error log file for each file that encounters errors during conversion" x:Name="writeErrorReports" Checked="WriteErrorReports_UnOrChecked" Unchecked="WriteErrorReports_UnOrChecked" IsChecked="True"  Margin="2">Write error reports</CheckBox>
-            <CheckBox ToolTip="Will dump human readable metadata (where available) alongside the result images." x:Name="writeMetaDataHumanReadable" Checked="WriteMetaDataHumanReadable_UnOrChecked" Unchecked="WriteMetaDataHumanReadable_UnOrChecked" IsChecked="True"  Margin="2">Dump human readable metadata</CheckBox>
+            <CheckBox ToolTip="Will dump human readable metadata (where available) alongside the result images." IsEnabled="False" x:Name="writeMetaDataHumanReadable" Checked="WriteMetaDataHumanReadable_UnOrChecked" Unchecked="WriteMetaDataHumanReadable_UnOrChecked" IsChecked="True"  Margin="2">Dump human readable metadata</CheckBox>
 
             <WrapPanel>
                 <TextBlock x:Name="txtMaxThreads">Threads (max: )</TextBlock>

@@ -370,10 +370,26 @@ namespace RawBayer2DNG
                     output.SetField(TiffTag.LINEARIZATIONTABLE, Int16.MaxValue, linearizationTable);
                 }
 
+
+
+                // DNG Private data. Includes original files metadata for example, and error info if any errors occurred. 
                 metaInfo.mergeErrors(errorInfo);
                 const string DNGPRIVDATA_START = "RAWBAYER2DNG\0";
                 byte[] dngPrivData = metaInfo.getMergedBinary(Encoding.UTF8.GetBytes(DNGPRIVDATA_START));
                 output.SetField(TiffTag.DNGPRIVATEDATA, dngPrivData.Length, dngPrivData);
+
+                //
+                if (_writeErrorReports)
+                {
+                    if(errorInfo.errors.Count > 0)
+                    {
+                        string errorFileName = Helpers.findUnoccupiedFileName(fileName + ".errors",".csv",".");
+                        string errorsCSV = errorInfo.getHumanReadableErrorsCSV();
+                        File.WriteAllText(errorFileName, errorsCSV);
+                    }
+                }
+
+
 
                 output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
                 output.SetField(TiffTag.ROWSPERSTRIP, height);

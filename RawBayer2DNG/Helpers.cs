@@ -14,6 +14,33 @@ namespace RawBayer2DNG
     {
 
 
+        public static string findUnoccupiedFileName(string filename, string fileEnding, string countSeparator= "_")
+        {
+            if (File.Exists(filename + fileEnding))
+            {
+                int index = 2;
+                while (File.Exists(filename+countSeparator+index+fileEnding))
+                {
+                    index++;
+                }
+                return filename + countSeparator + index + fileEnding;
+            } else
+            {
+                return filename + fileEnding;
+            }
+        }
+
+        public static string byteArrayToHexString(byte[] data)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (byte b in data)
+            {
+
+                sb.AppendFormat("{0:x2}", b);
+            }
+            return sb.ToString();
+        }
+
         public static string byteArrayToString<T>(byte[] input, string separator) where T : unmanaged
         {
             return arrayToString<T>(byteArrayTo<T>(input), separator);
