@@ -41,7 +41,8 @@ namespace RawBayer2DNG
         // 12 bit packed, with the "12p" standard from FLIR cameras. The other standard is "12packed", which is currently not implemented in this tool.
         // It's like this: AAAAAAAA AAAABBBB BBBBBBBB, with the BBBB in the second bit being the first bytes (not the last) of the second sample
         BAYERRG12p,
-        TIFF12BITPACKED // For reading dngs
+        TIFF12BITPACKED, // For reading dngs
+        CINTEL10BIT
     };
 
     /// <summary>
@@ -804,6 +805,10 @@ namespace RawBayer2DNG
                     {
                         buffersForMerge[i] = DataFormatConverter.convert12pInputto16bit(buffersForMerge[i]);
                     }
+                    if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.CINTEL10BIT)
+                    {
+                        buffersForMerge[i] = DataFormatConverter.tryConvertCintel10Inputto16bit(buffersForMerge[i]);
+                    }
                     if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                     {
                         buffersForMerge[i] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForMerge[i]);
@@ -1204,6 +1209,10 @@ namespace RawBayer2DNG
                         {
                             tmpBuff = DataFormatConverter.convert12pInputto16bit(tmpBuff);
                         }
+                        if (inputFormat == RAWDATAFORMAT.CINTEL10BIT)
+                        {
+                            tmpBuff = DataFormatConverter.tryConvertCintel10Inputto16bit(tmpBuff);
+                        }
                         if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                         {
                             tmpBuff = DataFormatConverter.convert12paddedto16Inputto16bit(tmpBuff);
@@ -1221,6 +1230,10 @@ namespace RawBayer2DNG
                             if (inputFormat == RAWDATAFORMAT.BAYERRG12p)
                             {
                                 buffersForHDR[c] = DataFormatConverter.convert12pInputto16bit(buffersForHDR[c]);
+                            }
+                            if (inputFormat == RAWDATAFORMAT.CINTEL10BIT)
+                            {
+                                buffersForHDR[c] = DataFormatConverter.tryConvertCintel10Inputto16bit(buffersForHDR[c]);
                             }
                             if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                             {
@@ -1761,6 +1774,10 @@ namespace RawBayer2DNG
                     if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYERRG12p)
                     {
                         buffersForMerge[i] = DataFormatConverter.convert12pInputto16bit(buffersForMerge[i]);
+                    }
+                    if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.CINTEL10BIT)
+                    {
+                        buffersForMerge[i] = DataFormatConverter.tryConvertCintel10Inputto16bit(buffersForMerge[i]);
                     }
                     if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                     {

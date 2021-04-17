@@ -120,7 +120,7 @@ namespace RawBayer2DNG.ImageSequenceSources
         public string[] paths;
         public RAWDATAFORMAT rawDataFormat;
 
-        ImageSequenceSourceType sourceType = ImageSequenceSourceType.DNG;
+        ImageSequenceSourceType sourceType = ImageSequenceSourceType.CRI;
 
         public CRISequenceSource(string[] thePaths)
         {
@@ -142,8 +142,9 @@ namespace RawBayer2DNG.ImageSequenceSources
 
                     case (UInt32)ColorModel.COLOR_MODEL_BAYER_GRGR_CINTEL_10:
                         bayerPattern = new byte[2, 2] { { 1, 0 }, { 2, 1 } };
-                        throw new Exception("10 bit modes not supported (yet?)");
+                        //throw new Exception("10 bit modes not supported (yet?)");
                         //rawDataFormat = RAWDATAFORMAT.BAYERRG12p;
+                        rawDataFormat = RAWDATAFORMAT.CINTEL10BIT;
                         break;
 
                     // 12 bit modes
@@ -343,7 +344,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                     continue;
                 }
 
-                retVal.AddRange(BitConverter.GetBytes(kvPair.Key));
+                retVal.AddRange(BitConverter.GetBytes((UInt32)kvPair.Key));
                 retVal.AddRange(BitConverter.GetBytes((UInt32)kvPair.Value.Length));
                 retVal.AddRange(kvPair.Value);
             }

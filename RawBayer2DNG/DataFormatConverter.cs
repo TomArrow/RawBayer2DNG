@@ -12,6 +12,26 @@ namespace RawBayer2DNG
         //
         // INPUT FORMAT SECTION
         //
+        public static byte[] tryConvertCintel10Inputto16bit(byte[] input)
+        {
+            long inputLength = input.Length * 8;
+            //long outputLength = inputLength * 6 / 4;
+            long inputLengthBytes = inputLength / 8;
+            long outputLengthBytes = outputLength;
+            byte[] output = new byte[outputLengthBytes];
+
+            for (long i = 0, o = 0; i < inputLengthBytes; i += 4, o += 6)
+            {
+                //output[o] = input[i];
+                output[o+1] = input[i];
+                //output[o + 2] = input[i];
+                output[o + 3] = input[i];
+                //output[o + 4] = input[i];
+                output[o + 5] = input[i];
+            }
+
+            return output;
+        }
         public static byte[] convert12pInputto16bit(byte[] input)
         {
             long inputlength = input.Length * 8;

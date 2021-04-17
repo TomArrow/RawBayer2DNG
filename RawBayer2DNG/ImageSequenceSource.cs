@@ -269,7 +269,7 @@ namespace RawBayer2DNG
     {
 
 
-        public enum ImageSequenceSourceType { INVALID,RAW , STREAMPIX_SEQ,DNG };
+        public enum ImageSequenceSourceType { INVALID,RAW , STREAMPIX_SEQ,DNG,CRI };
 
         private ImageSequenceSourceType sourceType = ImageSequenceSourceType.INVALID;
 
