@@ -48,8 +48,361 @@ namespace JpegDecodingTests
             //testAdobeJPG();
             //testCRIJPG();
             //testAdobeJPGEncode();
-            testWriteCRIJpegIntoDNG();
+            //testWriteCRIJpegIntoDNG();
             //testDecodeCRIJpeg();
+            Cintel10BitDecodeTests();
+        }
+
+        // This fast variant assumes the pixels come roughly in the correct order within the raw data, so has a smaller search radius
+        private static void Cintel10BitDecodeTestsFaster()
+        {
+
+            byte[] input = File.ReadAllBytes("Resolution_chart.cri.data.raw");
+            byte[] reference = File.ReadAllBytes("reference_from_tif_180rot.raw");
+
+            long inputLength = input.Length * 8;
+            //long outputLength = inputLength * 6 / 4;
+            long outputLength = inputLength * 8 / 9;
+            long inputLengthBytes = inputLength / 8;
+            long outputLengthBytes = outputLength;
+            byte[] output = new byte[outputLengthBytes];
+
+            int nineAligned = ((reference.Length / 2) / 9 + 1) * 9;
+
+            byte[] reference8bit = new byte[nineAligned];
+            byte[] reference4bit = new byte[nineAligned];
+            for (long i = 0, o = 0; i < reference.Length; i += 2, o += 1)
+            {
+                reference8bit[o] = reference[i + 1];
+                reference4bit[o] = (byte)(reference[i + 1] & 0b1111_0000);
+            }
+
+            byte[] inputBits = new byte[input.Length*8];
+            for (int i = 0, bb = 0; bb < inputBits.Length; i += 1, bb += 8)
+            {
+                for(int bit = 0; bit < 8; bit++)
+                {
+                    inputBits[bb + bit] = (byte)(0b0000_0001 & (input[i] >> (7 - (bit % 8))));
+                }
+                /*bit1 = 0b0000_0001 & (input[i + a / 8] >> (7 - (a % 8)));
+                bit2 = 0b0000_0001 & (input[i + b / 8] >> (7 - (b % 8)));
+                bit3 = 0b0000_0001 & (input[i + c / 8] >> (7 - (c % 8)));
+                bit4 = 0b0000_0001 & (input[i + d / 8] >> (7 - (d % 8)));*/
+            }
+            byte[] inputBitsSmol = new byte[20000];
+            Array.Copy(inputBits, 0, inputBitsSmol, 0, inputBitsSmol.Length);
+
+            //File.WriteAllBytes("reference8bits.raw",reference8bit);
+            //File.WriteAllBytes("reference4bits.raw",reference4bit);
+
+            // we want to brute force find the correct format.
+            // How?
+            // We have groups of 9 pixels
+            // And we have thousands of groups.
+            // We have 16 bytes = 128 bits from which each of the 10 correct output bits can be fed.
+            // That means, 128^10 variations? ah shit, is that too much to brute force? Probably...
+            // Would be 1180591620717411303424 possible combinations.  1,180,591,620,717,411,303,424
+            // That might take quite forever...
+            // What if we reduce the desired output precision to 4 bits... then its 268,435,456 combinations. Much more doable.And the reference isn't exactly perfect anyway.
+            // We go like this through each offset...
+            // 
+            // How do we encode the combinations for quick access? each bit requires 7 bits to encode 128 variations. We could just pick a UInt32 and bit shift it around. and ignore the 8th bit for each. basically end up with 4 x 8 bit number
+            // Nvm, we can't do this because C# wont let us create a big enough array
+            //UInt32[] variations = new UInt32[Int32.MaxValue/2];
+            //byte[,,,] variations = new byte[128, 128, 128, 128]; // this works!
+            double[,,,] difference = new double[128, 128, 128, 128]; // this works!
+            byte[][] bestVariations = new byte[4][];
+
+            int bit1, bit2, bit3,  bit4,combinedValue,referenceValue;
+            double averageTotal, averageMultiplier, averageResult;
+
+            FileStream fs = new FileStream("logfile.log",FileMode.Append,FileAccess.Write,FileShare.ReadWrite);
+            BinaryWriter bw = new BinaryWriter(fs);
+
+            int a, b, c, d;
+            long bitPos = 0;
+            int rangeMin, rangeMax;
+            for (int offset = 0; offset < 9; offset++) {
+                rangeMin = Math.Max(0,offset-20);
+                rangeMax = Math.Min(127,offset+20);
+                byte[] bestVariationSoFar = new byte[4];
+                double bestVariationValueSofar = double.PositiveInfinity;
+                for (a = rangeMin; a < rangeMax; a++)
+                {
+                    //b = a + 1;
+                    //for ( b = a+1; b < 126; b++)
+                    for ( b = rangeMin; b < rangeMax; b++)
+                    {
+                        //for (c = b+1; c < 127; c++)
+                        for (c = rangeMin; c < rangeMax; c++)
+                        //for (c = 0; c < 127; c++)
+                        {
+                            //d = c + 1;
+                            for ( d = rangeMin; d < rangeMax; d++)
+                            //for ( d = c+1; d < 128; d++)
+                            {
+                                averageTotal = 0;
+                                averageMultiplier = 0;
+                                bitPos = 0;
+                                for (int i = 0, r = 0; r < reference8bit.Length; i += 16, r += 9,bitPos+=128)
+                                {
+                                    /*
+                                    bit1 = 0b0000_0001 & (input[i + a / 8] >> (7 - (a % 8)));
+                                    bit2 = 0b0000_0001 & (input[i + b / 8] >> (7 - (b % 8)));
+                                    bit3 = 0b0000_0001 & (input[i + c / 8] >> (7 - (c % 8)));
+                                    bit4 = 0b0000_0001 & (input[i + d / 8] >> (7 - (d % 8)));
+                                    combinedValue = (bit1 << 7) | (bit2 << 6) | (bit3 << 5) | (bit4);
+                                    */
+                                    combinedValue = (inputBits[bitPos + a] << 7) | (inputBits[bitPos + b] << 6) | (inputBits[bitPos + c] << 5) | (inputBits[bitPos + d] << 4);
+                                    referenceValue = reference4bit[r+offset];
+                                    averageTotal += Math.Abs(combinedValue - referenceValue);
+                                    averageMultiplier++;
+                                }
+                                averageResult = averageTotal / averageMultiplier;
+                                //difference[a, b, c, d] = averageResult;
+                                
+                                if (averageResult < bestVariationValueSofar)
+                                {
+                                    bestVariationSoFar = new byte[] { (byte)a, (byte)b, (byte)c, (byte)d };
+                                    bestVariationValueSofar = averageResult;
+                                    Console.WriteLine("offset/pixel " + offset+": " +a + "," + b + "," + c + "," + d + ": " + bestVariationValueSofar);
+                                    bw.Write(Encoding.UTF8.GetBytes("offset/pixel " + offset + ": " + a + "," + b + "," + c + "," + d + ": " + bestVariationValueSofar+"\r\n"));
+                                    bw.Flush();
+                                }
+                            }
+                            Console.WriteLine("offset/pixel " + offset + ": " + c + " of 128 c.. (b " +b +", a "+a+")" );
+                        }
+                        Console.WriteLine(b + " of 128 b..");
+                    }
+                    Console.WriteLine(a+" of 128 a..");
+                }/*
+                for (a = 0; a < 128; a++)
+                {
+                    for (b = 0; b < 128; b++)
+                    {
+                        for (c = 0; c < 128; c++)
+                        {
+                            for (d = 0; d < 128; d++)
+                            {
+                                if (difference[a, b, c, d] < bestVariationValueSofar)
+                                {
+                                    bestVariationSoFar = new byte[] { (byte)a, (byte)b, (byte)c, (byte)d };
+                                    bestVariationValueSofar = difference[a, b, c, d];
+                                    //Console.WriteLine(a + "," + b + "," + c + "," + d + ": " + bestVariationValueSofar);
+                                    Console.WriteLine("offset/pixel " + offset + ": " + a + "," + b + "," + c + "," + d + ": " + bestVariationValueSofar);
+                                    bw.Write(Encoding.UTF8.GetBytes("offset/pixel " + offset + ": " + a + "," + b + "," + c + "," + d + ": " + bestVariationValueSofar + "\r\n"));
+                                }
+                            }
+                        }
+                        Console.WriteLine(b + " of 128 b (run 2)..");
+                    }
+                    Console.WriteLine(a + " of 128 a (run 2)..");
+                }
+                difference = new double[128, 128, 128, 128];*/
+            }
+
+
+            
+            
+            bw.Dispose();
+            fs.Dispose();
+
+            for (long i = 0, o = 0; i < inputLengthBytes; i += 16, o += 18)
+            {
+                output[o] = (byte)((input[i + 2] & 0b1100_0000)); // not sure?
+                output[o + 1] = input[i];
+                //output[o + 2] = input[i];
+                output[o + 3] = (byte)(((input[i + 1] & 0b0011_1100) << 2) | ((input[i + 2] & 0b1111_0000) >> 4));
+                //output[o + 4] = input[i];
+                output[o + 5] = (byte)((input[i + 2] & 0b0000_0011) << 6);
+                //output[o + 6] = input[i];
+                //output[o + 7] = input[i];
+                //output[o + 8] = input[i];
+                //output[o + 9] = input[i];
+                //output[o + 10] = input[i];
+                //output[o + 11] = input[i];
+                //output[o + 12] = input[i];
+                //output[o + 13] = input[i];
+                //output[o + 14] = input[i];
+                //output[o + 15] = input[i];
+                //output[o + 16] = input[i];
+                //output[o + 17] = input[i];
+            }
+
+        }
+        
+        private static void Cintel10BitDecodeTests()
+        {
+
+            byte[] input = File.ReadAllBytes("Resolution_chart.cri.data.raw");
+            byte[] reference = File.ReadAllBytes("reference_from_tif_180rot.raw");
+
+            long inputLength = input.Length * 8;
+            //long outputLength = inputLength * 6 / 4;
+            long outputLength = inputLength * 8 / 9;
+            long inputLengthBytes = inputLength / 8;
+            long outputLengthBytes = outputLength;
+            byte[] output = new byte[outputLengthBytes];
+
+            int nineAligned = ((reference.Length / 2) / 9 + 1) * 9;
+
+            byte[] reference8bit = new byte[nineAligned];
+            byte[] reference4bit = new byte[nineAligned];
+            for (long i = 0, o = 0; i < reference.Length; i += 2, o += 1)
+            {
+                reference8bit[o] = reference[i + 1];
+                reference4bit[o] = (byte)(reference[i + 1] & 0b1111_0000);
+            }
+
+            byte[] inputBits = new byte[input.Length*8];
+            for (int i = 0, bb = 0; bb < inputBits.Length; i += 1, bb += 8)
+            {
+                for(int bit = 0; bit < 8; bit++)
+                {
+                    inputBits[bb + bit] = (byte)(0b0000_0001 & (input[i] >> (7 - (bit % 8))));
+                }
+                /*bit1 = 0b0000_0001 & (input[i + a / 8] >> (7 - (a % 8)));
+                bit2 = 0b0000_0001 & (input[i + b / 8] >> (7 - (b % 8)));
+                bit3 = 0b0000_0001 & (input[i + c / 8] >> (7 - (c % 8)));
+                bit4 = 0b0000_0001 & (input[i + d / 8] >> (7 - (d % 8)));*/
+            }
+            byte[] inputBitsSmol = new byte[20000];
+            Array.Copy(inputBits, 0, inputBitsSmol, 0, inputBitsSmol.Length);
+
+            //File.WriteAllBytes("reference8bits.raw",reference8bit);
+            //File.WriteAllBytes("reference4bits.raw",reference4bit);
+
+            // we want to brute force find the correct format.
+            // How?
+            // We have groups of 9 pixels
+            // And we have thousands of groups.
+            // We have 16 bytes = 128 bits from which each of the 10 correct output bits can be fed.
+            // That means, 128^10 variations? ah shit, is that too much to brute force? Probably...
+            // Would be 1180591620717411303424 possible combinations.  1,180,591,620,717,411,303,424
+            // That might take quite forever...
+            // What if we reduce the desired output precision to 4 bits... then its 268,435,456 combinations. Much more doable.And the reference isn't exactly perfect anyway.
+            // We go like this through each offset...
+            // 
+            // How do we encode the combinations for quick access? each bit requires 7 bits to encode 128 variations. We could just pick a UInt32 and bit shift it around. and ignore the 8th bit for each. basically end up with 4 x 8 bit number
+            // Nvm, we can't do this because C# wont let us create a big enough array
+            //UInt32[] variations = new UInt32[Int32.MaxValue/2];
+            //byte[,,,] variations = new byte[128, 128, 128, 128]; // this works!
+            double[,,,] difference = new double[128, 128, 128, 128]; // this works!
+            byte[][] bestVariations = new byte[4][];
+
+            int bit1, bit2, bit3,  bit4,combinedValue,referenceValue;
+            double averageTotal, averageMultiplier, averageResult;
+
+            FileStream fs = new FileStream("logfile.log",FileMode.Append,FileAccess.Write,FileShare.ReadWrite);
+            BinaryWriter bw = new BinaryWriter(fs);
+
+            int a, b, c, d;
+            long bitPos = 0;
+            for (int offset = 0; offset < 9; offset++) {
+                byte[] bestVariationSoFar = new byte[4];
+                double bestVariationValueSofar = double.PositiveInfinity;
+                for (a = 0; a < 128; a++)
+                {
+                    //b = a + 1;
+                    //for ( b = a+1; b < 126; b++)
+                    for ( b = 0; b < 128; b++)
+                    {
+                        //for (c = b+1; c < 127; c++)
+                        for (c = 0; c < 128; c++)
+                        //for (c = 0; c < 127; c++)
+                        {
+                            //d = c + 1;
+                            for ( d = 0; d < 128; d++)
+                            //for ( d = c+1; d < 128; d++)
+                            {
+                                averageTotal = 0;
+                                averageMultiplier = 0;
+                                bitPos = 0;
+                                for (int i = 0, r = 0; r < reference8bit.Length; i += 16, r += 9,bitPos+=128)
+                                {
+                                    /*
+                                    bit1 = 0b0000_0001 & (input[i + a / 8] >> (7 - (a % 8)));
+                                    bit2 = 0b0000_0001 & (input[i + b / 8] >> (7 - (b % 8)));
+                                    bit3 = 0b0000_0001 & (input[i + c / 8] >> (7 - (c % 8)));
+                                    bit4 = 0b0000_0001 & (input[i + d / 8] >> (7 - (d % 8)));
+                                    combinedValue = (bit1 << 7) | (bit2 << 6) | (bit3 << 5) | (bit4);
+                                    */
+                                    combinedValue = (inputBits[bitPos + a] << 7) | (inputBits[bitPos + b] << 6) | (inputBits[bitPos + c] << 5) | (inputBits[bitPos + d] << 4);
+                                    referenceValue = reference4bit[r+offset];
+                                    averageTotal += Math.Abs(combinedValue - referenceValue);
+                                    averageMultiplier++;
+                                }
+                                averageResult = averageTotal / averageMultiplier;
+                                //difference[a, b, c, d] = averageResult;
+                                
+                                if (averageResult < bestVariationValueSofar)
+                                {
+                                    bestVariationSoFar = new byte[] { (byte)a, (byte)b, (byte)c, (byte)d };
+                                    bestVariationValueSofar = averageResult;
+                                    Console.WriteLine("offset/pixel " + offset+": " +a + "," + b + "," + c + "," + d + ": " + bestVariationValueSofar);
+                                    bw.Write(Encoding.UTF8.GetBytes("offset/pixel " + offset + ": " + a + "," + b + "," + c + "," + d + ": " + bestVariationValueSofar+"\r\n"));
+                                    bw.Flush();
+                                }
+                            }
+                            Console.WriteLine("offset/pixel " + offset + ": " + c + " of 128 c.. (b " +b +", a "+a+")" );
+                        }
+                        Console.WriteLine(b + " of 128 b..");
+                    }
+                    Console.WriteLine(a+" of 128 a..");
+                }/*
+                for (a = 0; a < 128; a++)
+                {
+                    for (b = 0; b < 128; b++)
+                    {
+                        for (c = 0; c < 128; c++)
+                        {
+                            for (d = 0; d < 128; d++)
+                            {
+                                if (difference[a, b, c, d] < bestVariationValueSofar)
+                                {
+                                    bestVariationSoFar = new byte[] { (byte)a, (byte)b, (byte)c, (byte)d };
+                                    bestVariationValueSofar = difference[a, b, c, d];
+                                    //Console.WriteLine(a + "," + b + "," + c + "," + d + ": " + bestVariationValueSofar);
+                                    Console.WriteLine("offset/pixel " + offset + ": " + a + "," + b + "," + c + "," + d + ": " + bestVariationValueSofar);
+                                    bw.Write(Encoding.UTF8.GetBytes("offset/pixel " + offset + ": " + a + "," + b + "," + c + "," + d + ": " + bestVariationValueSofar + "\r\n"));
+                                }
+                            }
+                        }
+                        Console.WriteLine(b + " of 128 b (run 2)..");
+                    }
+                    Console.WriteLine(a + " of 128 a (run 2)..");
+                }
+                difference = new double[128, 128, 128, 128];*/
+            }
+
+
+            
+            
+            bw.Dispose();
+            fs.Dispose();
+
+            for (long i = 0, o = 0; i < inputLengthBytes; i += 16, o += 18)
+            {
+                output[o] = (byte)((input[i + 2] & 0b1100_0000)); // not sure?
+                output[o + 1] = input[i];
+                //output[o + 2] = input[i];
+                output[o + 3] = (byte)(((input[i + 1] & 0b0011_1100) << 2) | ((input[i + 2] & 0b1111_0000) >> 4));
+                //output[o + 4] = input[i];
+                output[o + 5] = (byte)((input[i + 2] & 0b0000_0011) << 6);
+                //output[o + 6] = input[i];
+                //output[o + 7] = input[i];
+                //output[o + 8] = input[i];
+                //output[o + 9] = input[i];
+                //output[o + 10] = input[i];
+                //output[o + 11] = input[i];
+                //output[o + 12] = input[i];
+                //output[o + 13] = input[i];
+                //output[o + 14] = input[i];
+                //output[o + 15] = input[i];
+                //output[o + 16] = input[i];
+                //output[o + 17] = input[i];
+            }
+
         }
 
         private static void testDecodeCRIJpeg()

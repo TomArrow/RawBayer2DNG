@@ -12,10 +12,58 @@ namespace RawBayer2DNG
         //
         // INPUT FORMAT SECTION
         //
+        /* ignore this function, I just ended up integrating the unpacking into CRISequenceSource, borrowing the code from ffmpeg.
         public static byte[] tryConvertCintel10Inputto16bit(byte[] input)
         {
+            //return ImageSequenceSources.CRISequenceSource.unpack_10bit(input);
+            byte[] inputBits = new byte[input.Length * 8];
+            for (int i = 0, bb = 0; bb < inputBits.Length; i += 1, bb += 8)
+            {
+                for (int bit = 0; bit < 8; bit++)
+                {
+                    inputBits[bb + bit] = (byte)(0b0000_0001 & (input[i] >> (7 - (bit % 8))));
+                }
+                //bit1 = 0b0000_0001 & (input[i + a / 8] >> (7 - (a % 8)));
+                //bit2 = 0b0000_0001 & (input[i + b / 8] >> (7 - (b % 8)));
+                //bit3 = 0b0000_0001 & (input[i + c / 8] >> (7 - (c % 8)));
+                //bit4 = 0b0000_0001 & (input[i + d / 8] >> (7 - (d % 8)));
+            }
             long inputLength = input.Length * 8;
             //long outputLength = inputLength * 6 / 4;
+            long outputLength = inputLength * 8 / 9;
+            long inputLengthBytes = inputLength / 8;
+            long outputLengthBytes = outputLength;
+            byte[] output = new byte[outputLengthBytes];
+
+            for (long i = 0, o = 0; i < inputLengthBytes; i += 16, o += 18)
+            {
+                output[o] = (byte)((input[i + 2] & 0b1100_0000)); // not sure?
+                output[o+1] = input[i];
+                //output[o + 2] = input[i];
+                output[o + 3] = (byte)(((input[i+1]&0b0011_1100)<<2) | ((input[i+2]&0b1111_0000)>>4));
+                //output[o + 4] = input[i];
+                output[o + 5] = (byte)((input[i + 2] & 0b0000_0011) << 6);
+                //output[o + 6] = input[i];
+                //output[o + 7] = input[i];
+                //output[o + 8] = input[i];
+                //output[o + 9] = input[i];
+                //output[o + 10] = input[i];
+                //output[o + 11] = input[i];
+                //output[o + 12] = input[i];
+                //output[o + 13] = input[i];
+                //output[o + 14] = input[i];
+                //output[o + 15] = input[i];
+                //output[o + 16] = input[i];
+                //output[o + 17] = input[i];
+            }
+
+            return output;
+        }*/
+        // This gave me roughly that 4/3 ratio and alignin lines every 4 lines.
+        /*public static byte[] tryConvertCintel10Inputto16bit(byte[] input)
+        {
+            long inputLength = input.Length * 8;
+            long outputLength = inputLength * 6 / 4;
             long inputLengthBytes = inputLength / 8;
             long outputLengthBytes = outputLength;
             byte[] output = new byte[outputLengthBytes];
@@ -31,7 +79,7 @@ namespace RawBayer2DNG
             }
 
             return output;
-        }
+        }*/
         public static byte[] convert12pInputto16bit(byte[] input)
         {
             long inputlength = input.Length * 8;

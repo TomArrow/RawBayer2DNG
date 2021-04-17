@@ -120,6 +120,8 @@ namespace RawBayer2DNG.ImageSequenceSources
         public string[] paths;
         public RAWDATAFORMAT rawDataFormat;
 
+        private bool mustDo10bitUnpack = false;
+
         ImageSequenceSourceType sourceType = ImageSequenceSourceType.CRI;
 
         public CRISequenceSource(string[] thePaths)
@@ -144,7 +146,8 @@ namespace RawBayer2DNG.ImageSequenceSources
                         bayerPattern = new byte[2, 2] { { 1, 0 }, { 2, 1 } };
                         //throw new Exception("10 bit modes not supported (yet?)");
                         //rawDataFormat = RAWDATAFORMAT.BAYERRG12p;
-                        rawDataFormat = RAWDATAFORMAT.CINTEL10BIT;
+                        mustDo10bitUnpack = true;
+                        rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
                         break;
 
                     // 12 bit modes
@@ -273,6 +276,140 @@ namespace RawBayer2DNG.ImageSequenceSources
 
         byte[] compressedFileCache;
         int compressedFileCacheIndex = -1;
+
+
+        // The following 10 bit unpack function (unpack_10bit) is adapted from ffmpeg:
+        /*
+         * CRI image decoder
+         *
+         * Copyright (c) 2020 Paul B Mahol
+         *
+         * This file is part of FFmpeg.
+         *
+         * FFmpeg is free software; you can redistribute it and/or
+         * modify it under the terms of the GNU Lesser General Public
+         * License as published by the Free Software Foundation; either
+         * version 2.1 of the License, or (at your option) any later version.
+         *
+         * FFmpeg is distributed in the hope that it will be useful,
+         * but WITHOUT ANY WARRANTY; without even the implied warranty of
+         * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+         * Lesser General Public License for more details.
+         *
+         * You should have received a copy of the GNU Lesser General Public
+         * License along with FFmpeg; if not, write to the Free Software
+         * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+         */
+        //private static void unpack_10bit(GetByteContext* gb, uint16_t* dst, int shift,int w, int h, ptrdiff_t stride)
+        public static byte[] unpack_10bit(byte[] input,int w, int h, int shift=4/*, int stride*/)
+        {
+            UInt16[] dst = new ushort[w*h];
+            byte[] output = new byte[dst.Length*2];
+            int stride = w;
+
+            int count = w * h;
+            int pos = 0;
+
+            int readByteOffset = 0;
+            int dstOffset = 0;
+
+            while (count > 0)
+            {
+                UInt32 a0, a1, a2, a3;
+                //if (bytestream2_get_bytes_left(gb) < 4)
+                if (readByteOffset >= (input.Length-16))
+                    break;
+                a0 = BitConverter.ToUInt32(input,readByteOffset); readByteOffset += 4;//bytestream2_get_le32(gb); 
+                a1 = BitConverter.ToUInt32(input, readByteOffset); readByteOffset += 4;//bytestream2_get_le32(gb);
+                a2 = BitConverter.ToUInt32(input, readByteOffset); readByteOffset += 4;//bytestream2_get_le32(gb);
+                a3 = BitConverter.ToUInt32(input, readByteOffset); readByteOffset += 4;//bytestream2_get_le32(gb);
+                dst[pos + dstOffset] = (UInt16)((((a0 >> 1) & 0xE00) | (a0 & 0x1FF)) << shift);
+                pos++;
+                if (pos >= w)
+                {
+                    if (count == 1)
+                        break;
+                    dstOffset += stride;
+                    pos = 0;
+                }
+                dst[pos + dstOffset] = (UInt16)((((a0 >> 13) & 0x3F) | ((a0 >> 14) & 0xFC0)) << shift);
+                pos++;
+                if (pos >= w)
+                {
+                    if (count == 2)
+                        break;
+                    dstOffset += stride;
+                    pos = 0;
+                }
+                dst[pos + dstOffset] = (UInt16)((((a0 >> 26) & 7) | ((a1 & 0x1FF) << 3)) << shift);
+                pos++;
+                if (pos >= w)
+                {
+                    if (count == 3)
+                        break;
+                    dstOffset += stride;
+                    pos = 0;
+                }
+                dst[pos + dstOffset] = (UInt16)((((a1 >> 10) & 0x1FF) | ((a1 >> 11) & 0xE00)) << shift);
+                pos++;
+                if (pos >= w)
+                {
+                    if (count == 4)
+                        break;
+                    dstOffset += stride;
+                    pos = 0;
+                }
+                dst[pos + dstOffset] = (UInt16)((((a1 >> 23) & 0x3F) | ((a2 & 0x3F) << 6)) << shift);
+                pos++;
+                if (pos >= w)
+                {
+                    if (count == 5)
+                        break;
+                    dstOffset += stride;
+                    pos = 0;
+                }
+                dst[pos + dstOffset] = (UInt16)((((a2 >> 7) & 0xFF8) | ((a2 >> 6) & 7)) << shift);
+                pos++;
+                if (pos >= w)
+                {
+                    if (count == 6)
+                        break;
+                    dstOffset += stride;
+                    pos = 0;
+                }
+                dst[pos + dstOffset] = (UInt16)((((a3 & 7) << 9) | ((a2 >> 20) & 0x1FF)) << shift);
+                pos++;
+                if (pos >= w)
+                {
+                    if (count == 7)
+                        break;
+                    dstOffset += stride;
+                    pos = 0;
+                }
+                dst[pos + dstOffset] = (UInt16)((((a3 >> 4) & 0xFC0) | ((a3 >> 3) & 0x3F)) << shift);
+                pos++;
+                if (pos >= w)
+                {
+                    if (count == 8)
+                        break;
+                    dstOffset += stride;
+                    pos = 0;
+                }
+                dst[pos+ dstOffset] = (UInt16)((((a3 >> 16) & 7) | ((a3 >> 17) & 0xFF8)) << shift);
+                pos++;
+                if (pos >= w)
+                {
+                    if (count == 9)
+                        break;
+                    dstOffset += stride;
+                    pos = 0;
+                }
+
+                count -= 9;
+            }
+            Buffer.BlockCopy(dst, 0, output, 0, output.Length);
+            return output;
+        }
 
         // fast(er?) access to stabilization data
         public float[] getStabilizationInfo(int index)
@@ -594,7 +731,12 @@ namespace RawBayer2DNG.ImageSequenceSources
                 {
 
                     // Presuming uncompressed
-                    return tagData[(UInt32)Key.FrameData];
+                    if (mustDo10bitUnpack)
+                    {
+                        return unpack_10bit(tagData[(UInt32)Key.FrameData],width,height);
+                    } else { 
+                        return tagData[(UInt32)Key.FrameData];
+                    }
                 }
 
                 //File.WriteAllBytes("rawcri.jpg", tagData[(UInt32)Key.FrameData]);
