@@ -69,6 +69,7 @@ namespace RawBayer2DNG
         private static int _totalFiles = 0;
         private bool _compressDng = false;
         private bool _compressDngLosslessJPEG = true;
+        private bool _compressDngLosslessJPEGUseTiles = true;
         private bool _linLogDithering = true;
         private bool _writeErrorReports = true;
         private bool _writeMetaDataHumanReadable = true;
@@ -171,6 +172,7 @@ namespace RawBayer2DNG
             colorBayerC.Text = Properties.Settings.Default.colorBayerC.ToString();
             colorBayerD.Text = Properties.Settings.Default.colorBayerD.ToString();
             Threads.Text = Properties.Settings.Default.MaxThreads.ToString();
+            txtTileSize.Text = Properties.Settings.Default.TileSize.ToString();
 
             // If 12 bit setting was saved, restore it now (If not it will default to 16 bit)
             if (Properties.Settings.Default.Format == 1)
@@ -221,6 +223,8 @@ namespace RawBayer2DNG
 
             DNGOUTPUTDATAFORMAT outputFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
 
+            int tileSize = 192;
+
             this.Dispatcher.Invoke(() =>
             {
                 // backwards compatibility fuckery. trying not to break what already worked.
@@ -233,6 +237,10 @@ namespace RawBayer2DNG
                 width = imageSequenceSource.getWidth();
                 height = imageSequenceSource.getHeight();
                 outputFormat = dngOutputDataFormat;
+                if(int.TryParse(txtTileSize.Text,out int tileSizeHere))
+                {
+                    tileSize = tileSizeHere;
+                }
             });
 
 
@@ -393,7 +401,6 @@ namespace RawBayer2DNG
 
 
                 output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
-                output.SetField(TiffTag.ROWSPERSTRIP, height);
                 output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
                 output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
                 //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
@@ -451,22 +458,95 @@ namespace RawBayer2DNG
 
                 if(outputFormat != DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED && _compressDngLosslessJPEG)
                 {
-                    UInt16[] rawImageDataUInt16 = new UInt16[rawImageData.Length / 2];
-                    for (int i = 0; i < rawImageDataUInt16.Length; i++)
+                    if (_compressDngLosslessJPEGUseTiles)
                     {
-                        rawImageDataUInt16[i] = BitConverter.ToUInt16(rawImageData, i * 2);
+
+                        UInt16[] rawImageDataUInt16 = new UInt16[rawImageData.Length / 2];
+                        for (int i = 0; i < rawImageDataUInt16.Length; i++)
+                        {
+                            rawImageDataUInt16[i] = BitConverter.ToUInt16(rawImageData, i * 2);
+                        }
+
+                        int tilesHCount = (int)Math.Ceiling((double)width / (double)tileSize);
+                        int tilesVCount = (int)Math.Ceiling((double)height / (double)tileSize);
+                        UInt16[] tileData = new UInt16[tileSize * tileSize];
+
+                        byte[,][] encodedTile = new byte[tilesHCount, tilesVCount][];
+
+                        dng_stream whatever;
+
+                        for (int x = 0; x < tilesHCount; x++)
+                        {
+                            for (int y = 0; y < tilesVCount; y++)
+                            {
+                                tileData = new UInt16[tileSize * tileSize];
+
+                                for (int row = 0; row < (Math.Min(height, ((y + 1) * tileSize)) - (y * tileSize)); row++)
+                                {
+                                    Array.Copy(rawImageDataUInt16, (y * tileSize + row) * width + x * tileSize, tileData, row * tileSize, Math.Min(width, ((x + 1) * tileSize)) - x * tileSize);
+                                }
+
+                                // Tile is prepared now. Let's encode it.
+                                whatever = new dng_stream();
+                                DNGLosslessEncoder.EncodeLosslessJPEG(tileData, (uint)tileSize, (uint)tileSize / 2, 2, 16, tileSize, 2, whatever);
+
+                                encodedTile[x, y] = whatever.toByteArray();
+                                whatever = null;
+
+
+                                //encodedFileSizeHere += encodedTile.Length;
+
+                                //File.WriteAllBytes("encodedTest.jpg", whatever.toByteArray());
+
+                            }
+                        }
+
+                        output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
+                        output.SetField(TiffTag.TILELENGTH, tileSize);
+                        output.SetField(TiffTag.TILEWIDTH, tileSize);
+
+                        for (int x = 0; x < tilesHCount; x++)
+                        {
+                            for (int y = 0; y < tilesVCount; y++)
+                            {
+                                int tileNubmer = output.ComputeTile(x * tileSize, y * tileSize, 0, 0);
+                                output.WriteRawTile(tileNubmer, encodedTile[x, y], encodedTile[x, y].Length);
+                            }
+                        }
+                        encodedTile = null;
+                        rawImageDataUInt16 = null;
+                        /*
+
+                        dng_stream compressedJpegData = new dng_stream();
+                        DNGLosslessEncoder.EncodeLosslessJPEG(rawImageDataUInt16, (uint)height, (uint)width / 2, 2, 16, width, 2, compressedJpegData);
+                        byte[] compressedJpegDataByteArray = compressedJpegData.toByteArray();
+
+                        output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
+                        output.WriteRawStrip(0, compressedJpegDataByteArray, compressedJpegDataByteArray.Length);*/
+
+                    } else
+                    {
+                        output.SetField(TiffTag.ROWSPERSTRIP, height);
+                        UInt16[] rawImageDataUInt16 = new UInt16[rawImageData.Length / 2];
+                        for (int i = 0; i < rawImageDataUInt16.Length; i++)
+                        {
+                            rawImageDataUInt16[i] = BitConverter.ToUInt16(rawImageData, i * 2);
+                        }
+
+                        dng_stream compressedJpegData = new dng_stream();
+                        DNGLosslessEncoder.EncodeLosslessJPEG(rawImageDataUInt16, (uint)height, (uint)width / 2, 2, 16, width, 2, compressedJpegData);
+                        rawImageDataUInt16 = null;
+                        byte[] compressedJpegDataByteArray = compressedJpegData.toByteArray();
+
+                        output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
+                        output.WriteRawStrip(0, compressedJpegDataByteArray, compressedJpegDataByteArray.Length);
+                        compressedJpegDataByteArray = null;
                     }
-
-                    dng_stream compressedJpegData = new dng_stream();
-                    DNGLosslessEncoder.EncodeLosslessJPEG(rawImageDataUInt16, (uint)height, (uint)width / 2, 2, 16, width, 2, compressedJpegData);
-                    byte[] compressedJpegDataByteArray = compressedJpegData.toByteArray();
-
-                    output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
-                    output.WriteRawStrip(0, compressedJpegDataByteArray, compressedJpegDataByteArray.Length);
                 }
                 else
                 {
 
+                    output.SetField(TiffTag.ROWSPERSTRIP, height);
                     output.WriteEncodedStrip(0, rawImageData, rawImageData.Length);
                 }
             }
@@ -1045,6 +1125,7 @@ namespace RawBayer2DNG
 
             if (int.Parse(Threads.Text) > Environment.ProcessorCount) Threads.Text = Environment.ProcessorCount.ToString();
             Properties.Settings.Default.MaxThreads = int.Parse(Threads.Text);
+            Properties.Settings.Default.TileSize = int.Parse(txtTileSize.Text);
 
             Properties.Settings.Default.colorBayerA = int.Parse(colorBayerA.Text);
             Properties.Settings.Default.colorBayerB = int.Parse(colorBayerB.Text);
@@ -1187,9 +1268,6 @@ namespace RawBayer2DNG
                         return;
                     }
 
-                    _counter++;
-                    var percentage = (double)_counter / _totalFiles * 100.0;
-                    lock (countLock) { worker?.ReportProgress((int)percentage); }
 
                     ISSMetaInfo metaInfo = new ISSMetaInfo();
                     ISSErrorInfo errorInfo = new ISSErrorInfo();
@@ -1247,7 +1325,12 @@ namespace RawBayer2DNG
 
                         ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
                     }
-                    
+
+
+                    _counter++;
+                    var percentage = (double)_counter / _totalFiles * 100.0;
+                    lock (countLock) { worker?.ReportProgress((int)percentage); }
+
                 });
 
             worker?.ReportProgress(100);
@@ -2074,5 +2157,26 @@ namespace RawBayer2DNG
             }
         }
 
+        private void compressDNGLosslessJPEGTiling_Checked(object sender, RoutedEventArgs e)
+        {
+
+            HandleCompressionLosslessJPEGTiling(sender as CheckBox);
+        }
+
+        private void compressDNGLosslessJPEGTiling_Unchecked(object sender, RoutedEventArgs e)
+        {
+            HandleCompressionLosslessJPEGTiling(sender as CheckBox);
+        }
+        void HandleCompressionLosslessJPEGTiling(CheckBox checkBox)
+        {
+            // Use IsChecked.
+            _compressDngLosslessJPEGUseTiles = checkBox.IsChecked.Value;
+        }
+
+        private void txtTileSize_KeyUp(object sender, KeyEventArgs e)
+        {
+            //int.TryParse(txtTileSize.Text, out var tileSize);
+
+        }
     }
 }

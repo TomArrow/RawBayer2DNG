@@ -142,5 +142,17 @@ namespace RawBayer2DNG.Properties {
                 this["OutputFolder"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("192")]
+        public int TileSize {
+            get {
+                return ((int)(this["TileSize"]));
+            }
+            set {
+                this["TileSize"] = value;
+            }
+        }
     }
 }

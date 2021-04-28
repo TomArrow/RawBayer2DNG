@@ -255,7 +255,16 @@
                 </StackPanel>
             </GroupBox>
             <CheckBox ToolTip="lossless compression" x:Name="compressDNG" IsChecked="False" Checked="CompressDNG_Checked" Unchecked="CompressDNG_Unchecked" Margin="2">Compress DNG (16 bit formats)</CheckBox>
-            <CheckBox ToolTip="lossless JPEG compression" x:Name="compressDNGLosslessJPEG" IsChecked="True" Checked="CompressDNGLosslessJPEG_Checked" Unchecked="CompressDNGLosslessJPEG_Unchecked" Margin="2">Lossless JPEG (16 bit formats)</CheckBox>
+            <GroupBox Header="Lossless JPEG">
+                <StackPanel>
+                    <CheckBox ToolTip="lossless JPEG compression" x:Name="compressDNGLosslessJPEG" IsChecked="True" Checked="CompressDNGLosslessJPEG_Checked" Unchecked="CompressDNGLosslessJPEG_Unchecked" Margin="2">Use (for 16 bit &amp; lossy formats)</CheckBox>
+                    <CheckBox ToolTip="Don't worry, it's also lossless" x:Name="compressDNGLosslessJPEGTiling" IsChecked="True" Checked="compressDNGLosslessJPEGTiling_Checked" Unchecked="compressDNGLosslessJPEGTiling_Unchecked" Margin="2">Use tiling to save space</CheckBox>
+                    <WrapPanel>
+                        <TextBlock>Tilesize:</TextBlock>
+                        <TextBox KeyUp="txtTileSize_KeyUp" x:Name="txtTileSize" MinWidth="30" TextAlignment="Right">192</TextBox>
+                    </WrapPanel>
+                </StackPanel>
+            </GroupBox>
             <CheckBox ToolTip="Floyd-Steinberg Dithering when reducing the bit depth in the LinLog modes" x:Name="linLogDithering" Checked="LinLogDithering_UnOrChecked" Unchecked="LinLogDithering_UnOrChecked" IsChecked="True"  Margin="2">Dithering (in case of lossy LinLog)</CheckBox>
             <CheckBox ToolTip="Will write an error log file for each file that encounters errors during conversion" x:Name="writeErrorReports" Checked="WriteErrorReports_UnOrChecked" Unchecked="WriteErrorReports_UnOrChecked" IsChecked="True"  Margin="2">Write error reports</CheckBox>
             <CheckBox ToolTip="Will dump human readable metadata (where available) alongside the result images." IsEnabled="False" x:Name="writeMetaDataHumanReadable" Checked="WriteMetaDataHumanReadable_UnOrChecked" Unchecked="WriteMetaDataHumanReadable_UnOrChecked" IsChecked="True"  Margin="2">Dump human readable metadata</CheckBox>
