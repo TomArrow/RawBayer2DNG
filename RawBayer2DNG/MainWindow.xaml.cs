@@ -28,6 +28,7 @@ using RawBayer2DNG.ImageSequenceSources;
 using System.Text.RegularExpressions;
 using System.Numerics;
 using System.Globalization;
+using PresetManager;
 
 namespace RawBayer2DNG
 {
@@ -183,6 +184,19 @@ namespace RawBayer2DNG
             r2dSettings.Bind(this);
             r2dSettings.BindConfig("presets");
             r2dSettings.attachPresetManager(presetPanel);
+            r2dSettings.ValueUpdatedInGUI += settingsUpdatedInGUI;
+        }
+
+        private void settingsUpdatedInGUI(object sender, ValueUpdatedEventArgs e)
+        {
+            switch (e.FieldName)
+            {
+                case "inputFormat":
+                    ReDrawPreview();
+                    break;
+                default:
+                    break;
+            }
         }
 
         private void BtnLoadRAW_Click(object sender, RoutedEventArgs e)
@@ -411,12 +425,12 @@ namespace RawBayer2DNG
 
                 //DNG 
                 output.SetField(TiffTag.SUBFILETYPE, 0);
-                output.SetField(TiffTag.MAKE, "Point Grey"); 
-                output.SetField(TiffTag.MODEL, "Chameleon3");
-                output.SetField(TiffTag.SOFTWARE, "FlyCapture2");
+                output.SetField(TiffTag.MAKE, r2dSettings.metaMake); 
+                output.SetField(TiffTag.MODEL, r2dSettings.metaModel);
+                output.SetField(TiffTag.SOFTWARE, r2dSettings.metaSoftware.Trim() == "" ? "RawBayer2DNG" : r2dSettings.metaSoftware+"(+RawBayer2DNG)");
                 output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
                 output.SetField(TiffTag.DNGBACKWARDVERSION, "\x1\x4\x0\x0");
-                output.SetField(TiffTag.UNIQUECAMERAMODEL, "USB3");
+                output.SetField(TiffTag.UNIQUECAMERAMODEL, r2dSettings.metaUniqueCameraModel);
                 output.SetField(TiffTag.COLORMATRIX1, 9, cam_xyz);
                 output.SetField(TiffTag.ASSHOTNEUTRAL, 3, neutral);
                 output.SetField(TiffTag.CALIBRATIONILLUMINANT1, 21);
