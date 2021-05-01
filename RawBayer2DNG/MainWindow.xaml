@@ -233,6 +233,9 @@
             <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_sRGBGamma}" x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click" Margin="2">Preview with sRGB gamma</CheckBox>
             <CheckBox x:Name="drawScope_check" IsChecked="False" Click="drawScope_check_Click" Margin="2">Draw scope</CheckBox>
 
+            <GroupBox Header="Metadata">
+                
+            </GroupBox>
         </StackPanel>
         <StackPanel Grid.Column="4" Grid.RowSpan="2">
             
