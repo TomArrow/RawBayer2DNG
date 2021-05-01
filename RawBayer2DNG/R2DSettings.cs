@@ -35,6 +35,18 @@ namespace RawBayer2DNG
         }
         [Category("RawInterpret")]
         public InputFormat inputFormat = InputFormat.RAW16BIT;
+        [Category("RawInterpret")]
+        [Control("colorBayerA")]
+        public int colorBayerA = 1;
+        [Category("RawInterpret")]
+        [Control("colorBayerB")]
+        public int colorBayerB = 0;
+        [Category("RawInterpret")]
+        [Control("colorBayerC")]
+        public int colorBayerC = 2;
+        [Category("RawInterpret")]
+        [Control("colorBayerD")]
+        public int colorBayerD = 1;
 
     }
 }

@@ -167,19 +167,19 @@ namespace RawBayer2DNG
             rawWidth.Text = Properties.Settings.Default.Width.ToString();
             rawHeight.Text = Properties.Settings.Default.Height.ToString();
             txtMaxThreads.Text = "Threads (Max " + Environment.ProcessorCount + "): ";
-            colorBayerA.Text = Properties.Settings.Default.colorBayerA.ToString();
+            /*colorBayerA.Text = Properties.Settings.Default.colorBayerA.ToString();
             colorBayerB.Text = Properties.Settings.Default.colorBayerB.ToString();
             colorBayerC.Text = Properties.Settings.Default.colorBayerC.ToString();
-            colorBayerD.Text = Properties.Settings.Default.colorBayerD.ToString();
+            colorBayerD.Text = Properties.Settings.Default.colorBayerD.ToString();*/
             Threads.Text = Properties.Settings.Default.MaxThreads.ToString();
             txtTileSize.Text = Properties.Settings.Default.TileSize.ToString();
 
             // If 12 bit setting was saved, restore it now (If not it will default to 16 bit)
-            if (Properties.Settings.Default.Format == 1)
+            /*if (Properties.Settings.Default.Format == 1)
             {
                 formatRadio_rg12p.IsChecked = true;
                 formatRadio_rg16.IsChecked = false;
-            }
+            }*/
 
             r2dSettings.Bind(this);
             r2dSettings.BindConfig("presets");
@@ -635,10 +635,15 @@ namespace RawBayer2DNG
             return this.Dispatcher.Invoke(() =>
             {
                 //0=Red, 1=Green,   2=Blue
+                byte bayerColorA = (byte)r2dSettings.colorBayerA;
+                byte bayerColorB = (byte)r2dSettings.colorBayerB;
+                byte bayerColorC = (byte)r2dSettings.colorBayerC;
+                byte bayerColorD = (byte)r2dSettings.colorBayerD;
+                /*
                 byte bayerColorA = (byte)int.Parse(colorBayerA.Text);
                 byte bayerColorB = (byte)int.Parse(colorBayerB.Text);
                 byte bayerColorC = (byte)int.Parse(colorBayerC.Text);
-                byte bayerColorD = (byte)int.Parse(colorBayerD.Text);
+                byte bayerColorD = (byte)int.Parse(colorBayerD.Text);*/
                 byte[,] bayerPattern = { { bayerColorA, bayerColorB }, { bayerColorC, bayerColorD } };
                 return bayerPattern;
             });
@@ -651,14 +656,22 @@ namespace RawBayer2DNG
             {
                 RAWDATAFORMAT inputFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
 
-                if ((bool)formatRadio_rg16.IsChecked)
+                if (r2dSettings.inputFormat == R2DSettings.InputFormat.RAW16BIT)
+                {
+                    inputFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+                }
+                else if (r2dSettings.inputFormat == R2DSettings.InputFormat.RAW12P)
+                {
+                    inputFormat = RAWDATAFORMAT.BAYERRG12p;
+                }
+                /*if ((bool)formatRadio_rg16.IsChecked)
                 {
                     inputFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
                 }
                 else if ((bool)formatRadio_rg12p.IsChecked)
                 {
                     inputFormat = RAWDATAFORMAT.BAYERRG12p;
-                }
+                }*/
                 return inputFormat;
             });
         }
@@ -1105,10 +1118,11 @@ namespace RawBayer2DNG
             Properties.Settings.Default.MaxThreads = int.Parse(Threads.Text);
             Properties.Settings.Default.TileSize = int.Parse(txtTileSize.Text);
 
+            /*
             Properties.Settings.Default.colorBayerA = int.Parse(colorBayerA.Text);
             Properties.Settings.Default.colorBayerB = int.Parse(colorBayerB.Text);
             Properties.Settings.Default.colorBayerC = int.Parse(colorBayerC.Text);
-            Properties.Settings.Default.colorBayerD = int.Parse(colorBayerD.Text);
+            Properties.Settings.Default.colorBayerD = int.Parse(colorBayerD.Text);*/
 
             Properties.Settings.Default.Format = (int)getInputFormat(); // save selected input format 
 
