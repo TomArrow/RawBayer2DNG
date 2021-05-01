@@ -11,6 +11,7 @@
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="45"></RowDefinition>
             <RowDefinition></RowDefinition>
             <RowDefinition Height="350"></RowDefinition>
             <RowDefinition Height="20">
@@ -23,7 +24,10 @@
             <ColumnDefinition Width="200"></ColumnDefinition>
             <ColumnDefinition Width="200"></ColumnDefinition>
         </Grid.ColumnDefinitions>
-        <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.RowSpan="2">
+
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="3" x:Name="presetPanel"></StackPanel>
+        
+        <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.RowSpan="2" Grid.Row="1">
 
             <GroupBox Header="RGB color balance"  ToolTip="{StaticResource ResourceKey=Tooltip_Magnifier_Sliders}">
                 <StackPanel>
@@ -92,7 +96,7 @@
             </GroupBox>
         </StackPanel>
 
-        <DockPanel Grid.Column="2" Grid.Row="0">
+        <DockPanel Grid.Column="2" Grid.Row="1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="81*"/>
@@ -114,10 +118,10 @@
                 <Image Grid.Row="1" x:Name="mainPreview" MinHeight="300" Grid.ColumnSpan="2" Stretch="Uniform"></Image>
             </Grid>
         </DockPanel>
-        <DockPanel Grid.Column="2" Grid.Row="1" Name="scopeDockPanel">
-                <Image Grid.Row="1" x:Name="mainPreviewScope" Grid.ColumnSpan="2"></Image>
+        <DockPanel Grid.Column="2" Grid.Row="2" Name="scopeDockPanel">
+                <Image Grid.Row="2" x:Name="mainPreviewScope" Grid.ColumnSpan="2"></Image>
         </DockPanel>
-        <StackPanel Grid.Column="3"  Grid.RowSpan="2">
+        <StackPanel Grid.Column="3"  Grid.RowSpan="3" Grid.Row="0">
 
             <TabControl>
                 <TabItem Header=".raw">
@@ -234,10 +238,27 @@
             <CheckBox x:Name="drawScope_check" IsChecked="False" Click="drawScope_check_Click" Margin="2">Draw scope</CheckBox>
 
             <GroupBox Header="Metadata">
-                
+                <StackPanel>
+                    <DockPanel>
+                        <Label>Make</Label>
+                        <TextBox HorizontalAlignment="Right" x:Name="txtMake" MinWidth="100" TextAlignment="Right">Point Grey</TextBox>
+                    </DockPanel>
+                    <DockPanel>
+                        <Label>Model</Label>
+                        <TextBox HorizontalAlignment="Right" x:Name="txtModel" MinWidth="100" TextAlignment="Right">Chameleon3</TextBox>
+                    </DockPanel>
+                    <DockPanel>
+                        <Label>Software</Label>
+                        <TextBox HorizontalAlignment="Right" x:Name="txtSoftware" MinWidth="100" TextAlignment="Right">FlyCapture2</TextBox>
+                    </DockPanel>
+                    <DockPanel>
+                        <Label>Uniq. Cam. Model</Label>
+                        <TextBox HorizontalAlignment="Right" x:Name="txtUniqueCameraModel" MinWidth="80" TextAlignment="Right">USB3</TextBox>
+                    </DockPanel>
+                </StackPanel>
             </GroupBox>
         </StackPanel>
-        <StackPanel Grid.Column="4" Grid.RowSpan="2">
+        <StackPanel Grid.Column="4" Grid.RowSpan="3" Grid.Row="0">
             
 
             <GroupBox Header="DNG output data format">
@@ -300,8 +321,8 @@
             </StackPanel>
         </StackPanel>
 
-        <TextBlock x:Name="txtStatus" Grid.Row="2" Grid.ColumnSpan="3">Idle.</TextBlock>
-        <ProgressBar x:Name="pbStatus" Height="20"  Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="2" Value="{Binding CurrentProgress, Mode=OneWay}"/>
+        <TextBlock x:Name="txtStatus" Grid.Row="3" Grid.ColumnSpan="3">Idle.</TextBlock>
+        <ProgressBar x:Name="pbStatus" Height="20"  Grid.Row="3" Grid.Column="3" Grid.ColumnSpan="2" Value="{Binding CurrentProgress, Mode=OneWay}"/>
     </Grid>
 </Window>
 

@@ -74,6 +74,8 @@ namespace RawBayer2DNG
 
         uint[] cropAmounts = new uint[4];
 
+        R2DSettings r2dSettings = new R2DSettings();
+
         public enum DNGOUTPUTDATAFORMAT
         {
             INVALID,
@@ -177,6 +179,10 @@ namespace RawBayer2DNG
                 formatRadio_rg12p.IsChecked = true;
                 formatRadio_rg16.IsChecked = false;
             }
+
+            r2dSettings.Bind(this);
+            r2dSettings.BindConfig("presets");
+            r2dSettings.attachPresetManager(presetPanel);
         }
 
         private void BtnLoadRAW_Click(object sender, RoutedEventArgs e)
