@@ -164,8 +164,8 @@ namespace RawBayer2DNG
             m_parentExtender = Tiff.SetTagExtender(extender);
 
             // load saved settings
-            rawWidth.Text = Properties.Settings.Default.Width.ToString();
-            rawHeight.Text = Properties.Settings.Default.Height.ToString();
+            //rawWidth.Text = Properties.Settings.Default.Width.ToString();
+            //rawHeight.Text = Properties.Settings.Default.Height.ToString();
             txtMaxThreads.Text = "Threads (Max " + Environment.ProcessorCount + "): ";
             /*colorBayerA.Text = Properties.Settings.Default.colorBayerA.ToString();
             colorBayerB.Text = Properties.Settings.Default.colorBayerB.ToString();
@@ -191,6 +191,13 @@ namespace RawBayer2DNG
         {
             switch (e.FieldName)
             {
+                case "colorBayerA":
+                case "colorBayerB":
+                case "colorBayerC":
+                case "colorBayerD":
+                    //if (!string.IsNullOrWhiteSpace(((System.Windows.Controls.TextBox)sender).Text))
+                    ReDrawPreview();
+                    break;
                 case "inputFormat":
                     ReDrawPreview();
                     break;
@@ -245,8 +252,8 @@ namespace RawBayer2DNG
                 if(imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
                 {
 
-                    (imageSequenceSource as RAWSequenceSource).width = int.Parse(rawWidth.Text);
-                    (imageSequenceSource as RAWSequenceSource).height = int.Parse(rawHeight.Text);
+                    (imageSequenceSource as RAWSequenceSource).width = r2dSettings.rawWidth;//int.Parse(rawWidth.Text);
+                    (imageSequenceSource as RAWSequenceSource).height = r2dSettings.rawHeight;//int.Parse(rawHeight.Text);
                 }
                 width = imageSequenceSource.getWidth();
                 height = imageSequenceSource.getHeight();
@@ -603,8 +610,8 @@ namespace RawBayer2DNG
 
                 int width = 2448;
                 int height = 2048;
-                width = int.Parse(rawWidth.Text);
-                height = int.Parse(rawHeight.Text);
+                width = r2dSettings.rawWidth;//int.Parse(rawWidth.Text);
+                height = r2dSettings.rawHeight;//int.Parse(rawHeight.Text);
 
 
                 // Option to reverse file order when running film in reverse!
@@ -846,8 +853,8 @@ namespace RawBayer2DNG
             if (imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
             {
 
-                int width = int.Parse(rawWidth.Text);
-                int height = int.Parse(rawHeight.Text);
+                int width = r2dSettings.rawWidth;//int.Parse(rawWidth.Text);
+                int height = r2dSettings.rawHeight;//int.Parse(rawHeight.Text);
                 ((RAWSequenceSource)imageSequenceSource).width = width;
                 ((RAWSequenceSource)imageSequenceSource).height = height;
                 RAWDATAFORMAT inputFormat = getInputFormat();
@@ -1068,11 +1075,11 @@ namespace RawBayer2DNG
             _compressDngLosslessJPEG = checkBox.IsChecked.Value;
         }
 
-        private void ColorBayer_TextChanged(object sender, TextChangedEventArgs e)
+        /*private void ColorBayer_TextChanged(object sender, TextChangedEventArgs e)
         {
             if(! string.IsNullOrWhiteSpace(((System.Windows.Controls.TextBox)sender).Text))
                 ReDrawPreview();
-        }
+        }*/
 
         private void BtnLoadTargetFolder_Click(object sender, RoutedEventArgs e)
         {
@@ -1111,8 +1118,8 @@ namespace RawBayer2DNG
 
         private void btnSaveSettings_Click(object sender, RoutedEventArgs e)
         {
-            Properties.Settings.Default.Width = int.Parse(rawWidth.Text);
-            Properties.Settings.Default.Height = int.Parse(rawHeight.Text);
+            //Properties.Settings.Default.Width = int.Parse(rawWidth.Text);
+            //Properties.Settings.Default.Height = int.Parse(rawHeight.Text);
 
             if (int.Parse(Threads.Text) > Environment.ProcessorCount) Threads.Text = Environment.ProcessorCount.ToString();
             Properties.Settings.Default.MaxThreads = int.Parse(Threads.Text);
@@ -1792,8 +1799,10 @@ namespace RawBayer2DNG
             if (imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
             {
 
-                int width = int.Parse(rawWidth.Text);
-                int height = int.Parse(rawHeight.Text);
+                //int width = int.Parse(rawWidth.Text);
+                //int height = int.Parse(rawHeight.Text);
+                int width = r2dSettings.rawWidth;
+                int height = r2dSettings.rawHeight;
                 ((RAWSequenceSource)imageSequenceSource).width = width;
                 ((RAWSequenceSource)imageSequenceSource).height = height;
                 RAWDATAFORMAT inputFormat = getInputFormat();

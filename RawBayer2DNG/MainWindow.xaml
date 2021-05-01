@@ -157,10 +157,10 @@
                             <StackPanel Grid.Column="0" Grid.RowSpan="2">
                                 <TextBlock TextWrapping="Wrap">Bayer Pattern. 0=Red, 1=Green, 2=Blue</TextBlock>
                             </StackPanel>
-                            <TextBox x:Name="colorBayerA" Grid.Column="1" Grid.Row="0" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">1</TextBox>
-                            <TextBox x:Name="colorBayerB" Grid.Column="2" Grid.Row="0" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">0</TextBox>
-                            <TextBox x:Name="colorBayerC" Grid.Column="1" Grid.Row="1" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">2</TextBox>
-                            <TextBox x:Name="colorBayerD" Grid.Column="2" Grid.Row="1" FontSize="25" TextAlignment="Center" TextChanged="ColorBayer_TextChanged">1</TextBox>
+                            <TextBox x:Name="colorBayerA" Grid.Column="1" Grid.Row="0" FontSize="25" TextAlignment="Center">1</TextBox>
+                            <TextBox x:Name="colorBayerB" Grid.Column="2" Grid.Row="0" FontSize="25" TextAlignment="Center">0</TextBox>
+                            <TextBox x:Name="colorBayerC" Grid.Column="1" Grid.Row="1" FontSize="25" TextAlignment="Center">2</TextBox>
+                            <TextBox x:Name="colorBayerD" Grid.Column="2" Grid.Row="1" FontSize="25" TextAlignment="Center">1</TextBox>
 
                         </Grid>
                     </StackPanel>

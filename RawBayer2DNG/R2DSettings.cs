@@ -47,6 +47,12 @@ namespace RawBayer2DNG
         [Category("RawInterpret")]
         [Control("colorBayerD")]
         public int colorBayerD = 1;
+        [Category("RawInterpret")]
+        [Control("rawWidth")]
+        public int rawWidth = 2448;
+        [Category("RawInterpret")]
+        [Control("rawHeight")]
+        public int rawHeight = 2048;
 
     }
 }
