@@ -343,7 +343,7 @@ namespace RawBayer2DNG
                         linearizationTable[(Int16)i] = (UInt16)Math.Max(0,Math.Min(UInt16.MaxValue, Math.Round(tmpValue))); 
                     }
 
-                    output.SetField(TiffTag.LINEARIZATIONTABLE, Int16.MaxValue, linearizationTable);
+                    output.SetField(TiffTag.LINEARIZATIONTABLE, linearizationTable.Length, linearizationTable);
                 }
                 if (lossyLinLogModeEnabled)
                 {
@@ -357,7 +357,7 @@ namespace RawBayer2DNG
                         linearizationTable[(Int16)i] = (UInt16)Math.Max(0, Math.Min(UInt16.MaxValue, Math.Round(LinLogLutilityClassifiedV1.LogToLin(i, lossyLinLogModeParameterA))));
                     }
 
-                    output.SetField(TiffTag.LINEARIZATIONTABLE, Int16.MaxValue, linearizationTable);
+                    output.SetField(TiffTag.LINEARIZATIONTABLE, linearizationTable.Length, linearizationTable);
                 }
 
 
