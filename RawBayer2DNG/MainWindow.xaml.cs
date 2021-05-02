@@ -1093,7 +1093,7 @@ namespace RawBayer2DNG
             }
 
             int index = 0;
-            for (int i= startIndex; i<= endIndex; i+= increment)
+            for (int i= startIndex; increment > 0 ? i<= endIndex : i>= endIndex; i+= increment)
             //for (int i=0;i<setCount;i++)
             {
 
