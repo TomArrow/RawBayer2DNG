@@ -177,7 +177,7 @@
                 </TabItem>
                 <TabItem Header=".dng">
                     <StackPanel>
-                        <TextBlock TextWrapping="Wrap">Use this if you want to reprocess dngs to change them into a different format. It is not meant to work with any other dngs than those produced by this tool.</TextBlock>
+                        <TextBlock TextWrapping="Wrap" FontSize="10">Use this if you want to reprocess dngs to change them into a different format. It is not meant to work with any other dngs than those produced by this tool, and even then it's mostly limited to uncompressed and non-lossy modes. It can also read non-lossy modes from Adobe DNG Converter.</TextBlock>
                         <Button x:Name="btnLoadDNGFolder" Click="btnLoadDNGFolder_Click">Select folder of .dng files</Button>
                     </StackPanel>
                 </TabItem>

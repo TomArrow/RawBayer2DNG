@@ -52,7 +52,14 @@ namespace RawBayer2DNG.ImageSequenceSources
 
                 width = input.GetField(TiffTag.IMAGEWIDTH)[0].ToInt();
                 height = input.GetField(TiffTag.IMAGELENGTH)[0].ToInt();
-                ushort whiteLevel = input.GetField(TiffTag.WHITELEVEL)[0].ToUShortArray()[0];
+
+                ushort? whiteLevel = null;
+                FieldValue[] whiteLevelInfo = input.GetField(TiffTag.WHITELEVEL);
+                if(whiteLevelInfo?.Length > 0)
+                {
+                    whiteLevel = whiteLevelInfo[0].ToUShortArray()[0];
+                }
+                
 
                 // For debugging
                 int[] tagList = new int[input.GetTagListCount()];
