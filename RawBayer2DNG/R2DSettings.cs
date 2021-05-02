@@ -186,6 +186,11 @@ namespace RawBayer2DNG
         [Control("cropBottom_txt")]
         public int cropBottom = 0;
 
+        public uint[] getCropAmounts()
+        {
+            return new uint[] { (uint)cropLeft/2*2, (uint)cropTop / 2 * 2, (uint)cropRight / 2 * 2, (uint)cropBottom / 2 * 2 };
+        }
+
         
         // General output settings
         [Category("Output")]
