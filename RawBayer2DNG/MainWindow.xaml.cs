@@ -123,23 +123,7 @@ namespace RawBayer2DNG
             Tiff.TiffExtendProc extender = TagExtender;
             m_parentExtender = Tiff.SetTagExtender(extender);
 
-            // load saved settings
-            //rawWidth.Text = Properties.Settings.Default.Width.ToString();
-            //rawHeight.Text = Properties.Settings.Default.Height.ToString();
             txtMaxThreads.Text = "Threads (" + Environment.ProcessorCount + " CPUs): ";
-            /*colorBayerA.Text = Properties.Settings.Default.colorBayerA.ToString();
-            colorBayerB.Text = Properties.Settings.Default.colorBayerB.ToString();
-            colorBayerC.Text = Properties.Settings.Default.colorBayerC.ToString();
-            colorBayerD.Text = Properties.Settings.Default.colorBayerD.ToString();*/
-            //Threads.Text = Properties.Settings.Default.MaxThreads.ToString();
-            //txtTileSize.Text = Properties.Settings.Default.TileSize.ToString();
-
-            // If 12 bit setting was saved, restore it now (If not it will default to 16 bit)
-            /*if (Properties.Settings.Default.Format == 1)
-            {
-                formatRadio_rg12p.IsChecked = true;
-                formatRadio_rg16.IsChecked = false;
-            }*/
 
             r2dSettings.Bind(this);
             r2dSettings.BindConfig("presets");
@@ -153,42 +137,6 @@ namespace RawBayer2DNG
         {
             switch (e.FieldName)
             {
-                /*case "cropLeft":
-                case "cropTop":
-                case "cropRight":
-                case "cropBottom":
-                    switch (e.FieldName)
-                    {
-                        case "cropLeft":
-                            cropAmounts[0] = (uint)r2dSettings.cropLeft;
-                            cropAmounts[0] /= 2;
-                            cropAmounts[0] *= 2;
-                            break;
-                        case "cropTop":
-                            cropAmounts[1] = (uint)r2dSettings.cropTop;
-                            cropAmounts[1] /= 2;
-                            cropAmounts[1] *= 2;
-                            break;
-                        case "cropRight":
-                            cropAmounts[2] = (uint)r2dSettings.cropRight;
-                            cropAmounts[2] /= 2;
-                            cropAmounts[2] *= 2;
-                            break;
-                        case "cropBottom":
-                            cropAmounts[3] = (uint)r2dSettings.cropBottom;
-                            cropAmounts[3] /= 2;
-                            cropAmounts[3] *= 2;
-                            break;
-                        default:
-                            break;
-                    }
-                    if (!fullSettingsToGUIWriteInProgress)
-                    {
-
-                        ReDrawPreview();
-                    }
-                    break;
-                    */
                 case "redMultiplier":
                 case "greenMultiplier":
                 case "blueMultiplier":
@@ -196,12 +144,6 @@ namespace RawBayer2DNG
                 case "previewWithSRGBGamma":
                 case "previewDebayer":
                 case "drawScope":
-                //case "inputFormat":
-                //case "colorBayerA":
-                //case "colorBayerB":
-                //case "colorBayerC":
-                //case "colorBayerD":
-                    //if (!string.IsNullOrWhiteSpace(((System.Windows.Controls.TextBox)sender).Text))
                     if (!fullSettingsToGUIWriteInProgress)
                     {
 
@@ -655,11 +597,6 @@ namespace RawBayer2DNG
                 byte bayerColorB = (byte)r2dSettings.colorBayerB;
                 byte bayerColorC = (byte)r2dSettings.colorBayerC;
                 byte bayerColorD = (byte)r2dSettings.colorBayerD;
-                /*
-                byte bayerColorA = (byte)int.Parse(colorBayerA.Text);
-                byte bayerColorB = (byte)int.Parse(colorBayerB.Text);
-                byte bayerColorC = (byte)int.Parse(colorBayerC.Text);
-                byte bayerColorD = (byte)int.Parse(colorBayerD.Text);*/
                 byte[,] bayerPattern = { { bayerColorA, bayerColorB }, { bayerColorC, bayerColorD } };
                 return bayerPattern;
             });
@@ -680,14 +617,6 @@ namespace RawBayer2DNG
                 {
                     inputFormat = RAWDATAFORMAT.BAYERRG12p;
                 }
-                /*if ((bool)formatRadio_rg16.IsChecked)
-                {
-                    inputFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
-                }
-                else if ((bool)formatRadio_rg12p.IsChecked)
-                {
-                    inputFormat = RAWDATAFORMAT.BAYERRG12p;
-                }*/
                 return inputFormat;
             });
         }
@@ -871,11 +800,8 @@ namespace RawBayer2DNG
                 ((RAWSequenceSource)imageSequenceSource).rawDataFormat = inputFormat;
             }
 
-            //bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
             bool doPreviewDebayer = r2dSettings.previewDebayer;
-            //bool doPreviewGamma = (bool)previewGamma.IsChecked;
             bool doPreviewGamma = r2dSettings.previewWithSRGBGamma;
-            //bool doDrawPreviewScope = (bool)drawScope_check.IsChecked;
             bool doDrawPreviewScope = r2dSettings.drawScope;
 
             ShotSettings shotSettings = getShotSettings();
@@ -961,7 +887,7 @@ namespace RawBayer2DNG
 
                 byte[,] bayerPattern = imageSequenceSource.getBayerPattern();
 
-                //double[] RGBamplify = { rAmplify.Value, gAmplify.Value, bAmplify.Value };
+
                 double[] RGBamplify = { r2dSettings.redMultiplier, r2dSettings.greenMultiplier, r2dSettings.blueMultiplier };
                 if (doPreviewDebayer) {
                     newbytes = Helpers.DrawBayerPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, subsample,doPreviewGamma,bayerPattern, RGBamplify);
@@ -1039,61 +965,6 @@ namespace RawBayer2DNG
             }
         }
 
-        /*private void PreviewGamma_Click(object sender, RoutedEventArgs e)
-        {
-
-            ReDrawPreview();
-        }
-        
-        private void PreviewDebayer_Click(object sender, RoutedEventArgs e)
-        {
-
-            ReDrawPreview();
-        }*/
-        /*
-        private void CompressDNG_Checked(object sender, RoutedEventArgs e)
-        {
-            HandleCompression(sender as CheckBox);
-        }
-
-        private void CompressDNG_Unchecked(object sender, RoutedEventArgs e)
-        {
-            HandleCompression(sender as CheckBox);
-        }
-
-        void HandleCompression(CheckBox checkBox)
-        {
-            // Use IsChecked.
-            _compressDng = checkBox.IsChecked.Value;
-        }*/
-        /*
-        private void LinLogDithering_UnOrChecked(object sender, RoutedEventArgs e)
-        {
-            // Use IsChecked.
-            _linLogDithering = (sender as CheckBox).IsChecked.Value;
-        }*/
-        /*
-        private void CompressDNGLosslessJPEG_Checked(object sender, RoutedEventArgs e)
-        {
-            HandleCompressionLosslessJPEG(sender as CheckBox);
-        }
-
-        private void CompressDNGLosslessJPEG_Unchecked(object sender, RoutedEventArgs e)
-        {
-            HandleCompressionLosslessJPEG(sender as CheckBox);
-        }
-
-        void HandleCompressionLosslessJPEG(CheckBox checkBox)
-        {
-            // Use IsChecked.
-            _compressDngLosslessJPEG = checkBox.IsChecked.Value;
-        }*/
-
-        /*private void ColorBayer_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if(! string.IsNullOrWhiteSpace(((System.Windows.Controls.TextBox)sender).Text))
-                ReDrawPreview();
-        }*/
 
         private void BtnLoadTargetFolder_Click(object sender, RoutedEventArgs e)
         {
@@ -1133,20 +1004,6 @@ namespace RawBayer2DNG
 
         private void btnSaveSettings_Click(object sender, RoutedEventArgs e)
         {
-            //Properties.Settings.Default.Width = int.Parse(rawWidth.Text);
-            //Properties.Settings.Default.Height = int.Parse(rawHeight.Text);
-
-            //if (int.Parse(Threads.Text) > Environment.ProcessorCount) Threads.Text = Environment.ProcessorCount.ToString();
-            //Properties.Settings.Default.MaxThreads = int.Parse(Threads.Text);
-            //Properties.Settings.Default.TileSize = int.Parse(txtTileSize.Text);
-
-            /*
-            Properties.Settings.Default.colorBayerA = int.Parse(colorBayerA.Text);
-            Properties.Settings.Default.colorBayerB = int.Parse(colorBayerB.Text);
-            Properties.Settings.Default.colorBayerC = int.Parse(colorBayerC.Text);
-            Properties.Settings.Default.colorBayerD = int.Parse(colorBayerD.Text);*/
-
-            //Properties.Settings.Default.Format = (int)getInputFormat(); // save selected input format 
 
             Properties.Settings.Default.Save();
         }
@@ -1373,49 +1230,11 @@ namespace RawBayer2DNG
         {
             ReDrawPreview();
         }
-        /*
-        private void Amplify_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            ReDrawPreview();
-        }*/
-
 
         private void FormatRadio_Checked(object sender, RoutedEventArgs e)
         {
             ReDrawPreview();
         }
-        /*
-        private void ReverseOrder_OnChecked(object sender, RoutedEventArgs e)
-        {
-            reverseFileOrder = true;
-            if (!filesAreReversed)
-            {
-                Array.Reverse(filesInSourceFolder);
-                filesAreReversed = true;
-            }                
-        }
-
-        private void ReverseOrder_OnUnchecked(object sender, RoutedEventArgs e)
-        {
-            reverseFileOrder = false;
-            if (filesAreReversed)
-            {
-                Array.Reverse(filesInSourceFolder);
-                filesAreReversed = false;
-            }
-        }*/
-        /*
-        private void Threads_OnTextChanged(object sender, KeyEventArgs e)
-        {
-            int.TryParse(Threads.Text, out var newThreads);
-
-            if (newThreads > 0)
-            {
-                Properties.Settings.Default.MaxThreads = newThreads;
-                Properties.Settings.Default.Save();
-            }
-        }*/
-
         private void btnLoadStreamPixSeq_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog ofd = new OpenFileDialog();
@@ -1487,50 +1306,6 @@ namespace RawBayer2DNG
                 + bayerPatternColorsAsString[aBayerPattern[1, 0]]
                 + bayerPatternColorsAsString[aBayerPattern[1, 1]];
         }
-        /*
-        private void outputDataFormat_radio_Checked(object sender, RoutedEventArgs e)
-        {
-            FrameworkElement element = e.Source as FrameworkElement;
-            string elementName = element.Name;
-
-            switch (elementName)
-            {
-                case "output_12bitPacked_radio":
-                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED;
-                    break;
-                case "output_16bitDarkCapsuled_radio":
-                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
-                    break;
-                case "output_16bitBrightCapsuledGamma10Bit_radio":
-                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT;
-                    break;
-                case "output_16bitBrightCapsuledLinLog10Bit_radio":
-                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT;
-                    break;
-                case "output_16bitBrightCapsuledLinLog8Bit_radio":
-                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT;
-                    break;
-                case "output_16bitBrightCapsuledLinLog7Bit_radio":
-                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO7BIT;
-                    break;
-                case "output_16bitDarkCapsuledLinLog8Bit_radio":
-                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO8BIT;
-                    break;
-                case "output_16bitDarkCapsuledLinLog7Bit_radio":
-                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT;
-                    break;
-                case "output_16bitDarkCapsuledLinLog6Bit_radio":
-                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT;
-                    break;
-                case "output_16bitDarkCapsuledLinLog5Bit_radio":
-                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT;
-                    break;
-                case "output_16bitBrightCapsuled_radio":
-                default:
-                    dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
-                    break;
-            }
-        }*/
 
         private struct ShotSettingBayer
         {
@@ -1569,12 +1344,8 @@ namespace RawBayer2DNG
             }
 
             double featherStopsTmp = r2dSettings.featherStops;
-            //double featherStopsTmp = 0;
-            //double.TryParse(featherStops_txt.Text.Replace(",","."),NumberStyles.Float, CultureInfo.InvariantCulture, out featherStopsTmp);
 
             float clippingPointTmp = (float)r2dSettings.clippingPoint;
-            //float clippingPointTmp = 0.7f;
-            //float.TryParse(clippingPoint_txt.Text.Replace(",", "."), NumberStyles.Float, CultureInfo.InvariantCulture, out clippingPointTmp);
 
             float featherMultiplier = (float)Math.Pow(2, -featherStopsTmp);
 
@@ -1583,7 +1354,7 @@ namespace RawBayer2DNG
         }
         private ShotSettingBayer[] getShots()
         {
-            //string[] shotTexts = { exposureA.Text, exposureB.Text, exposureC.Text, exposureD.Text, exposureE.Text, exposureF.Text };
+
             string[] shotTexts = { r2dSettings.exposureA, r2dSettings.exposureB, r2dSettings.exposureC, r2dSettings.exposureD, r2dSettings.exposureE, r2dSettings.exposureF };
             List<ShotSettingBayer> shotSettings = new List<ShotSettingBayer>();
 
@@ -1717,14 +1488,6 @@ namespace RawBayer2DNG
 
                 imageSequenceSource = new DNGSequenceSource(filesInSourceFolder);
 
-                // Option to reverse file order when running film in reverse!
-
-                // TODO make this work again.
-                /*if (reverseFileOrder)
-                {
-                    Array.Reverse(filesInSourceFolder);
-                    filesAreReversed = true;
-                }*/
 
                 loadedSequenceGUIUpdate("[DNG Folder] " + sourceFolder);
 
@@ -1762,63 +1525,12 @@ namespace RawBayer2DNG
 
                 imageSequenceSource = new CRISequenceSource(filesInSourceFolder);
 
-                // Option to reverse file order when running film in reverse!
-
-                // TODO make this work again.
-                /*if (reverseFileOrder)
-                {
-                    Array.Reverse(filesInSourceFolder);
-                    filesAreReversed = true;
-                }*/
 
                 loadedSequenceGUIUpdate("[CRI Folder] " + sourceFolder);
 
 
             }
         }
-        /*
-        private void drawScope_check_Click(object sender, RoutedEventArgs e)
-        {
-            ReDrawPreview();
-        }
-        */
-        /*
-        private void crop_txt_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            FrameworkElement textbox = e.Source as FrameworkElement;
-            bool changeDidntHappen = false;
-            switch (textbox.Name)
-            {
-                case "cropLeft_txt":
-                    uint.TryParse(cropLeft_txt.Text, out cropAmounts[0]);
-                    cropAmounts[0] /= 2;
-                    cropAmounts[0] *= 2;
-                    break;
-                case "cropTop_txt":
-                    uint.TryParse(cropTop_txt.Text, out cropAmounts[1]);
-                    cropAmounts[1] /= 2;
-                    cropAmounts[1] *= 2;
-                    break;
-                case "cropRight_txt":
-                    uint.TryParse(cropRight_txt.Text, out cropAmounts[2]);
-                    cropAmounts[2] /= 2;
-                    cropAmounts[2] *= 2;
-                    break;
-                case "cropBottom_txt":
-                    uint.TryParse(cropBottom_txt.Text, out cropAmounts[3]);
-                    cropAmounts[3] /= 2;
-                    cropAmounts[3] *= 2;
-                    break;
-                default:
-                    changeDidntHappen = true;
-                    break;
-            }
-            if (!changeDidntHappen)
-            {
-                ReDrawPreview();
-            }
-        }
-        */
         private void analyzeHDR_btn_Click(object sender, RoutedEventArgs e)
         {
             if (imageSequenceSource == null)
@@ -1939,24 +1651,6 @@ namespace RawBayer2DNG
                             case 5:
                                 r2dSettings.exposureF = theString;
                                 break;
-                            /*case 0:
-                                exposureA.Text = theString;
-                                break;
-                            case 1:
-                                exposureB.Text = theString;
-                                break;
-                            case 2:
-                                exposureC.Text = theString;
-                                break;
-                            case 3:
-                                exposureD.Text = theString;
-                                break;
-                            case 4:
-                                exposureE.Text = theString;
-                                break;
-                            case 5:
-                                exposureF.Text = theString;
-                                break;*/
                             default:
                                 throw new Exception("wtf");
                                 break;
@@ -2110,28 +1804,6 @@ namespace RawBayer2DNG
 
             return refinedShotSettings;
         }
-        /*
-        private void compressDNGLosslessJPEGTiling_Checked(object sender, RoutedEventArgs e)
-        {
-
-            HandleCompressionLosslessJPEGTiling(sender as CheckBox);
-        }
-
-        private void txtTileSize_Unchecked(object sender, RoutedEventArgs e)
-        {
-            HandleCompressionLosslessJPEGTiling(sender as CheckBox);
-        }
-        void HandleCompressionLosslessJPEGTiling(CheckBox checkBox)
-        {
-            // Use IsChecked.
-            _compressDngLosslessJPEGUseTiles = checkBox.IsChecked.Value;
-        }*/
-        /*
-        private void txtTileSize_KeyUp(object sender, KeyEventArgs e)
-        {
-            //int.TryParse(txtTileSize.Text, out var tileSize);
-
-        }*/
 
     }
 }
