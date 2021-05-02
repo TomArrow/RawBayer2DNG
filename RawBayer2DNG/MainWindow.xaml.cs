@@ -76,6 +76,7 @@ namespace RawBayer2DNG
         uint[] cropAmounts = new uint[4];
 
         R2DSettings r2dSettings = new R2DSettings();
+        bool fullSettingsToGUIWriteInProgress = false;
         /*
         public enum DNGOUTPUTDATAFORMAT
         {
@@ -185,6 +186,8 @@ namespace RawBayer2DNG
             r2dSettings.BindConfig("presets");
             r2dSettings.attachPresetManager(presetPanel);
             r2dSettings.ValueUpdatedInGUI += settingsUpdatedInGUI;
+            r2dSettings.FullWriteToGUIStarted += (a, b) => { fullSettingsToGUIWriteInProgress = true; };
+            r2dSettings.FullWriteToGUIEnded += (a, b) => { fullSettingsToGUIWriteInProgress = false; ReDrawPreview(); };
         }
 
         private void settingsUpdatedInGUI(object sender, ValueUpdatedEventArgs e)
@@ -220,7 +223,11 @@ namespace RawBayer2DNG
                         default:
                             break;
                     }
-                    ReDrawPreview();
+                    if (!fullSettingsToGUIWriteInProgress)
+                    {
+
+                        ReDrawPreview();
+                    }
                     break;
 
                 case "linLogDithering":
@@ -243,15 +250,17 @@ namespace RawBayer2DNG
                 case "previewWithSRGBGamma":
                 case "previewDebayer":
                 case "drawScope":
+                //case "inputFormat":
                 //case "colorBayerA":
                 //case "colorBayerB":
                 //case "colorBayerC":
                 //case "colorBayerD":
                     //if (!string.IsNullOrWhiteSpace(((System.Windows.Controls.TextBox)sender).Text))
-                    ReDrawPreview();
-                    break;
-                case "inputFormat":
-                    ReDrawPreview();
+                    if (!fullSettingsToGUIWriteInProgress)
+                    {
+
+                        ReDrawPreview();
+                    }
                     break;
                 default:
                     break;
