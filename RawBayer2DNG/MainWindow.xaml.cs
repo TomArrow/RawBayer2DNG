@@ -28,6 +28,7 @@ using RawBayer2DNG.ImageSequenceSources;
 using System.Text.RegularExpressions;
 using System.Numerics;
 using System.Globalization;
+using PresetManager;
 
 namespace RawBayer2DNG
 {
@@ -77,6 +78,9 @@ namespace RawBayer2DNG
 
         uint[] cropAmounts = new uint[4];
 
+        R2DSettings r2dSettings = new R2DSettings();
+        bool fullSettingsToGUIWriteInProgress = false;
+        /*
         public enum DNGOUTPUTDATAFORMAT
         {
             INVALID,
@@ -108,9 +112,9 @@ namespace RawBayer2DNG
             BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT,
             BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT,
             BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT
-        };
+        };*/
 
-        DNGOUTPUTDATAFORMAT dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
+        //R2DSettings.DNGOutputDataFormat dngOutputDataFormat = R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BIT;
 
 
 
@@ -164,21 +168,111 @@ namespace RawBayer2DNG
             m_parentExtender = Tiff.SetTagExtender(extender);
 
             // load saved settings
-            rawWidth.Text = Properties.Settings.Default.Width.ToString();
-            rawHeight.Text = Properties.Settings.Default.Height.ToString();
-            txtMaxThreads.Text = "Threads (Max " + Environment.ProcessorCount + "): ";
-            colorBayerA.Text = Properties.Settings.Default.colorBayerA.ToString();
+            //rawWidth.Text = Properties.Settings.Default.Width.ToString();
+            //rawHeight.Text = Properties.Settings.Default.Height.ToString();
+            txtMaxThreads.Text = "Threads (" + Environment.ProcessorCount + " CPUs): ";
+            /*colorBayerA.Text = Properties.Settings.Default.colorBayerA.ToString();
             colorBayerB.Text = Properties.Settings.Default.colorBayerB.ToString();
             colorBayerC.Text = Properties.Settings.Default.colorBayerC.ToString();
-            colorBayerD.Text = Properties.Settings.Default.colorBayerD.ToString();
-            Threads.Text = Properties.Settings.Default.MaxThreads.ToString();
-            txtTileSize.Text = Properties.Settings.Default.TileSize.ToString();
+            colorBayerD.Text = Properties.Settings.Default.colorBayerD.ToString();*/
+            //Threads.Text = Properties.Settings.Default.MaxThreads.ToString();
+            //txtTileSize.Text = Properties.Settings.Default.TileSize.ToString();
 
             // If 12 bit setting was saved, restore it now (If not it will default to 16 bit)
-            if (Properties.Settings.Default.Format == 1)
+            /*if (Properties.Settings.Default.Format == 1)
             {
                 formatRadio_rg12p.IsChecked = true;
                 formatRadio_rg16.IsChecked = false;
+            }*/
+
+            r2dSettings.Bind(this);
+            r2dSettings.BindConfig("presets");
+            r2dSettings.attachPresetManager(presetPanel);
+            r2dSettings.ValueUpdatedInGUI += settingsUpdatedInGUI;
+            r2dSettings.FullWriteToGUIStarted += (a, b) => { fullSettingsToGUIWriteInProgress = true; };
+            r2dSettings.FullWriteToGUIEnded += (a, b) => { fullSettingsToGUIWriteInProgress = false; ReDrawPreview(); };
+        }
+
+        private void settingsUpdatedInGUI(object sender, ValueUpdatedEventArgs e)
+        {
+            switch (e.FieldName)
+            {
+                case "cropLeft":
+                case "cropTop":
+                case "cropRight":
+                case "cropBottom":
+                    switch (e.FieldName)
+                    {
+                        case "cropLeft":
+                            cropAmounts[0] = (uint)r2dSettings.cropLeft;
+                            cropAmounts[0] /= 2;
+                            cropAmounts[0] *= 2;
+                            break;
+                        case "cropTop":
+                            cropAmounts[1] = (uint)r2dSettings.cropTop;
+                            cropAmounts[1] /= 2;
+                            cropAmounts[1] *= 2;
+                            break;
+                        case "cropRight":
+                            cropAmounts[2] = (uint)r2dSettings.cropRight;
+                            cropAmounts[2] /= 2;
+                            cropAmounts[2] *= 2;
+                            break;
+                        case "cropBottom":
+                            cropAmounts[3] = (uint)r2dSettings.cropBottom;
+                            cropAmounts[3] /= 2;
+                            cropAmounts[3] *= 2;
+                            break;
+                        default:
+                            break;
+                    }
+                    if (!fullSettingsToGUIWriteInProgress)
+                    {
+
+                        ReDrawPreview();
+                    }
+                    break;
+
+                case "writeHumanReadableMetaData":
+                    _writeMetaDataHumanReadable = r2dSettings.writeHumanReadableMetaData;
+                    break;
+                case "writeErrorReports":
+                    _writeErrorReports = r2dSettings.writeErrorReports;
+                    break;
+                case "linLogDithering":
+                    _linLogDithering = r2dSettings.linLogDithering;
+                    break;
+                case "losslessJPEGTiling":
+                    _compressDngLosslessJPEGUseTiles = r2dSettings.losslessJPEGTiling;
+                    break;
+                case "compressDNGLegacy":
+                    _compressDng = r2dSettings.compressDNGLegacy;
+                    break;
+                case "compressDNGLosslessJPEG":
+                    _compressDngLosslessJPEG = r2dSettings.compressDNGLosslessJPEG;
+                    break;
+
+                case "redMultiplier":
+                case "greenMultiplier":
+                case "blueMultiplier":
+
+                case "previewWithSRGBGamma":
+                case "previewDebayer":
+                case "drawScope":
+                //case "inputFormat":
+                //case "colorBayerA":
+                //case "colorBayerB":
+                //case "colorBayerC":
+                //case "colorBayerD":
+                    //if (!string.IsNullOrWhiteSpace(((System.Windows.Controls.TextBox)sender).Text))
+                    if (!fullSettingsToGUIWriteInProgress)
+                    {
+
+                        ReDrawPreview();
+                    }
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -198,7 +292,8 @@ namespace RawBayer2DNG
                 string fileName = fileNameWithoutExtension + ".dng";
 
                 byte[,] bayerPattern = getBayerPattern();
-                double[]  RGBamplify =  { rAmplify.Value, gAmplify.Value, bAmplify.Value };
+                //double[]  RGBamplify =  { rAmplify.Value, gAmplify.Value, bAmplify.Value };
+                double[]  RGBamplify =  { r2dSettings.redMultiplier, r2dSettings.greenMultiplier, r2dSettings.blueMultiplier };
 
                 ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, RGBamplify, cropAmounts, metaInfo, errorInfo, Path.GetFileNameWithoutExtension(ofd.FileName));
             }
@@ -221,7 +316,7 @@ namespace RawBayer2DNG
             int width = 2448;
             int height = 2048;
 
-            DNGOUTPUTDATAFORMAT outputFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+            R2DSettings.DNGOutputDataFormat outputFormat = R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BIT;
 
             int tileSize = 192;
 
@@ -231,16 +326,17 @@ namespace RawBayer2DNG
                 if(imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
                 {
 
-                    (imageSequenceSource as RAWSequenceSource).width = int.Parse(rawWidth.Text);
-                    (imageSequenceSource as RAWSequenceSource).height = int.Parse(rawHeight.Text);
+                    (imageSequenceSource as RAWSequenceSource).width = r2dSettings.rawWidth;//int.Parse(rawWidth.Text);
+                    (imageSequenceSource as RAWSequenceSource).height = r2dSettings.rawHeight;//int.Parse(rawHeight.Text);
                 }
                 width = imageSequenceSource.getWidth();
                 height = imageSequenceSource.getHeight();
-                outputFormat = dngOutputDataFormat;
-                if(int.TryParse(txtTileSize.Text,out int tileSizeHere))
+                outputFormat = r2dSettings.dngOutputDataFormat;
+                /*if(int.TryParse(txtTileSize.Text,out int tileSizeHere))
                 {
                     tileSize = tileSizeHere;
-                }
+                }*/
+                tileSize = r2dSettings.losslessJPEGTileSize;
             });
 
 
@@ -277,33 +373,33 @@ namespace RawBayer2DNG
                 int lossyLinLogModeOutputBitDepth = 16;
 
                 // TODO Make lossy modes bake in the RGB sliders.
-                if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT)
+                if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BIT)
                 {
-                } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT)
+                } else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT)
                 {
                     lossyGammaModeEnabled = true;
                     lossyGammaModeOutputBitDepth = 10;
                     lossyGammaModeGamma = Math.Log(1 / (Math.Pow(2, 10) - 1)) / Math.Log(1 / (Math.Pow(2, 16) - 1));
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithGamma(rawImageData,10, lossyGammaModeGamma);
-                } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT)
+                } else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 8;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,8);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA,bayerPattern,_linLogDithering,width);
-                } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO7BIT)
+                } else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO7BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 7;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,7);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering,width);
-                }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT)
+                }else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 10;
                     lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,10);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering, width);
-                }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO8BIT)
+                }else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO8BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 8;
@@ -311,7 +407,7 @@ namespace RawBayer2DNG
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT)
+                } else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 7;
@@ -319,7 +415,7 @@ namespace RawBayer2DNG
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT)
+                }else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 6;
@@ -327,7 +423,7 @@ namespace RawBayer2DNG
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT)
+                }else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 5;
@@ -335,11 +431,11 @@ namespace RawBayer2DNG
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, _linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                } else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED)
+                } else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED)
                 {
                     output.SetField(TiffTag.BITSPERSAMPLE, 12);
                     rawImageData = DataFormatConverter.convert16BitIntermediateToTiffPacked12BitOutput(rawImageData);
-                }else if (outputFormat == DNGOUTPUTDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
+                }else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BIT)
                 {
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
@@ -405,7 +501,7 @@ namespace RawBayer2DNG
                 output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
                 //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
 
-                if (_compressDng && outputFormat != DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED && !_compressDngLosslessJPEG)
+                if (_compressDng && outputFormat != R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED && !_compressDngLosslessJPEG)
                 { // Sadly combining the ADOBE_DEFLATE compression with 12 bit packing breaks the resulting file.
                     output.SetField(TiffTag.COMPRESSION, Compression.ADOBE_DEFLATE);
                 }
@@ -431,12 +527,12 @@ namespace RawBayer2DNG
 
                 //DNG 
                 output.SetField(TiffTag.SUBFILETYPE, 0);
-                output.SetField(TiffTag.MAKE, "Point Grey"); 
-                output.SetField(TiffTag.MODEL, "Chameleon3");
-                output.SetField(TiffTag.SOFTWARE, "FlyCapture2");
+                output.SetField(TiffTag.MAKE, r2dSettings.metaMake); 
+                output.SetField(TiffTag.MODEL, r2dSettings.metaModel);
+                output.SetField(TiffTag.SOFTWARE, r2dSettings.metaSoftware.Trim() == "" ? "RawBayer2DNG" : r2dSettings.metaSoftware+"(+RawBayer2DNG)");
                 output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
                 output.SetField(TiffTag.DNGBACKWARDVERSION, "\x1\x4\x0\x0");
-                output.SetField(TiffTag.UNIQUECAMERAMODEL, "USB3");
+                output.SetField(TiffTag.UNIQUECAMERAMODEL, r2dSettings.metaUniqueCameraModel);
                 output.SetField(TiffTag.COLORMATRIX1, 9, cam_xyz);
                 output.SetField(TiffTag.ASSHOTNEUTRAL, 3, neutral);
                 output.SetField(TiffTag.CALIBRATIONILLUMINANT1, 21);
@@ -456,7 +552,7 @@ namespace RawBayer2DNG
                 //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
                 //output.SetField(TiffTag.WHITELEVEL, 1);
 
-                if(outputFormat != DNGOUTPUTDATAFORMAT.BAYER12BITTIFFPACKED && _compressDngLosslessJPEG)
+                if(outputFormat != R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED && _compressDngLosslessJPEG)
                 {
                     if (_compressDngLosslessJPEGUseTiles)
                     {
@@ -609,17 +705,17 @@ namespace RawBayer2DNG
 
                 int width = 2448;
                 int height = 2048;
-                width = int.Parse(rawWidth.Text);
-                height = int.Parse(rawHeight.Text);
+                width = r2dSettings.rawWidth;//int.Parse(rawWidth.Text);
+                height = r2dSettings.rawHeight;//int.Parse(rawHeight.Text);
 
 
                 // Option to reverse file order when running film in reverse!
                 // Todo find a more universal way to do this
-                if (reverseFileOrder)
+                /*if (r2dSettings.reverseOrder)
                 {
                     Array.Reverse(filesInSourceFolder);
                     filesAreReversed = true;
-                }
+                }*/ // Is now implemented directly in the processing, so works with all kinds of sources.
 
                 imageSequenceSource = new RAWSequenceSource(getInputFormat(), width, height, getBayerPattern(), filesInSourceFolder);
 
@@ -641,10 +737,15 @@ namespace RawBayer2DNG
             return this.Dispatcher.Invoke(() =>
             {
                 //0=Red, 1=Green,   2=Blue
+                byte bayerColorA = (byte)r2dSettings.colorBayerA;
+                byte bayerColorB = (byte)r2dSettings.colorBayerB;
+                byte bayerColorC = (byte)r2dSettings.colorBayerC;
+                byte bayerColorD = (byte)r2dSettings.colorBayerD;
+                /*
                 byte bayerColorA = (byte)int.Parse(colorBayerA.Text);
                 byte bayerColorB = (byte)int.Parse(colorBayerB.Text);
                 byte bayerColorC = (byte)int.Parse(colorBayerC.Text);
-                byte bayerColorD = (byte)int.Parse(colorBayerD.Text);
+                byte bayerColorD = (byte)int.Parse(colorBayerD.Text);*/
                 byte[,] bayerPattern = { { bayerColorA, bayerColorB }, { bayerColorC, bayerColorD } };
                 return bayerPattern;
             });
@@ -657,14 +758,22 @@ namespace RawBayer2DNG
             {
                 RAWDATAFORMAT inputFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
 
-                if ((bool)formatRadio_rg16.IsChecked)
+                if (r2dSettings.inputFormat == R2DSettings.InputFormat.RAW16BIT)
+                {
+                    inputFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+                }
+                else if (r2dSettings.inputFormat == R2DSettings.InputFormat.RAW12P)
+                {
+                    inputFormat = RAWDATAFORMAT.BAYERRG12p;
+                }
+                /*if ((bool)formatRadio_rg16.IsChecked)
                 {
                     inputFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
                 }
                 else if ((bool)formatRadio_rg12p.IsChecked)
                 {
                     inputFormat = RAWDATAFORMAT.BAYERRG12p;
-                }
+                }*/
                 return inputFormat;
             });
         }
@@ -839,8 +948,8 @@ namespace RawBayer2DNG
             if (imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
             {
 
-                int width = int.Parse(rawWidth.Text);
-                int height = int.Parse(rawHeight.Text);
+                int width = r2dSettings.rawWidth;//int.Parse(rawWidth.Text);
+                int height = r2dSettings.rawHeight;//int.Parse(rawHeight.Text);
                 ((RAWSequenceSource)imageSequenceSource).width = width;
                 ((RAWSequenceSource)imageSequenceSource).height = height;
                 RAWDATAFORMAT inputFormat = getInputFormat();
@@ -848,9 +957,12 @@ namespace RawBayer2DNG
                 ((RAWSequenceSource)imageSequenceSource).rawDataFormat = inputFormat;
             }
 
-            bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
-            bool doPreviewGamma = (bool)previewGamma.IsChecked;
-            bool doDrawPreviewScope = (bool)drawScope_check.IsChecked;
+            //bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
+            bool doPreviewDebayer = r2dSettings.previewDebayer;
+            //bool doPreviewGamma = (bool)previewGamma.IsChecked;
+            bool doPreviewGamma = r2dSettings.previewWithSRGBGamma;
+            //bool doDrawPreviewScope = (bool)drawScope_check.IsChecked;
+            bool doDrawPreviewScope = r2dSettings.drawScope;
 
             ShotSettings shotSettings = getShotSettings();
 
@@ -938,7 +1050,8 @@ namespace RawBayer2DNG
 
                 byte[,] bayerPattern = imageSequenceSource.getBayerPattern();
 
-                double[] RGBamplify = { rAmplify.Value, gAmplify.Value, bAmplify.Value };
+                //double[] RGBamplify = { rAmplify.Value, gAmplify.Value, bAmplify.Value };
+                double[] RGBamplify = { r2dSettings.redMultiplier, r2dSettings.greenMultiplier, r2dSettings.blueMultiplier };
                 if (doPreviewDebayer) {
                     newbytes = Helpers.DrawBayerPreview(buff, newHeight, newWidth, height, width, newStride, byteDepth, subsample,doPreviewGamma,bayerPattern, RGBamplify);
                 } else
@@ -1015,18 +1128,18 @@ namespace RawBayer2DNG
             }
         }
 
-        private void PreviewGamma_Click(object sender, RoutedEventArgs e)
+        /*private void PreviewGamma_Click(object sender, RoutedEventArgs e)
         {
 
             ReDrawPreview();
         }
-
+        
         private void PreviewDebayer_Click(object sender, RoutedEventArgs e)
         {
 
             ReDrawPreview();
-        }
-
+        }*/
+        /*
         private void CompressDNG_Checked(object sender, RoutedEventArgs e)
         {
             HandleCompression(sender as CheckBox);
@@ -1041,26 +1154,28 @@ namespace RawBayer2DNG
         {
             // Use IsChecked.
             _compressDng = checkBox.IsChecked.Value;
-        }
-
+        }*/
+        /*
         private void LinLogDithering_UnOrChecked(object sender, RoutedEventArgs e)
         {
             // Use IsChecked.
             _linLogDithering = (sender as CheckBox).IsChecked.Value;
-        }
-
+        }*/
+    
+        /*
         private void WriteErrorReports_UnOrChecked(object sender, RoutedEventArgs e)
         {
             // Use IsChecked.
             _writeErrorReports = (sender as CheckBox).IsChecked.Value;
-        }
-
+        }*/
+        /*
         private void WriteMetaDataHumanReadable_UnOrChecked(object sender, RoutedEventArgs e)
         {
             // Use IsChecked.
             _writeMetaDataHumanReadable = (sender as CheckBox).IsChecked.Value;
-        }
+        }*/
 
+    /*
         private void CompressDNGLosslessJPEG_Checked(object sender, RoutedEventArgs e)
         {
             HandleCompressionLosslessJPEG(sender as CheckBox);
@@ -1075,15 +1190,15 @@ namespace RawBayer2DNG
         {
             // Use IsChecked.
             _compressDngLosslessJPEG = checkBox.IsChecked.Value;
-        }
+        }*/
 
-        private void ColorBayer_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if(! string.IsNullOrWhiteSpace(((System.Windows.Controls.TextBox)sender).Text))
-                ReDrawPreview();
-        }
+    /*private void ColorBayer_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if(! string.IsNullOrWhiteSpace(((System.Windows.Controls.TextBox)sender).Text))
+            ReDrawPreview();
+    }*/
 
-        private void BtnLoadTargetFolder_Click(object sender, RoutedEventArgs e)
+    private void BtnLoadTargetFolder_Click(object sender, RoutedEventArgs e)
         {
             var fbd = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog();
 
@@ -1110,7 +1225,8 @@ namespace RawBayer2DNG
             // reset progress counters
             currentProgress = 0;
             _counter = 0;
-            _newFileName = Rename.Text;
+            _newFileName = r2dSettings.outputSequenceCustomNaming;
+            //_newFileName = Rename.Text;
             worker.WorkerReportsProgress = true;
             worker.WorkerSupportsCancellation = true;
             worker.DoWork += worker_DoWork;
@@ -1120,19 +1236,20 @@ namespace RawBayer2DNG
 
         private void btnSaveSettings_Click(object sender, RoutedEventArgs e)
         {
-            Properties.Settings.Default.Width = int.Parse(rawWidth.Text);
-            Properties.Settings.Default.Height = int.Parse(rawHeight.Text);
+            //Properties.Settings.Default.Width = int.Parse(rawWidth.Text);
+            //Properties.Settings.Default.Height = int.Parse(rawHeight.Text);
 
-            if (int.Parse(Threads.Text) > Environment.ProcessorCount) Threads.Text = Environment.ProcessorCount.ToString();
-            Properties.Settings.Default.MaxThreads = int.Parse(Threads.Text);
-            Properties.Settings.Default.TileSize = int.Parse(txtTileSize.Text);
+            //if (int.Parse(Threads.Text) > Environment.ProcessorCount) Threads.Text = Environment.ProcessorCount.ToString();
+            //Properties.Settings.Default.MaxThreads = int.Parse(Threads.Text);
+            //Properties.Settings.Default.TileSize = int.Parse(txtTileSize.Text);
 
+            /*
             Properties.Settings.Default.colorBayerA = int.Parse(colorBayerA.Text);
             Properties.Settings.Default.colorBayerB = int.Parse(colorBayerB.Text);
             Properties.Settings.Default.colorBayerC = int.Parse(colorBayerC.Text);
-            Properties.Settings.Default.colorBayerD = int.Parse(colorBayerD.Text);
+            Properties.Settings.Default.colorBayerD = int.Parse(colorBayerD.Text);*/
 
-            Properties.Settings.Default.Format = (int)getInputFormat(); // save selected input format 
+            //Properties.Settings.Default.Format = (int)getInputFormat(); // save selected input format 
 
             Properties.Settings.Default.Save();
         }
@@ -1186,9 +1303,8 @@ namespace RawBayer2DNG
             _totalFiles = imageSequenceSource.getImageCount();
 
             // create lookup table: <inputfile, outputfile> 
-            var dic = new Dictionary<int, SetInfo>();
+            Dictionary<int, SetInfo> dic = new Dictionary<int, SetInfo>();
 
-            int index = 0;
 
 
             ShotSettings shotSettings = new ShotSettings();
@@ -1198,7 +1314,8 @@ namespace RawBayer2DNG
 
             this.Dispatcher.Invoke(() =>
             {
-                RGBamplify = new double[]{ rAmplify.Value, gAmplify.Value, bAmplify.Value };
+                //RGBamplify = new double[]{ rAmplify.Value, gAmplify.Value, bAmplify.Value };
+                RGBamplify = new double[]{ r2dSettings.redMultiplier, r2dSettings.greenMultiplier, r2dSettings.blueMultiplier };
                 shotSettings = getShotSettings();
                 setCount = getSetCount();
             });
@@ -1210,7 +1327,19 @@ namespace RawBayer2DNG
             bool anythingMissing = false;
             string whatsMissing = "";
             int[] indiziForMerge;
-            for (int i=0;i<setCount;i++)
+            bool reverse = r2dSettings.reverseOrder;
+
+            int startIndex=0, endIndex=setCount-1, increment=1;
+            if (reverse)
+            {
+                startIndex = setCount - 1;
+                endIndex = 0;
+                increment = -1;
+            }
+
+            int index = 0;
+            for (int i= startIndex; i<= endIndex; i+= increment)
+            //for (int i=0;i<setCount;i++)
             {
 
                 firstIndex = i * shotSettings.shots.Length + shotSettings.delay;
@@ -1246,14 +1375,15 @@ namespace RawBayer2DNG
                     string serializer = index.ToString().PadLeft(6, '0');
                     outputFile = targetFolder + "\\" + _newFileName + "_" + serializer + ".dng";
                 }
-                dic.Add(i, new SetInfo() { shotIndizi = indiziForMerge, outputName= outputFile }) ;
+                dic.Add(index, new SetInfo() { shotIndizi = indiziForMerge, outputName= outputFile }) ;
                 index++;
             }
+
 
             var countLock = new object();
             CurrentProgress = 0;
 
-            int threads = Properties.Settings.Default.MaxThreads;
+            int threads = r2dSettings.maxThreads;//Properties.Settings.Default.MaxThreads;
 
             if(threads == 0)
                 threads = Environment.ProcessorCount > 1 ? Environment.ProcessorCount / 2 : Environment.ProcessorCount;
@@ -1356,17 +1486,18 @@ namespace RawBayer2DNG
         {
             ReDrawPreview();
         }
-
+        /*
         private void Amplify_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             ReDrawPreview();
-        }
+        }*/
 
 
         private void FormatRadio_Checked(object sender, RoutedEventArgs e)
         {
             ReDrawPreview();
         }
+        /*
         private void ReverseOrder_OnChecked(object sender, RoutedEventArgs e)
         {
             reverseFileOrder = true;
@@ -1385,8 +1516,8 @@ namespace RawBayer2DNG
                 Array.Reverse(filesInSourceFolder);
                 filesAreReversed = false;
             }
-        }
-
+        }*/
+        /*
         private void Threads_OnTextChanged(object sender, KeyEventArgs e)
         {
             int.TryParse(Threads.Text, out var newThreads);
@@ -1396,7 +1527,7 @@ namespace RawBayer2DNG
                 Properties.Settings.Default.MaxThreads = newThreads;
                 Properties.Settings.Default.Save();
             }
-        }
+        }*/
 
         private void btnLoadStreamPixSeq_Click(object sender, RoutedEventArgs e)
         {
@@ -1469,7 +1600,7 @@ namespace RawBayer2DNG
                 + bayerPatternColorsAsString[aBayerPattern[1, 0]]
                 + bayerPatternColorsAsString[aBayerPattern[1, 1]];
         }
-
+        /*
         private void outputDataFormat_radio_Checked(object sender, RoutedEventArgs e)
         {
             FrameworkElement element = e.Source as FrameworkElement;
@@ -1512,7 +1643,7 @@ namespace RawBayer2DNG
                     dngOutputDataFormat = DNGOUTPUTDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
                     break;
             }
-        }
+        }*/
 
         private struct ShotSettingBayer
         {
@@ -1543,16 +1674,20 @@ namespace RawBayer2DNG
             int delayTmp = 0;
             try
             {
-                delayTmp = int.Parse(shotDelay_txt.Text);
+                //delayTmp = int.Parse(shotDelay_txt.Text);
+                delayTmp = r2dSettings.shotDelay;
             }catch(Exception e)
             {
                 MessageBox.Show("Invalid delay number? "+e.Message);
             }
 
-            double featherStopsTmp = 0;
-            double.TryParse(featherStops_txt.Text.Replace(",","."),NumberStyles.Float, CultureInfo.InvariantCulture, out featherStopsTmp);
-            float clippingPointTmp = 0.7f;
-            float.TryParse(clippingPoint_txt.Text.Replace(",", "."), NumberStyles.Float, CultureInfo.InvariantCulture, out clippingPointTmp);
+            double featherStopsTmp = r2dSettings.featherStops;
+            //double featherStopsTmp = 0;
+            //double.TryParse(featherStops_txt.Text.Replace(",","."),NumberStyles.Float, CultureInfo.InvariantCulture, out featherStopsTmp);
+
+            float clippingPointTmp = (float)r2dSettings.clippingPoint;
+            //float clippingPointTmp = 0.7f;
+            //float.TryParse(clippingPoint_txt.Text.Replace(",", "."), NumberStyles.Float, CultureInfo.InvariantCulture, out clippingPointTmp);
 
             float featherMultiplier = (float)Math.Pow(2, -featherStopsTmp);
 
@@ -1561,7 +1696,8 @@ namespace RawBayer2DNG
         }
         private ShotSettingBayer[] getShots()
         {
-            string[] shotTexts = { exposureA.Text, exposureB.Text, exposureC.Text, exposureD.Text, exposureE.Text, exposureF.Text };
+            //string[] shotTexts = { exposureA.Text, exposureB.Text, exposureC.Text, exposureD.Text, exposureE.Text, exposureF.Text };
+            string[] shotTexts = { r2dSettings.exposureA, r2dSettings.exposureB, r2dSettings.exposureC, r2dSettings.exposureD, r2dSettings.exposureE, r2dSettings.exposureF };
             List<ShotSettingBayer> shotSettings = new List<ShotSettingBayer>();
 
             int index = 0;
@@ -1697,11 +1833,11 @@ namespace RawBayer2DNG
                 // Option to reverse file order when running film in reverse!
 
                 // TODO make this work again.
-                if (reverseFileOrder)
+                /*if (reverseFileOrder)
                 {
                     Array.Reverse(filesInSourceFolder);
                     filesAreReversed = true;
-                }
+                }*/
 
                 loadedSequenceGUIUpdate("[DNG Folder] " + sourceFolder);
 
@@ -1742,11 +1878,11 @@ namespace RawBayer2DNG
                 // Option to reverse file order when running film in reverse!
 
                 // TODO make this work again.
-                if (reverseFileOrder)
+                /*if (reverseFileOrder)
                 {
                     Array.Reverse(filesInSourceFolder);
                     filesAreReversed = true;
-                }
+                }*/
 
                 btnCRIStabExport.IsEnabled = true;
 
@@ -1755,12 +1891,13 @@ namespace RawBayer2DNG
 
             }
         }
-
+        /*
         private void drawScope_check_Click(object sender, RoutedEventArgs e)
         {
             ReDrawPreview();
         }
-
+        */
+        /*
         private void crop_txt_TextChanged(object sender, TextChangedEventArgs e)
         {
             FrameworkElement textbox = e.Source as FrameworkElement;
@@ -1796,7 +1933,7 @@ namespace RawBayer2DNG
                 ReDrawPreview();
             }
         }
-
+        */
         private void analyzeHDR_btn_Click(object sender, RoutedEventArgs e)
         {
             if (imageSequenceSource == null)
@@ -1804,8 +1941,9 @@ namespace RawBayer2DNG
                 return; // Nothing to do here
             }
 
-            double analysisPrecisionLimitMultiplier = 16;
-            double.TryParse(analysisPrecision_txt.Text, out analysisPrecisionLimitMultiplier);
+            double analysisPrecisionLimitMultiplier = r2dSettings.refinement_analysisPrecision;
+            //double analysisPrecisionLimitMultiplier = 16;
+            //double.TryParse(analysisPrecision_txt.Text, out analysisPrecisionLimitMultiplier);
             analysisPrecisionLimitMultiplier = Math.Pow(2, analysisPrecisionLimitMultiplier);
 
             // Do this to not break functionality with the old algorithm and allow changes on the fly
@@ -1813,8 +1951,10 @@ namespace RawBayer2DNG
             if (imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
             {
 
-                int width = int.Parse(rawWidth.Text);
-                int height = int.Parse(rawHeight.Text);
+                //int width = int.Parse(rawWidth.Text);
+                //int height = int.Parse(rawHeight.Text);
+                int width = r2dSettings.rawWidth;
+                int height = r2dSettings.rawHeight;
                 ((RAWSequenceSource)imageSequenceSource).width = width;
                 ((RAWSequenceSource)imageSequenceSource).height = height;
                 RAWDATAFORMAT inputFormat = getInputFormat();
@@ -1822,8 +1962,10 @@ namespace RawBayer2DNG
                 ((RAWSequenceSource)imageSequenceSource).rawDataFormat = inputFormat;
             }
 
-            bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
-            bool doPreviewGamma = (bool)previewGamma.IsChecked;
+            //bool doPreviewDebayer = (bool)previewDebayer.IsChecked;
+            bool doPreviewDebayer = r2dSettings.previewDebayer;
+            //bool doPreviewGamma = (bool)previewGamma.IsChecked;
+            bool doPreviewGamma = r2dSettings.previewWithSRGBGamma;
 
             ShotSettings shotSettings = getShotSettings();
 
@@ -1899,6 +2041,24 @@ namespace RawBayer2DNG
                         switch (i)
                         {
                             case 0:
+                                r2dSettings.exposureA = theString;
+                                break;
+                            case 1:
+                                r2dSettings.exposureB = theString;
+                                break;
+                            case 2:
+                                r2dSettings.exposureC = theString;
+                                break;
+                            case 3:
+                                r2dSettings.exposureD = theString;
+                                break;
+                            case 4:
+                                r2dSettings.exposureE = theString;
+                                break;
+                            case 5:
+                                r2dSettings.exposureF = theString;
+                                break;
+                            /*case 0:
                                 exposureA.Text = theString;
                                 break;
                             case 1:
@@ -1915,12 +2075,13 @@ namespace RawBayer2DNG
                                 break;
                             case 5:
                                 exposureF.Text = theString;
-                                break;
+                                break;*/
                             default:
                                 throw new Exception("wtf");
                                 break;
                         }
                     }
+                    r2dSettings.sendToGUI();
                 }
             }
         }
@@ -2070,6 +2231,7 @@ namespace RawBayer2DNG
         }
 
 
+
         private float[][] getCRIStabilizationData()
         {
             float[][] retVal = new float[1][];
@@ -2156,14 +2318,14 @@ namespace RawBayer2DNG
                 MessageBox.Show("Error. Cannot export stabilization data from non-CRI sources.");
             }
         }
-
+      /*
         private void compressDNGLosslessJPEGTiling_Checked(object sender, RoutedEventArgs e)
         {
 
             HandleCompressionLosslessJPEGTiling(sender as CheckBox);
         }
 
-        private void compressDNGLosslessJPEGTiling_Unchecked(object sender, RoutedEventArgs e)
+        private void txtTileSize_Unchecked(object sender, RoutedEventArgs e)
         {
             HandleCompressionLosslessJPEGTiling(sender as CheckBox);
         }
@@ -2171,12 +2333,13 @@ namespace RawBayer2DNG
         {
             // Use IsChecked.
             _compressDngLosslessJPEGUseTiles = checkBox.IsChecked.Value;
-        }
-
+        }*/
+        /*
         private void txtTileSize_KeyUp(object sender, KeyEventArgs e)
         {
             //int.TryParse(txtTileSize.Text, out var tileSize);
 
-        }
+        }*/
+
     }
 }
