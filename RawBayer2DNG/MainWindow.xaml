@@ -48,17 +48,17 @@
                         <StackPanel Width="60">
                             <Label HorizontalAlignment="Center">R</Label>
                             <TextBox TextAlignment="Center" x:Name="txtRAmplify">1</TextBox>
-                            <Slider HorizontalAlignment="Center" x:Name="rAmplify" Maximum="3" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtRAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                            <Slider HorizontalAlignment="Center" x:Name="rAmplify" Maximum="3" Minimum="0" Orientation="Vertical" Value="{Binding ElementName=txtRAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
                         </StackPanel>
                         <StackPanel Width="60">
                             <Label HorizontalAlignment="Center">G</Label>
                             <TextBox TextAlignment="Center" x:Name="txtGAmplify">1</TextBox>
-                            <Slider HorizontalAlignment="Center" x:Name="gAmplify" Maximum="3" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtGAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                            <Slider HorizontalAlignment="Center" x:Name="gAmplify" Maximum="3" Minimum="0" Orientation="Vertical" Value="{Binding ElementName=txtGAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
                         </StackPanel>
                         <StackPanel Width="60">
                             <Label HorizontalAlignment="Center">B</Label>
                             <TextBox TextAlignment="Center" x:Name="txtBAmplify">1</TextBox>
-                            <Slider HorizontalAlignment="Center" x:Name="bAmplify" Maximum="3" Minimum="0" Orientation="Vertical" ValueChanged="Amplify_ValueChanged" Value="{Binding ElementName=txtBAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                            <Slider HorizontalAlignment="Center" x:Name="bAmplify" Maximum="3" Minimum="0" Orientation="Vertical" Value="{Binding ElementName=txtBAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
                         </StackPanel>
                     </WrapPanel>
                     <TextBlock TextWrapping="Wrap">Caution: Changing these sliders DOES affect the resulting DNG look, however it does not affect the raw data saved into the DNG, which remains lossless. Channel seperation is likewise maintained when converting the DNG to sRGB.</TextBlock>
@@ -80,13 +80,13 @@
                             <ColumnDefinition></ColumnDefinition>
                         </Grid.ColumnDefinitions>
                         <Label Grid.Row="0" Grid.Column="0">Left</Label>
-                        <TextBox x:Name="cropLeft_txt" Grid.Row="1" Grid.Column="0" TextChanged="crop_txt_TextChanged">0</TextBox>
+                        <TextBox x:Name="cropLeft_txt" Grid.Row="1" Grid.Column="0">0</TextBox>
                         <Label Grid.Row="0" Grid.Column="1">Top</Label>
-                        <TextBox x:Name="cropTop_txt" Grid.Row="1" Grid.Column="1" TextChanged="crop_txt_TextChanged">0</TextBox>
+                        <TextBox x:Name="cropTop_txt" Grid.Row="1" Grid.Column="1">0</TextBox>
                         <Label Grid.Row="0" Grid.Column="2">Right</Label>
-                        <TextBox x:Name="cropRight_txt" Grid.Row="1" Grid.Column="2" TextChanged="crop_txt_TextChanged">0</TextBox>
+                        <TextBox x:Name="cropRight_txt" Grid.Row="1" Grid.Column="2">0</TextBox>
                         <Label Grid.Row="0" Grid.Column="3">Bottom</Label>
-                        <TextBox x:Name="cropBottom_txt" Grid.Row="1" Grid.Column="3" TextChanged="crop_txt_TextChanged">0</TextBox>
+                        <TextBox x:Name="cropBottom_txt" Grid.Row="1" Grid.Column="3" >0</TextBox>
                     </Grid>
                     <TextBlock TextWrapping="Wrap">Caution: Numbers will be rounded to multiples of 2.</TextBlock>
                     <TextBlock TextWrapping="Wrap">
@@ -233,9 +233,9 @@
                 </StackPanel>
             </GroupBox>
 
-            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_Debayer}" x:Name="previewDebayer" Click="PreviewDebayer_Click" Margin="2" IsChecked="True">Preview debayer</CheckBox>
-            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_sRGBGamma}" x:Name="previewGamma" IsChecked="True" Click="PreviewGamma_Click" Margin="2">Preview with sRGB gamma</CheckBox>
-            <CheckBox x:Name="drawScope_check" IsChecked="False" Click="drawScope_check_Click" Margin="2">Draw scope</CheckBox>
+            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_Debayer}" x:Name="previewDebayer" Margin="2" IsChecked="True">Preview debayer</CheckBox>
+            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_sRGBGamma}" x:Name="previewGamma" IsChecked="True" Margin="2">Preview with sRGB gamma</CheckBox>
+            <CheckBox x:Name="drawScope_check" IsChecked="False" Margin="2">Draw scope</CheckBox>
 
             <GroupBox Header="Metadata">
                 <StackPanel>
@@ -265,47 +265,47 @@
                 <StackPanel>
 
                     <WrapPanel>
-                        <RadioButton x:Name="output_12bitPacked_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitpacked}">12 bit packed</RadioButton>
-                        <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsChecked="True" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitdarkcapsuled}">12 bit dark in 16bit</RadioButton>
-                        <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitbrightcapsuled}">12 bit bright in 16bit / HDR</RadioButton>
-                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog8Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 12-in-8 (SDR) LinLog</RadioButton>
-                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog7Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 12-in-7 (SDR) LinLog</RadioButton>
-                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog6Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">BAD: Lossy 12-in-6 (SDR) LinLog</RadioButton>
-                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog5Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">BAD: Lossy 12-in-5 (SDR) LinLog</RadioButton>
-                        <RadioButton x:Name="output_16bitBrightCapsuledGamma10Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 16-in-10 (HDR) Gamma</RadioButton>
-                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog10Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 16-in-10 (HDR) LinLog</RadioButton>
-                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog8Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">Lossy 16-in-8 (HDR) LinLog</RadioButton>
-                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog7Bit_radio" IsChecked="False" Checked="outputDataFormat_radio_Checked">BAD: Lossy 16-in-7 (HDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_12bitPacked_radio" IsChecked="False" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitpacked}">12 bit packed</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsChecked="True"  ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitdarkcapsuled}">12 bit dark in 16bit</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False"   ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitbrightcapsuled}">12 bit bright in 16bit / HDR</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog8Bit_radio" IsChecked="False"  >Lossy 12-in-8 (SDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog7Bit_radio" IsChecked="False" >Lossy 12-in-7 (SDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog6Bit_radio" IsChecked="False" >BAD: Lossy 12-in-6 (SDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog5Bit_radio" IsChecked="False"  >BAD: Lossy 12-in-5 (SDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledGamma10Bit_radio" IsChecked="False" >Lossy 16-in-10 (HDR) Gamma</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog10Bit_radio" IsChecked="False" >Lossy 16-in-10 (HDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog8Bit_radio" IsChecked="False" >Lossy 16-in-8 (HDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog7Bit_radio" IsChecked="False"  >BAD: Lossy 16-in-7 (HDR) LinLog</RadioButton>
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>
-            <CheckBox ToolTip="lossless compression" x:Name="compressDNG" IsChecked="False" Checked="CompressDNG_Checked" Unchecked="CompressDNG_Unchecked" Margin="2">Compress DNG (16 bit formats)</CheckBox>
+            <CheckBox ToolTip="lossless compression" x:Name="compressDNG" IsChecked="False" Margin="2">Compress DNG (16 bit formats)</CheckBox>
             <GroupBox Header="Lossless JPEG">
                 <StackPanel>
-                    <CheckBox ToolTip="lossless JPEG compression" x:Name="compressDNGLosslessJPEG" IsChecked="True" Checked="CompressDNGLosslessJPEG_Checked" Unchecked="CompressDNGLosslessJPEG_Unchecked" Margin="2">Use (for 16 bit &amp; lossy formats)</CheckBox>
-                    <CheckBox ToolTip="Don't worry, it's also lossless" x:Name="compressDNGLosslessJPEGTiling" IsChecked="True" Checked="compressDNGLosslessJPEGTiling_Checked" Unchecked="compressDNGLosslessJPEGTiling_Unchecked" Margin="2">Use tiling to save space</CheckBox>
+                    <CheckBox ToolTip="lossless JPEG compression" x:Name="compressDNGLosslessJPEG" IsChecked="True" Margin="2">Use (for 16 bit &amp; lossy formats)</CheckBox>
+                    <CheckBox ToolTip="Don't worry, it's also lossless" x:Name="compressDNGLosslessJPEGTiling" IsChecked="True"  Margin="2">Use tiling to save space</CheckBox>
                     <WrapPanel>
                         <TextBlock>Tilesize:</TextBlock>
-                        <TextBox KeyUp="txtTileSize_KeyUp" x:Name="txtTileSize" MinWidth="30" TextAlignment="Right">192</TextBox>
+                        <TextBox  x:Name="txtTileSize" MinWidth="30" TextAlignment="Right">192</TextBox>
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>
-            <CheckBox ToolTip="Floyd-Steinberg Dithering when reducing the bit depth in the LinLog modes" x:Name="linLogDithering" Checked="LinLogDithering_UnOrChecked" Unchecked="LinLogDithering_UnOrChecked" IsChecked="True"  Margin="2">Dithering (in case of lossy LinLog)</CheckBox>
+            <CheckBox ToolTip="Floyd-Steinberg Dithering when reducing the bit depth in the LinLog modes" x:Name="linLogDithering" IsChecked="True"  Margin="2">Dithering (in case of lossy LinLog)</CheckBox>
 
             <WrapPanel>
-                <TextBlock x:Name="txtMaxThreads">Threads (max: )</TextBlock>
-                <TextBox KeyUp="Threads_OnTextChanged" x:Name="Threads" MinWidth="30" TextAlignment="Right">4</TextBox>
+                <TextBlock x:Name="txtMaxThreads">Threads ( CPUs)</TextBlock>
+                <TextBox x:Name="Threads" MinWidth="30" TextAlignment="Right">4</TextBox>
             </WrapPanel>
             <Label Padding="0" Margin="2">Rename to (optional):</Label>
             <TextBox x:Name="Rename" MinWidth="50" Margin="2"></TextBox>
 
             <WrapPanel>
-                <CheckBox x:Name="ReverseOrder" IsChecked="False" Checked="ReverseOrder_OnChecked" Unchecked="ReverseOrder_OnUnchecked"></CheckBox>
+                <CheckBox x:Name="ReverseOrder" IsChecked="False"></CheckBox>
                 <Label>Process Files in Reverse</Label>
             </WrapPanel>
 
             <Button x:Name="btnLoadTargetFolder" Click="BtnLoadTargetFolder_Click">Select target folder</Button>
-            <Button x:Name="btnSaveSettings" Click="btnSaveSettings_Click" IsEnabled="True">Save Settings</Button>
+            <Button x:Name="btnSaveSettings" Click="btnSaveSettings_Click" IsEnabled="True">Save selected folders</Button>
             <Button x:Name="btnProcessFolder" Click="BtnProcessFolder_Click" IsEnabled="False">Process loaded sequence</Button>
             <Button Name="btnCancel" Width="60" Click="btnCancel_Click">Cancel</Button>
             <StackPanel>
