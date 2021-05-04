@@ -199,6 +199,12 @@ namespace RawBayer2DNG
         [Category("Output")]
         [Control("ReverseOrder")]
         public bool reverseOrder = false;
+        [Category("Output")]
+        [Control("checkSplitOutputSequence")]
+        public bool splitOutputSequence = false;
+        [Category("Output")]
+        [Control("txtSplitOutputSequenceCount")]
+        public int splitOutputSequenceCount = 1;
 
         
     }

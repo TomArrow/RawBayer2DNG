@@ -1038,6 +1038,7 @@ namespace RawBayer2DNG
         {
             public int[] shotIndizi;
             public string outputName;
+            public string originalFilename;
         }
 
 
@@ -1057,8 +1058,7 @@ namespace RawBayer2DNG
 
             _totalFiles = imageSequenceSource.getImageCount();
 
-            // create lookup table: <inputfile, outputfile> 
-            Dictionary<int, SetInfo> dic = new Dictionary<int, SetInfo>();
+            
 
 
 
@@ -1074,6 +1074,11 @@ namespace RawBayer2DNG
                 shotSettings = getShotSettings();
                 setCount = getSetCount();
             });
+
+            // create lookup table: <inputfile, outputfile> 
+            //Dictionary<int, SetInfo> dic = new Dictionary<int, SetInfo>();
+            SetInfo[] dic = new SetInfo[setCount];
+
 
             uint[] cropAmountsAtBegin = r2dSettings.getCropAmounts();//(uint[])cropAmounts.Clone();
 
@@ -1093,6 +1098,7 @@ namespace RawBayer2DNG
             }
 
             int index = 0;
+            string[] originalFilenames = new string[shotSettings.shots.Length];
             for (int i= startIndex; increment > 0 ? i<= endIndex : i>= endIndex; i+= increment)
             //for (int i=0;i<setCount;i++)
             {
@@ -1119,6 +1125,7 @@ namespace RawBayer2DNG
                     else
                     {
                         indiziForMerge[a] = thatIndex;
+                        originalFilenames[a] = Path.GetFileName(imageSequenceSource.getImageName(thatIndex));
                     }
                 }
 
@@ -1130,8 +1137,29 @@ namespace RawBayer2DNG
                     string serializer = index.ToString().PadLeft(6, '0');
                     outputFile = targetFolder + "\\" + _newFileName + "_" + serializer + ".dng";
                 }
-                dic.Add(index, new SetInfo() { shotIndizi = indiziForMerge, outputName= outputFile }) ;
+                //dic.Add(index, new SetInfo() { shotIndizi = indiziForMerge, outputName= outputFile }) ;
+                dic[index] = new SetInfo() { shotIndizi = indiziForMerge, outputName= outputFile, originalFilename=String.Join(",", originalFilenames) };
                 index++;
+            }
+
+            // Split into separate sequences if desired
+            // We do it here separately from the for above to make it easier to read and not convolute too many concepts into one block
+            if (r2dSettings.splitOutputSequence && r2dSettings.splitOutputSequenceCount > 1)
+            {
+                int[] indizi = new int[r2dSettings.splitOutputSequenceCount];
+
+                // Create output sequence folders if they do not yet exist.
+                for(int i = 0; i < r2dSettings.splitOutputSequenceCount; i++)
+                {
+                    string outputFolder = targetFolder + "\\" + (i + 1).ToString();
+                    Directory.CreateDirectory(outputFolder);
+                }
+
+                for(int i = 0; i < dic.Length; i++)
+                {
+                    string serializer = (indizi[i % r2dSettings.splitOutputSequenceCount]++).ToString().PadLeft(6, '0');
+                    dic[i].outputName = targetFolder + "\\" + ((i%r2dSettings.splitOutputSequenceCount)+1).ToString() + "\\" + _newFileName + "_" + serializer + ".dng";
+                }
             }
 
 
@@ -1155,7 +1183,7 @@ namespace RawBayer2DNG
 
 
                     // check to see if output file already exists
-                    if (File.Exists(currentImage.Value.outputName))
+                    if (File.Exists(currentImage.outputName))
                     {
                         // Error: File already exists. No overwriting. Move on.
                         //continue;
@@ -1164,7 +1192,7 @@ namespace RawBayer2DNG
 
                     if(shotSettings.shots.Length == 1) // SDR (single image)
                     {
-                        byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.Value.shotIndizi[0]);
+                        byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.shotIndizi[0]);
                         if (inputFormat == RAWDATAFORMAT.BAYERRG12p)
                         {
                             tmpBuff = DataFormatConverter.convert12pInputto16bit(tmpBuff);
@@ -1174,12 +1202,12 @@ namespace RawBayer2DNG
                             tmpBuff = DataFormatConverter.convert12paddedto16Inputto16bit(tmpBuff);
                         }
 
-                        ProcessRAW(tmpBuff, currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                        ProcessRAW(tmpBuff, currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, currentImage.originalFilename);
                     } else // HDR
                     {
                         byte[][] buffersForHDR = new byte[3][];
                         int c = 0;
-                        foreach (int thisThereThatIndex in currentImage.Value.shotIndizi)
+                        foreach (int thisThereThatIndex in currentImage.shotIndizi)
                         {
 
                             buffersForHDR[c] = imageSequenceSource.getRawImageData(thisThereThatIndex);
@@ -1197,7 +1225,7 @@ namespace RawBayer2DNG
                         // For debugging
                         //File.WriteAllText("debug.txt","Clipping point: "+shotSettings.clippingPoint+", feather "+shotSettings.featherMultiplier);
 
-                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, currentImage.originalFilename);
                     }
 
 

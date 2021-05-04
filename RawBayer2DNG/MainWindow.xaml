@@ -232,6 +232,15 @@
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>
+            <GroupBox Header="Output sequence split">
+                <StackPanel>
+                    <WrapPanel ToolTip="Use this, for example, to separate different exposures of a HDR capture or multi-exposure into separate sequences for later merging. For example if the built-in HDR functionality does not give satisfying results. Do not combine this with the HDR functionality, but use either or.">
+                        <CheckBox Padding="5 0 0 0" Margin="5" x:Name="checkSplitOutputSequence">Split to</CheckBox>
+                        <TextBox MinWidth="30" Margin="5 0 0 0" TextAlignment="Right" x:Name="txtSplitOutputSequenceCount">1</TextBox>
+                        <Label>sequences</Label>
+                    </WrapPanel>
+                </StackPanel>
+            </GroupBox>
 
             <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_Debayer}" x:Name="previewDebayer" Margin="2" IsChecked="True">Preview debayer</CheckBox>
             <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_sRGBGamma}" x:Name="previewGamma" IsChecked="True" Margin="2">Preview with sRGB gamma</CheckBox>
