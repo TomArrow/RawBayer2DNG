@@ -1154,11 +1154,17 @@ namespace RawBayer2DNG
                     string outputFolder = targetFolder + "\\" + (i + 1).ToString();
                     Directory.CreateDirectory(outputFolder);
                 }
-
-                for(int i = 0; i < dic.Length; i++)
+                
+                for (int i = 0; i < dic.Length; i++)
                 {
-                    string serializer = (indizi[i % r2dSettings.splitOutputSequenceCount]++).ToString().PadLeft(6, '0');
-                    dic[i].outputName = targetFolder + "\\" + ((i%r2dSettings.splitOutputSequenceCount)+1).ToString() + "\\" + _newFileName + "_" + serializer + ".dng";
+                    if (!String.IsNullOrWhiteSpace(_newFileName)) // In this case, enumerate all entries
+                    {
+                        string serializer = (indizi[i % r2dSettings.splitOutputSequenceCount]++).ToString().PadLeft(6, '0');
+                        dic[i].outputName = targetFolder + "\\" + ((i % r2dSettings.splitOutputSequenceCount) + 1).ToString() + "\\" + _newFileName + "_" + serializer + ".dng";
+                    } else
+                    {
+                        dic[i].outputName = targetFolder + "\\" + ((i % r2dSettings.splitOutputSequenceCount) + 1).ToString() + "\\" + Path.GetFileName(dic[i].outputName);
+                    }
                 }
             }
 
