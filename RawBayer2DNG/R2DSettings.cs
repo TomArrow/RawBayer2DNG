@@ -31,7 +31,9 @@ namespace RawBayer2DNG
             [Control("formatRadio_rg16")]
             RAW16BIT,
             [Control("formatRadio_rg12p")]
-            RAW12P
+            RAW12P,
+            [Control("formatRadio_10pmotioncam")]
+            RAW10P1 // MotionCam 10p
         }
         [Category("RawInterpret")]
         public InputFormat inputFormat = InputFormat.RAW16BIT;
