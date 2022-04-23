@@ -43,7 +43,8 @@ namespace RawBayer2DNG
         // It's like this: AAAAAAAA AAAABBBB BBBBBBBB, with the BBBB in the second bit being the first bytes (not the last) of the second sample
         BAYERRG12p,
         TIFF12BITPACKED, // For reading dngs
-        CINTEL10BIT
+        CINTEL10BIT,
+        BAYER10p1 // MotionCam
     };
 
     /// <summary>
@@ -189,9 +190,9 @@ namespace RawBayer2DNG
         private void ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, uint[] cropAmounts, ISSMetaInfo metaInfo, ISSErrorInfo errorInfo, string sourceFileNameForTIFFTag = "")
         {
 
-
-            
-
+#if DEBUG
+            try {
+#endif
             char[] bayerSubstitution = { "\x0"[0], "\x1"[0], "\x2"[0] };
 
             string bayerPatternTag = bayerSubstitution[bayerPattern[0, 0]].ToString() +
@@ -208,7 +209,7 @@ namespace RawBayer2DNG
             this.Dispatcher.Invoke(() =>
             {
                 // backwards compatibility fuckery. trying not to break what already worked.
-                if(imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
+                if (imageSequenceSource.getSourceType() == ImageSequenceSource.ImageSequenceSourceType.RAW)
                 {
 
                     (imageSequenceSource as RAWSequenceSource).width = r2dSettings.rawWidth;//int.Parse(rawWidth.Text);
@@ -260,87 +261,97 @@ namespace RawBayer2DNG
                 // TODO Make lossy modes bake in the RGB sliders.
                 if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BIT)
                 {
-                } else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT)
+                }
+                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT)
                 {
                     lossyGammaModeEnabled = true;
                     lossyGammaModeOutputBitDepth = 10;
                     lossyGammaModeGamma = Math.Log(1 / (Math.Pow(2, 10) - 1)) / Math.Log(1 / (Math.Pow(2, 16) - 1));
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithGamma(rawImageData,10, lossyGammaModeGamma);
-                } else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT)
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithGamma(rawImageData, 10, lossyGammaModeGamma);
+                }
+                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 8;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,8);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA,bayerPattern,r2dSettings.linLogDithering,width);
-                } else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO7BIT)
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16, 8);
+                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
+                }
+                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO7BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 7;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,7);
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16, 7);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
-                }else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT)
+                }
+                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 10;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16,10);
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16, 10);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
-                }else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO8BIT)
+                }
+                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO8BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 8;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,8);
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 8);
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                } else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT)
+                }
+                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 7;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,7);
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 7);
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                }else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT)
+                }
+                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 6;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,6);
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 6);
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                }else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT)
+                }
+                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT)
                 {
                     lossyLinLogModeEnabled = true;
                     lossyLinLogModeOutputBitDepth = 5;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12,5);
+                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 5);
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                     rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                } else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED)
+                }
+                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED)
                 {
                     output.SetField(TiffTag.BITSPERSAMPLE, 12);
                     rawImageData = DataFormatConverter.convert16BitIntermediateToTiffPacked12BitOutput(rawImageData);
-                }else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BIT)
+                }
+                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BIT)
                 {
                     rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
                     output.SetField(TiffTag.BASELINEEXPOSURE, 4);
                 }
 
-                
+
                 if (lossyGammaModeEnabled)
                 {
 
                     UInt16 outputMaxValue = (UInt16)(Math.Pow(2, lossyGammaModeOutputBitDepth) - 1);
-                    UInt16[] linearizationTable = new UInt16[outputMaxValue+1];
+                    UInt16[] linearizationTable = new UInt16[outputMaxValue + 1];
 
 
                     double tmpValue;
-                    double invertedGamma = 1/lossyGammaModeGamma;
-                    for(int i=0;i<= outputMaxValue; i++)
+                    double invertedGamma = 1 / lossyGammaModeGamma;
+                    for (int i = 0; i <= outputMaxValue; i++)
                     {
                         tmpValue = (double)i / (double)outputMaxValue;
                         tmpValue = Math.Pow(tmpValue, invertedGamma) * (double)UInt16.MaxValue;
-                        linearizationTable[(Int16)i] = (UInt16)Math.Max(0,Math.Min(UInt16.MaxValue, Math.Round(tmpValue))); 
+                        linearizationTable[(Int16)i] = (UInt16)Math.Max(0, Math.Min(UInt16.MaxValue, Math.Round(tmpValue)));
                     }
 
                     output.SetField(TiffTag.LINEARIZATIONTABLE, linearizationTable.Length, linearizationTable);
@@ -349,9 +360,9 @@ namespace RawBayer2DNG
                 {
 
                     UInt16 outputMaxValue = (UInt16)(Math.Pow(2, lossyLinLogModeOutputBitDepth) - 1);
-                    UInt16[] linearizationTable = new UInt16[outputMaxValue+1];
+                    UInt16[] linearizationTable = new UInt16[outputMaxValue + 1];
 
-                    for(int i=0;i<= outputMaxValue; i++)
+                    for (int i = 0; i <= outputMaxValue; i++)
                     {
 
                         linearizationTable[(Int16)i] = (UInt16)Math.Max(0, Math.Min(UInt16.MaxValue, Math.Round(LinLogLutilityClassifiedV1.LogToLin(i, lossyLinLogModeParameterA))));
@@ -394,13 +405,13 @@ namespace RawBayer2DNG
                 {
                     output.SetField(TiffTag.COMPRESSION, Compression.NONE);
                 }
-                    
+
 
                 output.SetField(TiffTag.PLANARCONFIG, PlanarConfig.CONTIG);
 
                 float[] cam_xyz =
                 {
-                3.2404542f / (float)RGBAmplify[0], -1.5371385f / (float)RGBAmplify[0], -0.4985314f / (float)RGBAmplify[0], 
+                3.2404542f / (float)RGBAmplify[0], -1.5371385f / (float)RGBAmplify[0], -0.4985314f / (float)RGBAmplify[0],
                     -0.9692660f / (float)RGBAmplify[1], 1.8760108f / (float)RGBAmplify[1], 0.0415560f / (float)RGBAmplify[1],
                     0.0556434f / (float)RGBAmplify[2], -0.2040259f / (float)RGBAmplify[2], 1.0572252f / (float)RGBAmplify[2]
             }; // my sRGB hack
@@ -412,9 +423,9 @@ namespace RawBayer2DNG
 
                 //DNG 
                 output.SetField(TiffTag.SUBFILETYPE, 0);
-                output.SetField(TiffTag.MAKE, r2dSettings.metaMake); 
+                output.SetField(TiffTag.MAKE, r2dSettings.metaMake);
                 output.SetField(TiffTag.MODEL, r2dSettings.metaModel);
-                output.SetField(TiffTag.SOFTWARE, r2dSettings.metaSoftware.Trim() == "" ? "RawBayer2DNG" : r2dSettings.metaSoftware+"(+RawBayer2DNG)");
+                output.SetField(TiffTag.SOFTWARE, r2dSettings.metaSoftware.Trim() == "" ? "RawBayer2DNG" : r2dSettings.metaSoftware + "(+RawBayer2DNG)");
                 output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
                 output.SetField(TiffTag.DNGBACKWARDVERSION, "\x1\x4\x0\x0");
                 output.SetField(TiffTag.UNIQUECAMERAMODEL, r2dSettings.metaUniqueCameraModel);
@@ -437,7 +448,7 @@ namespace RawBayer2DNG
                 //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
                 //output.SetField(TiffTag.WHITELEVEL, 1);
 
-                if(outputFormat != R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED && r2dSettings.compressDNGLosslessJPEG)
+                if (outputFormat != R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED && r2dSettings.compressDNGLosslessJPEG)
                 {
                     if (r2dSettings.losslessJPEGTiling)
                     {
@@ -505,7 +516,8 @@ namespace RawBayer2DNG
                         output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
                         output.WriteRawStrip(0, compressedJpegDataByteArray, compressedJpegDataByteArray.Length);*/
 
-                    } else
+                    }
+                    else
                     {
                         output.SetField(TiffTag.ROWSPERSTRIP, height);
                         UInt16[] rawImageDataUInt16 = new UInt16[rawImageData.Length / 2];
@@ -531,8 +543,14 @@ namespace RawBayer2DNG
                     output.WriteEncodedStrip(0, rawImageData, rawImageData.Length);
                 }
             }
-                      
-        }
+#if DEBUG
+        } catch (Exception e)
+            {
+                MessageBox.Show($"Error processing file {targetFilename}: "+e.Message);
+            }
+#endif
+
+    }
 
         private int getSetCount()
         {
@@ -645,6 +663,10 @@ namespace RawBayer2DNG
                 else if (r2dSettings.inputFormat == R2DSettings.InputFormat.RAW12P)
                 {
                     inputFormat = RAWDATAFORMAT.BAYERRG12p;
+                }
+                else if (r2dSettings.inputFormat == R2DSettings.InputFormat.RAW10P1)
+                {
+                    inputFormat = RAWDATAFORMAT.BAYER10p1;
                 }
                 return inputFormat;
             });
@@ -870,6 +892,10 @@ namespace RawBayer2DNG
                     {
                         buffersForMerge[i] = DataFormatConverter.tryConvertCintel10Inputto16bit(buffersForMerge[i]);
                     }*/
+                    if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER10p1)
+                    {
+                        buffersForMerge[i] = DataFormatConverter.convert10p1Inputto16bit(buffersForMerge[i]);
+                    }
                     if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                     {
                         buffersForMerge[i] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForMerge[i]);
@@ -1032,6 +1058,13 @@ namespace RawBayer2DNG
             worker.WorkerSupportsCancellation = true;
             worker.DoWork += worker_DoWork;
             worker.ProgressChanged += worker_ProgressChanged;
+            worker.RunWorkerCompleted += (a, b) =>
+            {
+                if (b.Error != null)
+                {
+                    MessageBox.Show("There was an error! " + b.Error.ToString());
+                }
+            };
             worker.RunWorkerAsync();
         }
 
@@ -1071,6 +1104,7 @@ namespace RawBayer2DNG
         {
             public int[] shotIndizi;
             public string outputName;
+            public string originalFilename;
         }
 
 
@@ -1090,8 +1124,7 @@ namespace RawBayer2DNG
 
             _totalFiles = imageSequenceSource.getImageCount();
 
-            // create lookup table: <inputfile, outputfile> 
-            Dictionary<int, SetInfo> dic = new Dictionary<int, SetInfo>();
+            
 
 
 
@@ -1107,6 +1140,11 @@ namespace RawBayer2DNG
                 shotSettings = getShotSettings();
                 setCount = getSetCount();
             });
+
+            // create lookup table: <inputfile, outputfile> 
+            //Dictionary<int, SetInfo> dic = new Dictionary<int, SetInfo>();
+            SetInfo[] dic = new SetInfo[setCount];
+
 
             uint[] cropAmountsAtBegin = r2dSettings.getCropAmounts();//(uint[])cropAmounts.Clone();
 
@@ -1126,6 +1164,7 @@ namespace RawBayer2DNG
             }
 
             int index = 0;
+            string[] originalFilenames = new string[shotSettings.shots.Length];
             for (int i= startIndex; increment > 0 ? i<= endIndex : i>= endIndex; i+= increment)
             //for (int i=0;i<setCount;i++)
             {
@@ -1152,6 +1191,7 @@ namespace RawBayer2DNG
                     else
                     {
                         indiziForMerge[a] = thatIndex;
+                        originalFilenames[a] = Path.GetFileName(imageSequenceSource.getImageName(thatIndex));
                     }
                 }
 
@@ -1163,8 +1203,35 @@ namespace RawBayer2DNG
                     string serializer = index.ToString().PadLeft(6, '0');
                     outputFile = targetFolder + "\\" + _newFileName + "_" + serializer + ".dng";
                 }
-                dic.Add(index, new SetInfo() { shotIndizi = indiziForMerge, outputName= outputFile }) ;
+                //dic.Add(index, new SetInfo() { shotIndizi = indiziForMerge, outputName= outputFile }) ;
+                dic[index] = new SetInfo() { shotIndizi = indiziForMerge, outputName= outputFile, originalFilename=String.Join(",", originalFilenames) };
                 index++;
+            }
+
+            // Split into separate sequences if desired
+            // We do it here separately from the for above to make it easier to read and not convolute too many concepts into one block
+            if (r2dSettings.splitOutputSequence && r2dSettings.splitOutputSequenceCount > 1)
+            {
+                int[] indizi = new int[r2dSettings.splitOutputSequenceCount];
+
+                // Create output sequence folders if they do not yet exist.
+                for(int i = 0; i < r2dSettings.splitOutputSequenceCount; i++)
+                {
+                    string outputFolder = targetFolder + "\\" + (i + 1).ToString();
+                    Directory.CreateDirectory(outputFolder);
+                }
+                
+                for (int i = 0; i < dic.Length; i++)
+                {
+                    if (!String.IsNullOrWhiteSpace(_newFileName)) // In this case, enumerate all entries
+                    {
+                        string serializer = (indizi[i % r2dSettings.splitOutputSequenceCount]++).ToString().PadLeft(6, '0');
+                        dic[i].outputName = targetFolder + "\\" + ((i % r2dSettings.splitOutputSequenceCount) + 1).ToString() + "\\" + _newFileName + "_" + serializer + ".dng";
+                    } else
+                    {
+                        dic[i].outputName = targetFolder + "\\" + ((i % r2dSettings.splitOutputSequenceCount) + 1).ToString() + "\\" + Path.GetFileName(dic[i].outputName);
+                    }
+                }
             }
 
 
@@ -1191,7 +1258,7 @@ namespace RawBayer2DNG
                     ISSErrorInfo errorInfo = new ISSErrorInfo();
 
                     // check to see if output file already exists
-                    if (File.Exists(currentImage.Value.outputName))
+                    if (File.Exists(currentImage.outputName))
                     {
                         // Error: File already exists. No overwriting. Move on.
                         //continue;
@@ -1200,7 +1267,7 @@ namespace RawBayer2DNG
 
                     if(shotSettings.shots.Length == 1) // SDR (single image)
                     {
-                        byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.Value.shotIndizi[0], ref metaInfo, ref errorInfo);
+                        byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.shotIndizi[0], ref metaInfo, ref errorInfo);
                         if (inputFormat == RAWDATAFORMAT.BAYERRG12p)
                         {
                             tmpBuff = DataFormatConverter.convert12pInputto16bit(tmpBuff);
@@ -1209,17 +1276,24 @@ namespace RawBayer2DNG
                         {
                             tmpBuff = DataFormatConverter.tryConvertCintel10Inputto16bit(tmpBuff);
                         }*/
+                        //byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.shotIndizi[0]);
+                        
+                        if (inputFormat == RAWDATAFORMAT.BAYER10p1)
+                        {
+                            tmpBuff = DataFormatConverter.convert10p1Inputto16bit(tmpBuff);
+                        }
                         if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                         {
                             tmpBuff = DataFormatConverter.convert12paddedto16Inputto16bit(tmpBuff);
                         }
 
-                        ProcessRAW(tmpBuff, currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                        ProcessRAW(tmpBuff, currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, currentImage.originalFilename);
+
                     } else // HDR
                     {
                         byte[][] buffersForHDR = new byte[3][];
                         int c = 0;
-                        foreach (int thisThereThatIndex in currentImage.Value.shotIndizi)
+                        foreach (int thisThereThatIndex in currentImage.shotIndizi)
                         {
 
                             buffersForHDR[c] = imageSequenceSource.getRawImageData(thisThereThatIndex, ref metaInfo, ref errorInfo);
@@ -1231,6 +1305,10 @@ namespace RawBayer2DNG
                             {
                                 buffersForHDR[c] = DataFormatConverter.tryConvertCintel10Inputto16bit(buffersForHDR[c]);
                             }*/
+                            if (inputFormat == RAWDATAFORMAT.BAYER10p1)
+                            {
+                                buffersForHDR[c] = DataFormatConverter.convert10p1Inputto16bit(buffersForHDR[c]);
+                            }
                             if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                             {
                                 buffersForHDR[c] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForHDR[c]);
@@ -1241,7 +1319,7 @@ namespace RawBayer2DNG
                         // For debugging
                         //File.WriteAllText("debug.txt","Clipping point: "+shotSettings.clippingPoint+", feather "+shotSettings.featherMultiplier);
 
-                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.Value.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(currentImage.Key)));
+                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, currentImage.originalFilename);
                     }
 
 
@@ -1647,6 +1725,10 @@ namespace RawBayer2DNG
                     {
                         buffersForMerge[i] = DataFormatConverter.tryConvertCintel10Inputto16bit(buffersForMerge[i]);
                     }*/
+                    if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER10p1)
+                    {
+                        buffersForMerge[i] = DataFormatConverter.convert10p1Inputto16bit(buffersForMerge[i]);
+                    }
                     if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                     {
                         buffersForMerge[i] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForMerge[i]);

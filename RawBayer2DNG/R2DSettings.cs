@@ -31,7 +31,9 @@ namespace RawBayer2DNG
             [Control("formatRadio_rg16")]
             RAW16BIT,
             [Control("formatRadio_rg12p")]
-            RAW12P
+            RAW12P,
+            [Control("formatRadio_10pmotioncam")]
+            RAW10P1 // MotionCam 10p
         }
         [Category("RawInterpret")]
         public InputFormat inputFormat = InputFormat.RAW16BIT;
@@ -200,11 +202,18 @@ namespace RawBayer2DNG
         [Control("ReverseOrder")]
         public bool reverseOrder = false;
         [Category("Output")]
+
         [Control("writeErrorReports")]
         public bool writeErrorReports = true;
         [Category("Output")]
         [Control("writeMetaDataHumanReadable")]
         public bool writeHumanReadableMetaData = false;
+
+        [Control("checkSplitOutputSequence")]
+        public bool splitOutputSequence = false;
+        [Category("Output")]
+        [Control("txtSplitOutputSequenceCount")]
+        public int splitOutputSequenceCount = 1;
 
         
     }

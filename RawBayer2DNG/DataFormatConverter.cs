@@ -101,6 +101,39 @@ namespace RawBayer2DNG
 
             return output;
         }
+        public static byte[] convert10p1Inputto16bit(byte[] input)
+        {
+            long inputlength = input.Length * 8;
+            long outputLength = inputlength / 10 * 16;
+            long inputlengthBytes = inputlength / 8;
+            long outputLengthBytes = outputLength / 8;
+
+            byte[] output = new byte[outputLengthBytes];
+
+            // For each 5 bytes in input, we write 8 bytes in output
+            for (long i = 0, o = 0; i < inputlengthBytes; i += 5, o += 8)
+            {
+                output[o + 1] = input[i]; // Seems correct
+                output[o] = (byte)((input[i + 4] & 0b0000_0011) << 6);
+                output[o + 3] = input[i + 1];
+                output[o + 2] = (byte)((input[i + 4] & 0b0000_1100) << 4);
+                output[o + 5] = input[i + 2];
+                output[o + 4] = (byte)((input[i + 4] & 0b0011_0000) << 2);
+                output[o + 7] = input[i + 3];
+                output[o + 6] = (byte)(input[i + 4] & 0b1100_0000);
+                /*Try 1: 1,2,3,4 and then the least significant bits of each in right order. Wasnt quite correct I think.
+                 * output[o+1] = input[i]; // Seems correct
+                output[o] = (byte)(input[i+4] & 0b1100_0000); 
+                output[o+3] = input[i + 1];
+                output[o+2] = (byte)((input[i + 4] & 0b0011_0000) << 2);
+                output[o+5] = input[i + 2];
+                output[o+4] = (byte)((input[i + 4] & 0b0000_11000) << 4);
+                output[o+7] = input[i + 3];
+                output[o+6] = (byte)((input[i + 4] & 0b0000_0011) << 6);*/
+            }
+
+            return output;
+        }
         public static byte[] convert12paddedto16Inputto16bit(byte[] input)
         {
             int inputlengthBytes = input.Length;
