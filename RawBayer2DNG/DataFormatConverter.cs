@@ -101,6 +101,29 @@ namespace RawBayer2DNG
 
             return output;
         }
+        public static byte[] convert12pV2Inputto16bit(byte[] input)
+        {
+            long inputlength = input.Length * 8;
+            long outputLength = inputlength / 12 * 16;
+            long inputlengthBytes = inputlength / 8;
+            long outputLengthBytes = outputLength / 8;
+
+            byte[] output = new byte[outputLengthBytes];
+
+            // For each 3 bytes in input, we write 4 bytes in output
+            for (long i = 0, o = 0; i < inputlengthBytes; i += 3, o += 4)
+            {
+
+                //output[o + 1] = (byte)((input[i] & 0b1111_0000) >> 4 | ((input[i + 1] & 0b0000_1111) << 4));
+                //output[o] = (byte)((input[i] & 0b0000_1111) << 4);
+                output[o + 1] = (byte)input[i];
+                output[o] = (byte)((input[i+1] & 0b0000_1111) << 4);
+                output[o + 3] = (byte)input[i + 2];
+                output[o + 2] = (byte)((input[i + 1] & 0b1111_0000));
+            }
+
+            return output;
+        }
         public static byte[] convert10p1Inputto16bit(byte[] input)
         {
             long inputlength = input.Length * 8;

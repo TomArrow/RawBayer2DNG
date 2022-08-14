@@ -142,6 +142,7 @@
                             <StackPanel>
                                 <RadioButton IsChecked="True" x:Name="formatRadio_rg16" Checked="FormatRadio_Checked">BayerRG16</RadioButton>
                                 <RadioButton x:Name="formatRadio_rg12p" Checked="FormatRadio_Checked">BayerRG12p</RadioButton>
+                                <RadioButton x:Name="formatRadio_rg12pV2" Checked="FormatRadio_Checked">BayerRG12p(V2)</RadioButton>
                                 <RadioButton x:Name="formatRadio_10pmotioncam" Checked="FormatRadio_Checked">10p (MotionCam)</RadioButton>
                             </StackPanel>
                         </WrapPanel>

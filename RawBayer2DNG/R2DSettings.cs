@@ -32,6 +32,8 @@ namespace RawBayer2DNG
             RAW16BIT,
             [Control("formatRadio_rg12p")]
             RAW12P,
+            [Control("formatRadio_rg12pV2")]
+            RAW12PV2,
             [Control("formatRadio_10pmotioncam")]
             RAW10P1 // MotionCam 10p
         }
