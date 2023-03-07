@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RawBayer2DNG", "RawBayer2DN
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JpegDecodingTests", "JpegDecodingTests\JpegDecodingTests.csproj", "{4977564C-1925-46B9-BEEE-72106778EE33}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RawBayer2DNG-NET5plus", "RawBayer2DNG-NET5plus\RawBayer2DNG-NET5plus.csproj", "{7698AA28-0C13-4490-82C4-A03D35AE330A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,6 +33,14 @@ Global
 		{4977564C-1925-46B9-BEEE-72106778EE33}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4977564C-1925-46B9-BEEE-72106778EE33}.Release|x64.ActiveCfg = Release|Any CPU
 		{4977564C-1925-46B9-BEEE-72106778EE33}.Release|x64.Build.0 = Release|Any CPU
+		{7698AA28-0C13-4490-82C4-A03D35AE330A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7698AA28-0C13-4490-82C4-A03D35AE330A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7698AA28-0C13-4490-82C4-A03D35AE330A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7698AA28-0C13-4490-82C4-A03D35AE330A}.Debug|x64.Build.0 = Debug|Any CPU
+		{7698AA28-0C13-4490-82C4-A03D35AE330A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7698AA28-0C13-4490-82C4-A03D35AE330A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7698AA28-0C13-4490-82C4-A03D35AE330A}.Release|x64.ActiveCfg = Release|Any CPU
+		{7698AA28-0C13-4490-82C4-A03D35AE330A}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

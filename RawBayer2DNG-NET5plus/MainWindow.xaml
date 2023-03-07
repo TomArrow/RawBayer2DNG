@@ -1,0 +1,338 @@
+﻿<Window x:Class="RawBayer2DNG.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:RawBayer2DNG"
+        mc:Ignorable="d"
+        DataContext="{Binding RelativeSource={RelativeSource Self}}"
+        Title="RawBayer2DNG" Height="850" Width="1300">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="45"></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition Height="350"></RowDefinition>
+            <RowDefinition Height="20">
+            </RowDefinition>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="57"></ColumnDefinition>
+            <ColumnDefinition Width="193"/>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition Width="200"></ColumnDefinition>
+            <ColumnDefinition Width="200"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="3" x:Name="presetPanel"></StackPanel>
+
+        <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.RowSpan="2" Grid.Row="1">
+
+            <GroupBox Header="RGB color balance"  ToolTip="{StaticResource ResourceKey=Tooltip_Magnifier_Sliders}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <Label>Magnifier Horizontal Position:</Label>
+                            <Slider x:Name="magnifierHorizontalPosition" Maximum="1" Minimum="0" Value="0.5" ValueChanged="MagnifierPosition_ValueChanged"></Slider>
+                            <Label>Magnifier Vertical Position:</Label>
+                            <Slider x:Name="magnifierVerticalPosition" Maximum="1" Minimum="0" Value="0.5" ValueChanged="MagnifierPosition_ValueChanged"></Slider>
+                        </StackPanel>
+                        <Image x:Name="Magnifier" Grid.Column="1" Stretch="Uniform"></Image>
+                    </Grid>
+                    <WrapPanel>
+                        <StackPanel Width="60">
+                            <Label HorizontalAlignment="Center">R</Label>
+                            <TextBox TextAlignment="Center" x:Name="txtRAmplify">1</TextBox>
+                            <Slider HorizontalAlignment="Center" x:Name="rAmplify" Maximum="3" Minimum="0" Orientation="Vertical" Value="{Binding ElementName=txtRAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                        </StackPanel>
+                        <StackPanel Width="60">
+                            <Label HorizontalAlignment="Center">G</Label>
+                            <TextBox TextAlignment="Center" x:Name="txtGAmplify">1</TextBox>
+                            <Slider HorizontalAlignment="Center" x:Name="gAmplify" Maximum="3" Minimum="0" Orientation="Vertical" Value="{Binding ElementName=txtGAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                        </StackPanel>
+                        <StackPanel Width="60">
+                            <Label HorizontalAlignment="Center">B</Label>
+                            <TextBox TextAlignment="Center" x:Name="txtBAmplify">1</TextBox>
+                            <Slider HorizontalAlignment="Center" x:Name="bAmplify" Maximum="3" Minimum="0" Orientation="Vertical" Value="{Binding ElementName=txtBAmplify,Path=Text,Mode=TwoWay}" Height="200"></Slider>
+                        </StackPanel>
+                    </WrapPanel>
+                    <TextBlock TextWrapping="Wrap">Caution: Changing these sliders DOES affect the resulting DNG look, however it does not affect the raw data saved into the DNG, which remains lossless. Channel seperation is likewise maintained when converting the DNG to sRGB.</TextBlock>
+                </StackPanel>
+            </GroupBox>
+
+
+            <GroupBox Header="Cropping">
+                <StackPanel>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition></RowDefinition>
+                            <RowDefinition></RowDefinition>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                        </Grid.ColumnDefinitions>
+                        <Label Grid.Row="0" Grid.Column="0">Left</Label>
+                        <TextBox x:Name="cropLeft_txt" Grid.Row="1" Grid.Column="0">0</TextBox>
+                        <Label Grid.Row="0" Grid.Column="1">Top</Label>
+                        <TextBox x:Name="cropTop_txt" Grid.Row="1" Grid.Column="1">0</TextBox>
+                        <Label Grid.Row="0" Grid.Column="2">Right</Label>
+                        <TextBox x:Name="cropRight_txt" Grid.Row="1" Grid.Column="2">0</TextBox>
+                        <Label Grid.Row="0" Grid.Column="3">Bottom</Label>
+                        <TextBox x:Name="cropBottom_txt" Grid.Row="1" Grid.Column="3" >0</TextBox>
+                    </Grid>
+                    <TextBlock TextWrapping="Wrap">Caution: Numbers will be rounded to multiples of 2.</TextBlock>
+                    <TextBlock TextWrapping="Wrap">
+                        Caution: This operation is not lossless. The cropped pixels will not be in the output DNG.
+                    </TextBlock>
+                </StackPanel>
+            </GroupBox>
+        </StackPanel>
+
+        <DockPanel Grid.Column="2" Grid.Row="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="81*"/>
+                    <ColumnDefinition Width="215*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="50"></RowDefinition>
+                    <RowDefinition Height="*"></RowDefinition>
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0" Grid.ColumnSpan="2" >
+                    <WrapPanel>
+                        <Label>Current image:</Label>
+                        <TextBox x:Name="currentImagNumber" MinWidth="50" TextAlignment="Right">0</TextBox>
+                        <TextBlock Padding="5 2 5 2"> of</TextBlock>
+                        <TextBlock x:Name="totalImageCount" Padding="5 2 5 2">0</TextBlock>
+                    </WrapPanel>
+                    <Slider VerticalAlignment="Bottom"  Name="slide_currentFile" Value="{Binding ElementName=currentImagNumber,Path=Text,Mode=TwoWay}" Maximum="0" Minimum="0" TickPlacement="BottomRight" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="1" ValueChanged="Slide_currentFile_ValueChanged" ></Slider>
+                </StackPanel>
+                <Image Grid.Row="1" x:Name="mainPreview" MinHeight="300" Grid.ColumnSpan="2" Stretch="Uniform"></Image>
+            </Grid>
+        </DockPanel>
+        <DockPanel Grid.Column="2" Grid.Row="2" Name="scopeDockPanel">
+            <Image Grid.Row="2" x:Name="mainPreviewScope" Grid.ColumnSpan="2"></Image>
+        </DockPanel>
+        <StackPanel Grid.Column="3"  Grid.RowSpan="3" Grid.Row="0">
+
+            <TabControl>
+                <TabItem Header=".raw">
+                    <StackPanel>
+
+                        <WrapPanel>
+                            <Label>Raw resolution</Label>
+                            <TextBox x:Name="rawWidth" MinWidth="20">2448</TextBox>
+                            <Label>x</Label>
+                            <TextBox x:Name="rawHeight" MinWidth="20">2048</TextBox>
+                            <Label>(set/check resolution first)</Label>
+                        </WrapPanel>
+                        <Button x:Name="btnLoadRAW" Click="BtnLoadRAW_Click">Process single .RAW (same folder)</Button>
+                        <Button x:Name="btnLoadRAWFolder" Click="BtnLoadRAWFolder_Click">Select folder of .RAW files</Button>
+
+                        <WrapPanel>
+                            <Label>Input format:</Label>
+                            <StackPanel>
+                                <RadioButton IsChecked="True" x:Name="formatRadio_rg16" Checked="FormatRadio_Checked">BayerRG16</RadioButton>
+                                <RadioButton x:Name="formatRadio_rg12p" Checked="FormatRadio_Checked">BayerRG12p</RadioButton>
+                                <RadioButton x:Name="formatRadio_rg12pV2" Checked="FormatRadio_Checked">BayerRG12p(V2)</RadioButton>
+                                <RadioButton x:Name="formatRadio_10pmotioncam" Checked="FormatRadio_Checked">10p (MotionCam)</RadioButton>
+                            </StackPanel>
+                        </WrapPanel>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition></RowDefinition>
+                                <RowDefinition></RowDefinition>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Grid.RowSpan="2">
+                                <TextBlock TextWrapping="Wrap">Bayer Pattern. 0=Red, 1=Green, 2=Blue</TextBlock>
+                            </StackPanel>
+                            <TextBox x:Name="colorBayerA" Grid.Column="1" Grid.Row="0" FontSize="25" TextAlignment="Center">1</TextBox>
+                            <TextBox x:Name="colorBayerB" Grid.Column="2" Grid.Row="0" FontSize="25" TextAlignment="Center">0</TextBox>
+                            <TextBox x:Name="colorBayerC" Grid.Column="1" Grid.Row="1" FontSize="25" TextAlignment="Center">2</TextBox>
+                            <TextBox x:Name="colorBayerD" Grid.Column="2" Grid.Row="1" FontSize="25" TextAlignment="Center">1</TextBox>
+
+                        </Grid>
+                    </StackPanel>
+
+                </TabItem>
+                <TabItem Header="Streampix .seq">
+
+                    <StackPanel>
+
+                        <Button x:Name="btnLoadStreamPixSeq" Click="btnLoadStreamPixSeq_Click">Load Streampix .seq file</Button>
+                        <Label>Sequence metadata:</Label>
+                        <TextBlock TextWrapping="Wrap" x:Name="streampix_fileInfo_txt">[no file loaded]</TextBlock>
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header=".dng">
+                    <StackPanel>
+                        <TextBlock TextWrapping="Wrap" FontSize="10">Use this if you want to reprocess dngs to change them into a different format. It is not meant to work with any other dngs than those produced by this tool, and even then it's mostly limited to uncompressed and non-lossy modes. It can also read non-lossy modes from Adobe DNG Converter.</TextBlock>
+                        <Button x:Name="btnLoadDNGFolder" Click="btnLoadDNGFolder_Click">Select folder of .dng files</Button>
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header=".cri">
+                    <StackPanel>
+                        <Button x:Name="btnLoadCRIFolder" Click="btnLoadCRIFolder_Click">Select folder of .cri files</Button>
+                        <Button x:Name="btnCRIStabExport" Click="btnCRIStabExport_Click" IsEnabled="False">Export stabilization keyframe data</Button>
+                    </StackPanel>
+                </TabItem>
+            </TabControl>
+
+            <GroupBox Header="Exposure settings / HDR">
+                <StackPanel>
+                    <WrapPanel ToolTip="{StaticResource ResourceKey=Tooltip_HDR_Sequence}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="exposureA" Grid.Column="0" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged">E</TextBox>
+                            <TextBox x:Name="exposureB" Grid.Column="1" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureC" Grid.Column="2" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureD" Grid.Column="3" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureE" Grid.Column="4" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+                            <TextBox x:Name="exposureF" Grid.Column="5" Grid.Row="0" FontSize="10" MinWidth="40" TextAlignment="Center" TextChanged="exposure_TextChanged"></TextBox>
+
+                        </Grid>
+
+                    </WrapPanel>
+                    <WrapPanel ToolTip="{StaticResource ResourceKey=Tooltip_HDR_Delay}">
+                        <Label>Delay (skip first X images):</Label>
+                        <TextBox TextAlignment="Right" MinWidth="30" x:Name="shotDelay_txt">0</TextBox>
+                    </WrapPanel>
+                    <WrapPanel  ToolTip="{StaticResource ResourceKey=Tooltip_HDR_ClippingPoint}">
+                        <Label>Clipping point</Label>
+                        <TextBox x:Name="clippingPoint_txt" MinWidth="30">0.7</TextBox>
+                    </WrapPanel>
+
+                    <WrapPanel ToolTip="{StaticResource ResourceKey=Tooltip_HDR_FeatherStops}">
+                        <Label>"Feather stops"</Label>
+                        <TextBox x:Name="featherStops_txt" MinWidth="30">0</TextBox>
+                    </WrapPanel>
+                    <Button ToolTip="Analyze correct exposure settings based on current frame set." x:Name="analyzeHDR_btn" Click="analyzeHDR_btn_Click">Refine exposures</Button>
+                    <WrapPanel ToolTip="{StaticResource ResourceKey=Tooltip_HDR_RefinePrecisionBits}">
+                        <Label>Refine precision bits</Label>
+                        <TextBox x:Name="analysisPrecision_txt" Width="40">5</TextBox>
+                    </WrapPanel>
+                </StackPanel>
+            </GroupBox>
+            <GroupBox Header="Output sequence split">
+                <StackPanel>
+                    <WrapPanel ToolTip="Use this, for example, to separate different exposures of a HDR capture or multi-exposure into separate sequences for later merging. For example if the built-in HDR functionality does not give satisfying results. Do not combine this with the HDR functionality, but use either or.">
+                        <CheckBox Padding="5 0 0 0" Margin="5" x:Name="checkSplitOutputSequence">Split to</CheckBox>
+                        <TextBox MinWidth="30" Margin="5 0 0 0" TextAlignment="Right" x:Name="txtSplitOutputSequenceCount">1</TextBox>
+                        <Label>sequences</Label>
+                    </WrapPanel>
+                </StackPanel>
+            </GroupBox>
+
+            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_Debayer}" x:Name="previewDebayer" Margin="2" IsChecked="True">Preview debayer</CheckBox>
+            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_sRGBGamma}" x:Name="previewGamma" IsChecked="True" Margin="2">Preview with sRGB gamma</CheckBox>
+            <CheckBox x:Name="drawScope_check" IsChecked="False" Margin="2">Draw scope</CheckBox>
+
+            <GroupBox Header="Metadata">
+                <StackPanel>
+                    <DockPanel>
+                        <Label>Make</Label>
+                        <TextBox HorizontalAlignment="Right" x:Name="txtMake" MinWidth="100" TextAlignment="Right">Point Grey</TextBox>
+                    </DockPanel>
+                    <DockPanel>
+                        <Label>Model</Label>
+                        <TextBox HorizontalAlignment="Right" x:Name="txtModel" MinWidth="100" TextAlignment="Right">Chameleon3</TextBox>
+                    </DockPanel>
+                    <DockPanel>
+                        <Label>Software</Label>
+                        <TextBox HorizontalAlignment="Right" x:Name="txtSoftware" MinWidth="100" TextAlignment="Right">FlyCapture2</TextBox>
+                    </DockPanel>
+                    <DockPanel>
+                        <Label>Uniq. Cam. Model</Label>
+                        <TextBox HorizontalAlignment="Right" x:Name="txtUniqueCameraModel" MinWidth="80" TextAlignment="Right">USB3</TextBox>
+                    </DockPanel>
+                </StackPanel>
+            </GroupBox>
+        </StackPanel>
+        <StackPanel Grid.Column="4" Grid.RowSpan="3" Grid.Row="0">
+
+
+            <GroupBox Header="DNG output data format">
+                <StackPanel>
+
+                    <WrapPanel>
+                        <RadioButton x:Name="output_12bitPacked_radio" IsChecked="False" ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitpacked}">12 bit packed</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuled_radio" IsChecked="True"  ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitdarkcapsuled}">12 bit dark in 16bit</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuled_radio" IsChecked="False"   ToolTip="{StaticResource ResourceKey=Tooltip_DNGOutput_12bitin16bitbrightcapsuled}">12 bit bright in 16bit / HDR</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog8Bit_radio" IsChecked="False"  >Lossy 12-in-8 (SDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog7Bit_radio" IsChecked="False" >Lossy 12-in-7 (SDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog6Bit_radio" IsChecked="False" >BAD: Lossy 12-in-6 (SDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitDarkCapsuledLinLog5Bit_radio" IsChecked="False"  >BAD: Lossy 12-in-5 (SDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledGamma10Bit_radio" IsChecked="False" >Lossy 16-in-10 (HDR) Gamma</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog10Bit_radio" IsChecked="False" >Lossy 16-in-10 (HDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog8Bit_radio" IsChecked="False" >Lossy 16-in-8 (HDR) LinLog</RadioButton>
+                        <RadioButton x:Name="output_16bitBrightCapsuledLinLog7Bit_radio" IsChecked="False"  >BAD: Lossy 16-in-7 (HDR) LinLog</RadioButton>
+                    </WrapPanel>
+                </StackPanel>
+            </GroupBox>
+            <CheckBox ToolTip="lossless compression" x:Name="compressDNG" IsChecked="False" Margin="2">Compress DNG (16 bit formats)</CheckBox>
+            <GroupBox Header="Lossless JPEG">
+                <StackPanel>
+                    <CheckBox ToolTip="lossless JPEG compression" x:Name="compressDNGLosslessJPEG" IsChecked="True" Margin="2">Use (for 16 bit &amp; lossy formats)</CheckBox>
+                    <CheckBox ToolTip="Don't worry, it's also lossless" x:Name="compressDNGLosslessJPEGTiling" IsChecked="True"  Margin="2">Use tiling to save space</CheckBox>
+                    <WrapPanel>
+                        <TextBlock>Tilesize:</TextBlock>
+                        <TextBox  x:Name="txtTileSize" MinWidth="30" TextAlignment="Right">192</TextBox>
+                    </WrapPanel>
+                </StackPanel>
+            </GroupBox>
+            <CheckBox ToolTip="Floyd-Steinberg Dithering when reducing the bit depth in the LinLog modes" x:Name="linLogDithering" IsChecked="True"  Margin="2">Dithering (in case of lossy LinLog)</CheckBox>
+            <CheckBox ToolTip="Will write an error log file for each file that encounters errors during conversion" x:Name="writeErrorReports" IsChecked="True"  Margin="2">Write error reports</CheckBox>
+            <CheckBox ToolTip="Will dump human readable metadata (where available) alongside the result images." IsEnabled="False" x:Name="writeMetaDataHumanReadable"  IsChecked="True"  Margin="2">Dump human readable metadata</CheckBox>
+
+
+            <WrapPanel>
+                <TextBlock x:Name="txtMaxThreads">Threads ( CPUs)</TextBlock>
+                <TextBox x:Name="Threads" MinWidth="30" TextAlignment="Right">4</TextBox>
+            </WrapPanel>
+            <Label Padding="0" Margin="2">Rename to (optional):</Label>
+            <TextBox x:Name="Rename" MinWidth="50" Margin="2"></TextBox>
+
+            <WrapPanel>
+                <CheckBox x:Name="ReverseOrder" IsChecked="False"></CheckBox>
+                <Label>Process Files in Reverse</Label>
+            </WrapPanel>
+
+            <Button x:Name="btnLoadTargetFolder" Click="BtnLoadTargetFolder_Click">Select target folder</Button>
+            <Button x:Name="btnSaveSettings" Click="btnSaveSettings_Click" IsEnabled="True">Save selected folders</Button>
+            <Button x:Name="btnProcessFolder" Click="BtnProcessFolder_Click" IsEnabled="False">Process loaded sequence</Button>
+            <Button Name="btnCancel" Width="60" Click="btnCancel_Click">Cancel</Button>
+            <StackPanel>
+                <Label>Info</Label>
+                <WrapPanel>
+                    <Label>Source:</Label>
+                    <TextBlock x:Name="txtSrcFolder" TextWrapping="Wrap"></TextBlock>
+                </WrapPanel>
+                <WrapPanel>
+                    <Label>Target folder:</Label>
+                    <TextBlock x:Name="txtTargetFolder" TextWrapping="Wrap"></TextBlock>
+                </WrapPanel>
+            </StackPanel>
+        </StackPanel>
+
+        <TextBlock x:Name="txtStatus" Grid.Row="3" Grid.ColumnSpan="3">Idle.</TextBlock>
+        <ProgressBar x:Name="pbStatus" Height="20"  Grid.Row="3" Grid.Column="3" Grid.ColumnSpan="2" Value="{Binding CurrentProgress, Mode=OneWay}"/>
+    </Grid>
+</Window>
