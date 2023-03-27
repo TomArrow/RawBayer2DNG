@@ -58,6 +58,11 @@ namespace RawBayer2DNG
         [Control("rawHeight")]
         public int rawHeight = 2048;
 
+
+        [Category("StreampixRead")]
+        [Control("flip12in16darklight")]
+        public bool streampixFlip12in16DarkLight = false;
+
         // HDR related settings
         [Category("HDR")]
         [Control("exposureA")]

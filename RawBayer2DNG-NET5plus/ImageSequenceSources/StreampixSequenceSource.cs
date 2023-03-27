@@ -76,7 +76,7 @@ namespace RawBayer2DNG.ImageSequenceSources
 
         ImageSequenceSourceType sourceType = ImageSequenceSourceType.RAW;
 
-        public StreampixSequenceSource(string sequencePath)
+        public StreampixSequenceSource(string sequencePath, bool flip12in16hack = false)
         {
             path = sequencePath;
             using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read),Encoding.Unicode))
@@ -130,12 +130,25 @@ namespace RawBayer2DNG.ImageSequenceSources
                 UInt32 imageBytesAlignment = reader.ReadUInt32(); // Not quite sure what this one does tbh
 
 
-                if (bitDepthReal == bitDepth && bitDepth == 16)
+                if (bitDepthReal == bitDepth && bitDepth == 16) // I think technically this handling isn't correct since the "bright capsuled" might actually be ACTUAL 16 bit data? Not relevant for most typical cameras tho
                 {
-                    rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+                    if (flip12in16hack)
+                    {
+                        rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
+                    }
+                    else
+                    {
+                        rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+                    }
                 } else if (bitDepthReal == 12 && bitDepth == 16)
                 {
-                    rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
+                    if (flip12in16hack)
+                    {
+                        rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+                    } else
+                    {
+                        rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
+                    }
                 } else if (bitDepthReal == 12 && bitDepth == 12 && imageFormat == ImageFormat.MONO_BAYER_PPACKED) {
                     rawDataFormat = RAWDATAFORMAT.BAYERRG12p;
 

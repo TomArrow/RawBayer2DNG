@@ -173,6 +173,7 @@
                         <Button x:Name="btnLoadStreamPixSeq" Click="btnLoadStreamPixSeq_Click">Load Streampix .seq file</Button>
                         <Label>Sequence metadata:</Label>
                         <TextBlock TextWrapping="Wrap" x:Name="streampix_fileInfo_txt">[no file loaded]</TextBlock>
+                        <CheckBox ToolTip="THIS IS A HACK! In some cases Streampix can wrongly interpret the data coming from cameras in 16 bit format. It can mistake which 4 bits must be ditched aka whether the 12 in 16 packing is 'dark' or 'bright'. This is a hacky fix." x:Name="flip12in16darklight" IsChecked="False"  Margin="2">12-in-16 dark/light flip</CheckBox>
                     </StackPanel>
                 </TabItem>
                 <TabItem Header=".dng">

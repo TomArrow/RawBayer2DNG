@@ -49,8 +49,13 @@ namespace PerformanceTests // Note: actual namespace depends on the project name
 
 
 #if DEBUG
-            Console.WriteLine("Devices:");
+           Console.WriteLine("DEBUG BUILD");
 #endif
+
+            Console.WriteLine("Devices:");
+
+            bool priorityPicked = false;
+
             foreach (CLPlatform platform in platforms)
             {
 
@@ -70,19 +75,24 @@ namespace PerformanceTests // Note: actual namespace depends on the project name
                     CL.GetDeviceInfo(device, DeviceInfo.Type, out deviceType);
                     string deviceNameString = System.Text.Encoding.Default.GetString(deviceName);
                     UInt64 deviceTypeNum = BitConverter.ToUInt64(deviceType);//TODO Is this portable?
-#if DEBUG
                     Console.Write(platformNameString);
                     Console.Write(": ");
                     Console.Write(deviceNameString);
                     Console.Write(" (");
                     Console.Write((DeviceType)deviceTypeNum);
-                    Console.WriteLine(")");
-#endif
+                    Console.Write(")");
 
-                    if ((DeviceType)deviceTypeNum == deviceTypeToUse)
+                    if ((DeviceType)deviceTypeNum == deviceTypeToUse && !priorityPicked)
                     {
                         deviceToUse = device;
+                        if (deviceNameString.Contains("NVIDIA"))
+                        {
+                            Console.Write(" - priority pick (for real this time)!\n");
+
+                            priorityPicked = true;
+                        }
                     }
+                    Console.Write("\n");
                 }
             }
 
@@ -154,6 +164,7 @@ namespace PerformanceTests // Note: actual namespace depends on the project name
             CLEvent eventWhatever;
 
             watch.Start();
+            //CL.EnqueueMapBuffer(queue, buffer, false, MapFlags.Read, 0, (nuint)input.Length, 0, null, out eventWhatever, out res);
             res = CL.EnqueueWriteBuffer(queue, buffer, true, 0, input, null, out eventWhatever);
             watch.Stop();
             Console.WriteLine($"TK write buffer: {watch.Elapsed.TotalMilliseconds}");
@@ -168,7 +179,7 @@ namespace PerformanceTests // Note: actual namespace depends on the project name
             exceptIfError(res, "Error setting kernel argument.");
 
             watch.Restart();
-            res = CL.EnqueueNDRangeKernel(queue, kernel, 1, new nuint[] { 0 }, new nuint[] { (nuint)input.Length / 2 }, new nuint[] { 32 }, 0, null, out eventWhatever);
+            res = CL.EnqueueNDRangeKernel(queue, kernel, 1, new nuint[] { 0 }, new nuint[] { (nuint)input.Length / 2 }, new nuint[] { 128 }, 0, null, out eventWhatever);
             watch.Stop();
             Console.WriteLine($"TK execute: {watch.Elapsed.TotalMilliseconds}");
 
@@ -185,7 +196,7 @@ namespace PerformanceTests // Note: actual namespace depends on the project name
             Console.WriteLine($"TK read buffer: {watch.Elapsed.TotalMilliseconds}");
 
             exceptIfError(res, "Error enqueueing buffer read.");
-
+            
             return input;
         }
     }

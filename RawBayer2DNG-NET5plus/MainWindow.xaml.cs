@@ -1391,7 +1391,7 @@ namespace RawBayer2DNG
             if (ofd.ShowDialog() == true)
             {
 
-                imageSequenceSource = new StreampixSequenceSource(ofd.FileName);
+                imageSequenceSource = new StreampixSequenceSource(ofd.FileName,r2dSettings.streampixFlip12in16DarkLight);
                 streampix_fileInfo_txt.Text = "Header version: " + (imageSequenceSource as StreampixSequenceSource).version.ToString()
                     + "\nDescription: " + (imageSequenceSource as StreampixSequenceSource).description
                     + "\nImage count: " + imageSequenceSource.getImageCount()
