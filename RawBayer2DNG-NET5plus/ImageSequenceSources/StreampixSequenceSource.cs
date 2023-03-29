@@ -142,13 +142,24 @@ namespace RawBayer2DNG.ImageSequenceSources
                     }
                 } else if (bitDepthReal == 12 && bitDepth == 16)
                 {
-                    if (flip12in16hack)
+                    if(imageFormat == ImageFormat.MONO_BAYER_MSB)
                     {
                         rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
                     } else
                     {
                         rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
                     }
+                    if (flip12in16hack)
+                    {
+                        if (rawDataFormat == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
+                        {
+                            rawDataFormat = RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT;
+                        }
+                        else
+                        {
+                            rawDataFormat = RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT;
+                        }
+                    } 
                 } else if (bitDepthReal == 12 && bitDepth == 12 && imageFormat == ImageFormat.MONO_BAYER_PPACKED) {
                     rawDataFormat = RAWDATAFORMAT.BAYERRG12p;
 

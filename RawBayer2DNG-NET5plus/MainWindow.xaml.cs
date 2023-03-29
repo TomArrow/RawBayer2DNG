@@ -1397,6 +1397,7 @@ namespace RawBayer2DNG
                     + "\nImage count: " + imageSequenceSource.getImageCount()
                     + "\nWrapper bit depth: " + (imageSequenceSource as StreampixSequenceSource).bitDepth
                     + "\nData bit depth: " + (imageSequenceSource as StreampixSequenceSource).bitDepthReal
+                    + "\nData format: " + (imageSequenceSource as StreampixSequenceSource).imageFormat
                     + "\nBayer pattern: " + bayerPatternToString((imageSequenceSource as StreampixSequenceSource).bayerPattern)
                     + "\nImage width: " + (imageSequenceSource as StreampixSequenceSource).width
                     + "\nImage height: " + (imageSequenceSource as StreampixSequenceSource).height;
@@ -1406,7 +1407,7 @@ namespace RawBayer2DNG
                     MessageBox.Show("Only uncompressed Streampix sequences are supported.");
                     isUsable = false;
                 }
-                if ((imageSequenceSource as StreampixSequenceSource).imageFormat != StreampixSequenceSource.ImageFormat.MONO_BAYER && (imageSequenceSource as StreampixSequenceSource).imageFormat != StreampixSequenceSource.ImageFormat.MONO_BAYER_PPACKED)
+                if ((imageSequenceSource as StreampixSequenceSource).imageFormat != StreampixSequenceSource.ImageFormat.MONO_BAYER_MSB && (imageSequenceSource as StreampixSequenceSource).imageFormat != StreampixSequenceSource.ImageFormat.MONO_BAYER && (imageSequenceSource as StreampixSequenceSource).imageFormat != StreampixSequenceSource.ImageFormat.MONO_BAYER_PPACKED)
                 {
                     MessageBox.Show("Only raw Bayer Streampix sequences are supported.");
                     isUsable = false;
