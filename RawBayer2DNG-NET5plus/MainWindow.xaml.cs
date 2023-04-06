@@ -250,7 +250,8 @@ namespace RawBayer2DNG
 
             byte[] resultData = null;
 
-            using (MemoryStream ms = new MemoryStream()) { 
+            using (MemoryStream ms = new MemoryStream(rawImageData.Length+100000)) { // It's just a guess. This should be enough for uncompressed data and a bit of header. Want to avoid reallocation. 
+
             //using (Tiff output = Tiff.Open(fileName, "w"))
                 using (Tiff output = Tiff.ClientOpen("in-memory", "w", ms, new TiffStream()))
                 {
