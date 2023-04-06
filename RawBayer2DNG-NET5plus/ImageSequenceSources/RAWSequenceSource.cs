@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace RawBayer2DNG.ImageSequenceSources
 {
-    class RAWSequenceSource : ImageSequenceSource
+    class RAWSequenceSource : ImageSequenceSource, ImageSequenceSourceCountable
     {
 
         public int width;
@@ -69,7 +69,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                 return "undefined file [index " + index + "]";
             }
         }
-        override public int getImageCount()
+        public int getImageCount()
         {
             return paths.Length;
         }

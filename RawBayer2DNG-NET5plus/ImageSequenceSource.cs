@@ -265,6 +265,11 @@ namespace RawBayer2DNG
         }
     }
 
+    interface ImageSequenceSourceCountable
+    {
+        abstract public int getImageCount();
+    }
+
     abstract class ImageSequenceSource
     {
 
@@ -295,7 +300,6 @@ namespace RawBayer2DNG
             return getRawImageData(index,ref metaInfo, ref errorInfo);
         }
         abstract public bool imageExists(int index);
-        abstract public int getImageCount();
         abstract public string getImageName(int index);
         public ImageSequenceSourceType getSourceType()
         {

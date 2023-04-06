@@ -74,6 +74,7 @@ namespace RawBayer2DNG
         private int _outputBufferStatus;
         private int _activeItemsStatus;
         private string currentStatus;
+        private bool sequenceIsCountable = true;
         private static int _counter = 0;
         private static int _totalFiles = 0;
         private static int _threadCount = 0;
@@ -587,10 +588,16 @@ namespace RawBayer2DNG
 
         }
 
-        private int getSetCount()
+        private int? getSetCount()
         {
-            ShotSettings shotSettings = getShotSettings();
-            return (int)Math.Floor(((double)imageSequenceSource.getImageCount() - (double)shotSettings.delay) / (double)shotSettings.shots.Length);
+            if(imageSequenceSource is ImageSequenceSourceCountable)
+            {
+                ShotSettings shotSettings = getShotSettings();
+                return (int)Math.Floor(((double)((ImageSequenceSourceCountable)imageSequenceSource).getImageCount() - (double)shotSettings.delay) / (double)shotSettings.shots.Length);
+            } else
+            {
+                return null;
+            }
 
         }
 
@@ -602,11 +609,11 @@ namespace RawBayer2DNG
             txtSrcFolder.Text = sourceName;
             txtStatus.Text = "Source set to " + sourceName;
 
-            int setCount = getSetCount();
+            int? setCount = getSetCount();
 
             currentImagNumber.Text = "1";
             totalImageCount.Text = setCount.ToString();
-            slide_currentFile.Maximum = setCount;
+            slide_currentFile.Maximum = setCount.HasValue ? setCount.Value : 1;
             slide_currentFile.Minimum = 1;
             slide_currentFile.Value = 1;
             btnProcessFolder.IsEnabled = true;
@@ -655,9 +662,67 @@ namespace RawBayer2DNG
                     filesAreReversed = true;
                 }*/ // Is now implemented directly in the processing, so works with all kinds of sources.
 
-                imageSequenceSource = new RAWSequenceSource(getInputFormat(), width, height, getBayerPattern(), filesInSourceFolder);
+                ImageSequenceSourceSetter = new RAWSequenceSource(getInputFormat(), width, height, getBayerPattern(), filesInSourceFolder);
 
                 loadedSequenceGUIUpdate("[RAW Folder] " + sourceFolder);
+
+                Properties.Settings.Default.InputFolder = sourceFolder;
+                Properties.Settings.Default.Save();
+
+            }
+        }
+
+
+        private void btnWatchRAWFolder_Click(object sender, RoutedEventArgs e)
+        {
+            // reset progress counters
+            CurrentProgress = 0;
+            _counter = 0;
+            var fbd = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog();
+            //  save path as a setting - We typically capture to the same folder every time.
+            if (!string.IsNullOrWhiteSpace(Properties.Settings.Default.InputFolder) && Directory.Exists(Properties.Settings.Default.InputFolder))
+            {
+                fbd.SelectedPath = Properties.Settings.Default.InputFolder;
+            }
+
+            bool? result = fbd.ShowDialog();
+
+            if (result == true && !string.IsNullOrWhiteSpace(fbd.SelectedPath) && Directory.Exists(fbd.SelectedPath))
+            {
+                sourceFolder = fbd.SelectedPath;
+
+                if (targetFolder == null)
+                {
+                    targetFolder = sourceFolder;
+                    txtTargetFolder.Text = targetFolder;
+                }
+
+                // Sorting naturally doesn't work with streamed ones. They are in the order they come in.
+                //filesInSourceFolder = Directory.GetFiles(fbd.SelectedPath, "*.raw");
+                //Array.Sort(filesInSourceFolder, new AlphanumComparatorFast());
+
+
+                int width = 2448;
+                int height = 2048;
+                width = r2dSettings.rawWidth;//int.Parse(rawWidth.Text);
+                height = r2dSettings.rawHeight;//int.Parse(rawHeight.Text);
+
+
+                // Option to reverse file order when running film in reverse!
+                // Todo find a more universal way to do this
+                /*if (r2dSettings.reverseOrder)
+                {
+                    Array.Reverse(filesInSourceFolder);
+                    filesAreReversed = true;
+                }*/ // Is now implemented directly in the processing, so works with all kinds of sources.
+
+                ImageSequenceSourceSetter = new RAWSequenceFolderWatchSource(getInputFormat(), width, height, getBayerPattern(), fbd.SelectedPath);
+
+                //.raw_ready
+                //.raw_alldone
+                MessageBox.Show("Create .raw files in the watched folder. After you are done writing each .raw file, create (touch) an empty file with the same name, but a .raw_ready extension. This will signal that the file is ready to be processed. When all files are written, write any file with a .raw_alldone extension and processing will stop. Do this with a slight delay for safety, or else Windows may or may not signal it before the actual iamge file that was written before, not sure if that can happen.");
+
+                loadedSequenceGUIUpdate("[RAW Watch Folder] " + sourceFolder);
 
                 Properties.Settings.Default.InputFolder = sourceFolder;
                 Properties.Settings.Default.Save();
@@ -874,6 +939,16 @@ namespace RawBayer2DNG
             if (imageSequenceSource == null)
             {
                 return; // Nothing to do here
+            }
+
+            if(!(imageSequenceSource is ImageSequenceSourceCountable))
+            {
+                // Preview not possible
+                previewNotPossibleTxt.Visibility = Visibility.Visible;
+                return;
+            } else
+            {
+                previewNotPossibleTxt.Visibility = Visibility.Hidden;
             }
 
             // Do this to not break functionality with the old algorithm and allow changes on the fly
@@ -1182,6 +1257,28 @@ namespace RawBayer2DNG
             }
         }
 
+        public bool SequenceIsCountable
+        {
+            get { return sequenceIsCountable; }
+            private set
+            {
+                if (sequenceIsCountable != value)
+                {
+                    sequenceIsCountable = value;
+                    OnPropertyChanged("SequenceIsCountable");
+                }
+            }
+        }
+
+        private ImageSequenceSource ImageSequenceSourceSetter
+        {
+            set
+            {
+                imageSequenceSource = value;
+                SequenceIsCountable = imageSequenceSource == null || imageSequenceSource is ImageSequenceSourceCountable;
+            }
+        }
+
         private struct SetInfo
         {
             public int[] shotIndizi;
@@ -1218,15 +1315,8 @@ namespace RawBayer2DNG
             byte[,] bayerPattern = imageSequenceSource.getBayerPattern();
             RAWDATAFORMAT inputFormat = imageSequenceSource.getRawDataFormat();
 
-            _totalFiles = imageSequenceSource.getImageCount();
-
-
-
-
 
             ShotSettings shotSettings = new ShotSettings();
-            int setCount = 0;
-
             double[] RGBamplify = { 1, 1, 1 };
 
             this.Dispatcher.Invoke(() =>
@@ -1234,106 +1324,127 @@ namespace RawBayer2DNG
                 //RGBamplify = new double[]{ rAmplify.Value, gAmplify.Value, bAmplify.Value };
                 RGBamplify = new double[] { r2dSettings.redMultiplier, r2dSettings.greenMultiplier, r2dSettings.blueMultiplier };
                 shotSettings = getShotSettings();
-                setCount = getSetCount();
             });
 
-            // create lookup table: <inputfile, outputfile> 
-            //Dictionary<int, SetInfo> dic = new Dictionary<int, SetInfo>();
-            SetInfo[] dic = new SetInfo[setCount];
-
+            SetInfo[] dic = null;
 
             uint[] cropAmountsAtBegin = r2dSettings.getCropAmounts();//(uint[])cropAmounts.Clone();
 
+            bool streaming = true;
 
-            int firstIndex;
-            bool anythingMissing = false;
-            string whatsMissing = "";
-            int[] indiziForMerge;
-            bool reverse = r2dSettings.reverseOrder;
+            if (imageSequenceSource is ImageSequenceSourceCountable) {
 
-            int startIndex = 0, endIndex = setCount - 1, increment = 1;
-            if (reverse)
-            {
-                startIndex = setCount - 1;
-                endIndex = 0;
-                increment = -1;
+                streaming = false;
+
+                _totalFiles = ((ImageSequenceSourceCountable)imageSequenceSource).getImageCount();
+
+
+
+
+                int setCount = 0;
+
+
+                this.Dispatcher.Invoke(() =>
+                {
+                    setCount = getSetCount().Value;
+                });
+
+                // create lookup table: <inputfile, outputfile> 
+                //Dictionary<int, SetInfo> dic = new Dictionary<int, SetInfo>();
+                dic = new SetInfo[setCount];
+
+
+
+
+                int firstIndex;
+                bool anythingMissing = false;
+                string whatsMissing = "";
+                int[] indiziForMerge;
+                bool reverse = r2dSettings.reverseOrder;
+
+                int startIndex = 0, endIndex = setCount - 1, increment = 1;
+                if (reverse)
+                {
+                    startIndex = setCount - 1;
+                    endIndex = 0;
+                    increment = -1;
+                }
+
+                int index = 0;
+                string[] originalFilenames = new string[shotSettings.shots.Length];
+                for (int i = startIndex; increment > 0 ? i <= endIndex : i >= endIndex; i += increment)
+                //for (int i=0;i<setCount;i++)
+                {
+
+                    firstIndex = i * shotSettings.shots.Length + shotSettings.delay;
+                    string fileNameWithoutExtension =
+                        targetFolder + "\\" + Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(firstIndex));
+                    string outputFile = fileNameWithoutExtension + ".dng";
+
+                    // Check if anything's missing
+                    indiziForMerge = new int[shotSettings.shots.Length];
+                    anythingMissing = false;
+                    whatsMissing = "";
+                    int thatIndex;
+                    for (int a = 0; a < shotSettings.shots.Length; a++)
+                    {
+                        thatIndex = firstIndex + a;
+                        if (!imageSequenceSource.imageExists(thatIndex))
+                        {
+                            anythingMissing = true;
+                            whatsMissing = imageSequenceSource.getImageName(thatIndex);
+                            break;
+                        }
+                        else
+                        {
+                            indiziForMerge[a] = thatIndex;
+                            originalFilenames[a] = Path.GetFileName(imageSequenceSource.getImageName(thatIndex));
+                        }
+                    }
+
+                    if (anythingMissing) continue; //skip this one, files are missing
+
+
+                    if (!String.IsNullOrWhiteSpace(_newFileName))
+                    {
+                        string serializer = index.ToString().PadLeft(6, '0');
+                        outputFile = targetFolder + "\\" + _newFileName + "_" + serializer + ".dng";
+                    }
+                    //dic.Add(index, new SetInfo() { shotIndizi = indiziForMerge, outputName= outputFile }) ;
+                    dic[index] = new SetInfo() { shotIndizi = indiziForMerge, outputName = outputFile, originalFilename = String.Join(",", originalFilenames) };
+                    index++;
+                }
+
+                // Split into separate sequences if desired
+                // We do it here separately from the for above to make it easier to read and not convolute too many concepts into one block
+                if (r2dSettings.splitOutputSequence && r2dSettings.splitOutputSequenceCount > 1)
+                {
+                    int[] indizi = new int[r2dSettings.splitOutputSequenceCount];
+
+                    // Create output sequence folders if they do not yet exist.
+                    for (int i = 0; i < r2dSettings.splitOutputSequenceCount; i++)
+                    {
+                        string outputFolder = targetFolder + "\\" + (i + 1).ToString();
+                        Directory.CreateDirectory(outputFolder);
+                    }
+
+                    for (int i = 0; i < dic.Length; i++)
+                    {
+                        if (!String.IsNullOrWhiteSpace(_newFileName)) // In this case, enumerate all entries
+                        {
+                            string serializer = (indizi[i % r2dSettings.splitOutputSequenceCount]++).ToString().PadLeft(6, '0');
+                            dic[i].outputName = targetFolder + "\\" + ((i % r2dSettings.splitOutputSequenceCount) + 1).ToString() + "\\" + _newFileName + "_" + serializer + ".dng";
+                        }
+                        else
+                        {
+                            dic[i].outputName = targetFolder + "\\" + ((i % r2dSettings.splitOutputSequenceCount) + 1).ToString() + "\\" + Path.GetFileName(dic[i].outputName);
+                        }
+                    }
+                }
+
+
+
             }
-
-            int index = 0;
-            string[] originalFilenames = new string[shotSettings.shots.Length];
-            for (int i = startIndex; increment > 0 ? i <= endIndex : i >= endIndex; i += increment)
-            //for (int i=0;i<setCount;i++)
-            {
-
-                firstIndex = i * shotSettings.shots.Length + shotSettings.delay;
-                string fileNameWithoutExtension =
-                    targetFolder + "\\" + Path.GetFileNameWithoutExtension(imageSequenceSource.getImageName(firstIndex));
-                string outputFile = fileNameWithoutExtension + ".dng";
-
-                // Check if anything's missing
-                indiziForMerge = new int[shotSettings.shots.Length];
-                anythingMissing = false;
-                whatsMissing = "";
-                int thatIndex;
-                for (int a = 0; a < shotSettings.shots.Length; a++)
-                {
-                    thatIndex = firstIndex + a;
-                    if (!imageSequenceSource.imageExists(thatIndex))
-                    {
-                        anythingMissing = true;
-                        whatsMissing = imageSequenceSource.getImageName(thatIndex);
-                        break;
-                    }
-                    else
-                    {
-                        indiziForMerge[a] = thatIndex;
-                        originalFilenames[a] = Path.GetFileName(imageSequenceSource.getImageName(thatIndex));
-                    }
-                }
-
-                if (anythingMissing) continue; //skip this one, files are missing
-
-
-                if (!String.IsNullOrWhiteSpace(_newFileName))
-                {
-                    string serializer = index.ToString().PadLeft(6, '0');
-                    outputFile = targetFolder + "\\" + _newFileName + "_" + serializer + ".dng";
-                }
-                //dic.Add(index, new SetInfo() { shotIndizi = indiziForMerge, outputName= outputFile }) ;
-                dic[index] = new SetInfo() { shotIndizi = indiziForMerge, outputName = outputFile, originalFilename = String.Join(",", originalFilenames) };
-                index++;
-            }
-
-            // Split into separate sequences if desired
-            // We do it here separately from the for above to make it easier to read and not convolute too many concepts into one block
-            if (r2dSettings.splitOutputSequence && r2dSettings.splitOutputSequenceCount > 1)
-            {
-                int[] indizi = new int[r2dSettings.splitOutputSequenceCount];
-
-                // Create output sequence folders if they do not yet exist.
-                for (int i = 0; i < r2dSettings.splitOutputSequenceCount; i++)
-                {
-                    string outputFolder = targetFolder + "\\" + (i + 1).ToString();
-                    Directory.CreateDirectory(outputFolder);
-                }
-
-                for (int i = 0; i < dic.Length; i++)
-                {
-                    if (!String.IsNullOrWhiteSpace(_newFileName)) // In this case, enumerate all entries
-                    {
-                        string serializer = (indizi[i % r2dSettings.splitOutputSequenceCount]++).ToString().PadLeft(6, '0');
-                        dic[i].outputName = targetFolder + "\\" + ((i % r2dSettings.splitOutputSequenceCount) + 1).ToString() + "\\" + _newFileName + "_" + serializer + ".dng";
-                    }
-                    else
-                    {
-                        dic[i].outputName = targetFolder + "\\" + ((i % r2dSettings.splitOutputSequenceCount) + 1).ToString() + "\\" + Path.GetFileName(dic[i].outputName);
-                    }
-                }
-            }
-
-
-            var countLock = new object();
-            CurrentProgress = 0;
 
             int threads = r2dSettings.maxThreads;//Properties.Settings.Default.MaxThreads;
 
@@ -1341,10 +1452,11 @@ namespace RawBayer2DNG
                 threads = Environment.ProcessorCount > 1 ? Environment.ProcessorCount / 2 : Environment.ProcessorCount;
 
 
+            var countLock = new object();
+            CurrentProgress = 0;
             _threadCount = threads;
 
-
-            if (!r2dSettings.oldThreading) {  // New threading code
+            if (!r2dSettings.oldThreading || streaming) {  // New threading code
 
                 ParallelAssemblyLineV2.Run<ParallelAssemblyInput, ParallelAssemblyOutput>(
                 //
@@ -1352,7 +1464,11 @@ namespace RawBayer2DNG
                 //
                 (index) =>
                 {
-                    if(index >= dic.Length)
+                    if (streaming && !imageSequenceSource.imageExists((int)index))
+                    {
+                        return null;
+                    }
+                    else if(!streaming && index >= dic.Length)
                     {
                         return null;
                     }
@@ -1363,7 +1479,20 @@ namespace RawBayer2DNG
                     }
                     else
                     {
-                        ParallelAssemblyInput inputData = new ParallelAssemblyInput() { setInfo = dic[index],imageData=new byte[shotSettings.shots.Length][] };
+                        ParallelAssemblyInput inputData = null;
+                        if (streaming)
+                        {
+                            string imageName = imageSequenceSource.getImageName((int)index);
+                            inputData = new ParallelAssemblyInput() { setInfo = new SetInfo
+                            {
+                                shotIndizi = new int[1] { (int)index },
+                                originalFilename = imageName,
+                                outputName = targetFolder + "\\" + Path.GetFileNameWithoutExtension(imageName) + ".dng"
+                            }, imageData = new byte[1][] };
+                        } else
+                        {
+                            inputData = new ParallelAssemblyInput() { setInfo = dic[index], imageData = new byte[shotSettings.shots.Length][] };
+                        }
                         int c = 0;
                         foreach (int thisThereThatIndex in inputData.setInfo.shotIndizi)
                         {
@@ -1632,10 +1761,10 @@ namespace RawBayer2DNG
             if (ofd.ShowDialog() == true)
             {
 
-                imageSequenceSource = new StreampixSequenceSource(ofd.FileName,r2dSettings.streampixFlip12in16DarkLight);
+                ImageSequenceSourceSetter = new StreampixSequenceSource(ofd.FileName,r2dSettings.streampixFlip12in16DarkLight);
                 streampix_fileInfo_txt.Text = "Header version: " + (imageSequenceSource as StreampixSequenceSource).version.ToString()
                     + "\nDescription: " + (imageSequenceSource as StreampixSequenceSource).description
-                    + "\nImage count: " + imageSequenceSource.getImageCount()
+                    + "\nImage count: " + ((ImageSequenceSourceCountable)imageSequenceSource).getImageCount()
                     + "\nWrapper bit depth: " + (imageSequenceSource as StreampixSequenceSource).bitDepth
                     + "\nData bit depth: " + (imageSequenceSource as StreampixSequenceSource).bitDepthReal
                     + "\nData format: " + (imageSequenceSource as StreampixSequenceSource).imageFormat
@@ -1663,7 +1792,7 @@ namespace RawBayer2DNG
                 if (!isUsable)
                 {
 
-                    imageSequenceSource = null;
+                    ImageSequenceSourceSetter = null;
                 }
                 else
                 {
@@ -1876,7 +2005,7 @@ namespace RawBayer2DNG
 
 
 
-                imageSequenceSource = new DNGSequenceSource(filesInSourceFolder);
+                ImageSequenceSourceSetter = new DNGSequenceSource(filesInSourceFolder);
 
 
                 loadedSequenceGUIUpdate("[DNG Folder] " + sourceFolder);
@@ -1913,7 +2042,7 @@ namespace RawBayer2DNG
 
 
 
-                imageSequenceSource = new CRISequenceSource(filesInSourceFolder);
+                ImageSequenceSourceSetter = new CRISequenceSource(filesInSourceFolder);
 
 
                 btnCRIStabExport.IsEnabled = true;
@@ -2219,7 +2348,7 @@ namespace RawBayer2DNG
             {
 
 
-                ulong count = (ulong)imageSequenceSource.getImageCount();
+                ulong count = (ulong)((ImageSequenceSourceCountable)imageSequenceSource).getImageCount();
                 retVal = new float[count][];
 
                 for (ulong i = 0; i < count; i++)

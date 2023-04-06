@@ -9,7 +9,7 @@ using JpegLibrary;
 
 namespace RawBayer2DNG.ImageSequenceSources
 {
-    class DNGSequenceSource : ImageSequenceSource
+    class DNGSequenceSource : ImageSequenceSource, ImageSequenceSourceCountable
     {
 
         public const TiffTag TIFFTAG_CFAREPEATPATTERNDIM = (TiffTag)33421;
@@ -277,7 +277,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                 return "undefined file [index " + index + "]";
             }
         }
-        override public int getImageCount()
+        public int getImageCount()
         {
             return paths.Length;
         }

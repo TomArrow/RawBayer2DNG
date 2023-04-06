@@ -104,16 +104,17 @@
                     <RowDefinition Height="50"></RowDefinition>
                     <RowDefinition Height="*"></RowDefinition>
                 </Grid.RowDefinitions>
-                <StackPanel Grid.Row="0" Grid.ColumnSpan="2" >
+                <StackPanel Grid.Row="0" Grid.ColumnSpan="2"  IsEnabled="{Binding SequenceIsCountable}">
                     <WrapPanel>
                         <Label>Current image:</Label>
                         <TextBox x:Name="currentImagNumber" MinWidth="50" TextAlignment="Right">0</TextBox>
                         <TextBlock Padding="5 2 5 2"> of</TextBlock>
                         <TextBlock x:Name="totalImageCount" Padding="5 2 5 2">0</TextBlock>
+                        <TextBlock x:Name="previewNotPossibleTxt" FontStyle="Italic" FontWeight="Black" Padding="5 2 5 2" Foreground="Red" Visibility="Hidden">Preview not possible because loaded sequence has no fixed length</TextBlock>
                     </WrapPanel>
                     <Slider VerticalAlignment="Bottom"  Name="slide_currentFile" Value="{Binding ElementName=currentImagNumber,Path=Text,Mode=TwoWay}" Maximum="0" Minimum="0" TickPlacement="BottomRight" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="1" ValueChanged="Slide_currentFile_ValueChanged" ></Slider>
                 </StackPanel>
-                <Image Grid.Row="1" x:Name="mainPreview" MinHeight="300" Grid.ColumnSpan="2" Stretch="Uniform"></Image>
+                <Image Grid.Row="1" x:Name="mainPreview" MinHeight="300" Grid.ColumnSpan="2" Stretch="Uniform"  IsEnabled="{Binding SequenceIsCountable}"></Image>
             </Grid>
         </DockPanel>
         <DockPanel Grid.Column="2" Grid.Row="2" Name="scopeDockPanel">
@@ -134,6 +135,7 @@
                         </WrapPanel>
                         <Button x:Name="btnLoadRAW" Click="BtnLoadRAW_Click">Process single .RAW (same folder)</Button>
                         <Button x:Name="btnLoadRAWFolder" Click="BtnLoadRAWFolder_Click">Select folder of .RAW files</Button>
+                        <Button x:Name="btnWatchRAWFolder" Click="btnWatchRAWFolder_Click">Watch folder for .RAW files</Button>
 
                         <WrapPanel>
                             <Label>Input format:</Label>
@@ -190,7 +192,7 @@
                 </TabItem>
             </TabControl>
 
-            <GroupBox Header="Exposure settings / HDR">
+            <GroupBox Header="Exposure settings / HDR" IsEnabled="{Binding SequenceIsCountable}">
                 <StackPanel>
                     <WrapPanel ToolTip="{StaticResource ResourceKey=Tooltip_HDR_Sequence}">
                         <Grid>
@@ -232,7 +234,7 @@
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>
-            <GroupBox Header="Output sequence split">
+            <GroupBox Header="Output sequence split" IsEnabled="{Binding SequenceIsCountable}">
                 <StackPanel>
                     <WrapPanel ToolTip="Use this, for example, to separate different exposures of a HDR capture or multi-exposure into separate sequences for later merging. For example if the built-in HDR functionality does not give satisfying results. Do not combine this with the HDR functionality, but use either or.">
                         <CheckBox Padding="5 0 0 0" Margin="5" x:Name="checkSplitOutputSequence">Split to</CheckBox>
@@ -242,9 +244,9 @@
                 </StackPanel>
             </GroupBox>
 
-            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_Debayer}" x:Name="previewDebayer" Margin="2" IsChecked="True">Preview debayer</CheckBox>
-            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_sRGBGamma}" x:Name="previewGamma" IsChecked="True" Margin="2">Preview with sRGB gamma</CheckBox>
-            <CheckBox x:Name="drawScope_check" IsChecked="False" Margin="2">Draw scope</CheckBox>
+            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_Debayer}" x:Name="previewDebayer" Margin="2" IsChecked="True"  IsEnabled="{Binding SequenceIsCountable}">Preview debayer</CheckBox>
+            <CheckBox ToolTip="{StaticResource ResourceKey=Tooltip_Preview_sRGBGamma}" x:Name="previewGamma" IsChecked="True" Margin="2"  IsEnabled="{Binding SequenceIsCountable}">Preview with sRGB gamma</CheckBox>
+            <CheckBox x:Name="drawScope_check" IsChecked="False" Margin="2"  IsEnabled="{Binding SequenceIsCountable}">Draw scope</CheckBox>
 
             <GroupBox Header="Metadata">
                 <StackPanel>
@@ -340,7 +342,7 @@
                 </TabControl>
             </GroupBox>
             <Label Padding="0" Margin="2">Rename to (optional):</Label>
-            <TextBox x:Name="Rename" MinWidth="50" Margin="2"></TextBox>
+            <TextBox x:Name="Rename" MinWidth="50" Margin="2"  IsEnabled="{Binding SequenceIsCountable}"></TextBox>
 
             <WrapPanel>
                 <CheckBox x:Name="ReverseOrder" IsChecked="False"></CheckBox>
@@ -351,17 +353,19 @@
             <Button x:Name="btnSaveSettings" Click="btnSaveSettings_Click" IsEnabled="True">Save selected folders</Button>
             <Button x:Name="btnProcessFolder" Click="BtnProcessFolder_Click" IsEnabled="False">Process loaded sequence</Button>
             <Button Name="btnCancel" Width="60" Click="btnCancel_Click">Cancel</Button>
-            <StackPanel>
-                <Label>Info</Label>
-                <WrapPanel>
-                    <Label>Source:</Label>
-                    <TextBlock x:Name="txtSrcFolder" TextWrapping="Wrap"></TextBlock>
-                </WrapPanel>
-                <WrapPanel>
-                    <Label>Target folder:</Label>
-                    <TextBlock x:Name="txtTargetFolder" TextWrapping="Wrap"></TextBlock>
-                </WrapPanel>
-            </StackPanel>
+            <GroupBox Header="Info">
+                <StackPanel>
+                    <WrapPanel>
+                        <Label FontSize="10">Source:</Label>
+                        <TextBlock x:Name="txtSrcFolder" TextWrapping="Wrap" FontSize="10"></TextBlock>
+                    </WrapPanel>
+                    <WrapPanel>
+                        <Label FontSize="10">Target folder:</Label>
+                        <TextBlock x:Name="txtTargetFolder" TextWrapping="Wrap" FontSize="10"></TextBlock>
+                    </WrapPanel>
+                </StackPanel>
+            </GroupBox>
+
         </StackPanel>
 
         <TextBlock x:Name="txtStatus" Grid.Row="3" Grid.ColumnSpan="3">Idle.</TextBlock>
@@ -374,7 +378,7 @@
                 <Label Margin="5 0 2 0" Padding="1">Active</Label>
                 <ProgressBar Width="80" x:Name="activeItemsStatus" Height="20"  Value="{Binding ActiveItemsStatus, Mode=OneWay}"/>
             </WrapPanel>
-            <ProgressBar x:Name="pbStatus" Height="20"  Value="{Binding CurrentProgress, Mode=OneWay}"/>
+            <ProgressBar x:Name="pbStatus" Height="20"  Value="{Binding CurrentProgress, Mode=OneWay}"  IsEnabled="{Binding SequenceIsCountable}"/>
         </StackPanel>
     </Grid>
 </Window>

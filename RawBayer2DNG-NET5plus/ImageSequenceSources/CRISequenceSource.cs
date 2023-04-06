@@ -9,7 +9,7 @@ using JpegLibrary;
 
 namespace RawBayer2DNG.ImageSequenceSources
 {
-    class CRISequenceSource : ImageSequenceSource
+    class CRISequenceSource : ImageSequenceSource, ImageSequenceSourceCountable
     {
 
 
@@ -854,7 +854,7 @@ namespace RawBayer2DNG.ImageSequenceSources
                 return "undefined file [index " + index + "]";
             }
         }
-        override public int getImageCount()
+        public int getImageCount()
         {
             return paths.Length;
         }
