@@ -189,15 +189,17 @@ namespace RawBayer2DNG
                 //double[]  RGBamplify =  { rAmplify.Value, gAmplify.Value, bAmplify.Value };
                 double[] RGBamplify = { r2dSettings.redMultiplier, r2dSettings.greenMultiplier, r2dSettings.blueMultiplier };
 
-                byte[] resultData = ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, RGBamplify, r2dSettings.getCropAmounts(), metaInfo, errorInfo, Path.GetFileNameWithoutExtension(ofd.FileName));
-                File.WriteAllBytes(fileName, resultData);
+                (Stream resultData,IDisposable tiff) = ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, RGBamplify, r2dSettings.getCropAmounts(), metaInfo, errorInfo, Path.GetFileNameWithoutExtension(ofd.FileName));
+                //File.WriteAllBytes(fileName, resultData);
+                Helpers.streamToFileAndDispose(fileName, resultData);
+                tiff.Dispose();
                 resultData = null;
             }
         }
 
 
 
-        private byte[] ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, uint[] cropAmounts, ISSMetaInfo metaInfo, ISSErrorInfo errorInfo, string sourceFileNameForTIFFTag = "")
+        private (MemoryStream,Tiff) ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, uint[] cropAmounts, ISSMetaInfo metaInfo, ISSErrorInfo errorInfo, string sourceFileNameForTIFFTag = "")
         {
 
 #if DEBUG
@@ -250,10 +252,12 @@ namespace RawBayer2DNG
 
             byte[] resultData = null;
 
-            using (MemoryStream ms = new MemoryStream(rawImageData.Length+100000)) { // It's just a guess. This should be enough for uncompressed data and a bit of header. Want to avoid reallocation. 
+            //using (MemoryStream ms = new MemoryStream(rawImageData.Length+100000)) { // It's just a guess. This should be enough for uncompressed data and a bit of header. Want to avoid reallocation. 
+            MemoryStream ms = new MemoryStream(rawImageData.Length + 100000);
 
-            //using (Tiff output = Tiff.Open(fileName, "w"))
-                using (Tiff output = Tiff.ClientOpen("in-memory", "w", ms, new TiffStream()))
+                //using (Tiff output = Tiff.Open(fileName, "w"))
+                //using (Tiff output = Tiff.ClientOpen("in-memory", "w", ms, new TiffStream()))
+                Tiff output = Tiff.ClientOpen("in-memory", "w", ms, new TiffStream());
                 {
                     // Basic TIFF functionality
                     output.SetField(TiffTag.IMAGEWIDTH, width);
@@ -558,17 +562,21 @@ namespace RawBayer2DNG
                         output.WriteEncodedStrip(0, rawImageData, rawImageData.Length);
                     }
 
-                    output.Close();
+                    //output.Close();
+                    output.Flush();
                 }
 
-                resultData = ms.ToArray();
-            }
-            return resultData;
+                
+
+                return (ms,output);
+               // resultData = ms.ToArray();
+            //}
+            //return resultData;
 #if DEBUG
         } catch (Exception e)
             {
                 MessageBox.Show($"Error processing file {targetFilename}: "+e.Message);
-                return null;
+                return (null,null);
             }
 #endif
 
@@ -1186,7 +1194,8 @@ namespace RawBayer2DNG
         }
         class ParallelAssemblyOutput
         {
-            public byte[] fileData = null;
+            public Stream fileData = null;
+            public IDisposable disposable = null;
             public SetInfo setInfo;
         }
 
@@ -1393,15 +1402,16 @@ namespace RawBayer2DNG
                         c++;
                     }
 
-                    byte[] resultData = null;
+                    MemoryStream resultData = null;
+                    IDisposable tiff = null;
                     if (inputData.setInfo.shotIndizi.Length == 1) {
                         // Normal
-                        resultData = ProcessRAW(inputData.imageData[0], inputData.setInfo.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, inputData.metaInfo, inputData.errorInfo, inputData.setInfo.originalFilename);
+                        (resultData,tiff) = ProcessRAW(inputData.imageData[0], inputData.setInfo.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, inputData.metaInfo, inputData.errorInfo, inputData.setInfo.originalFilename);
                     }
                     else
                     {
                         // HDR
-                        resultData = ProcessRAW(HDRMerge(inputData.imageData, shotSettings), inputData.setInfo.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, inputData.metaInfo, inputData.errorInfo, inputData.setInfo.originalFilename);
+                        (resultData, tiff) = ProcessRAW(HDRMerge(inputData.imageData, shotSettings), inputData.setInfo.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, inputData.metaInfo, inputData.errorInfo, inputData.setInfo.originalFilename);
                     }
                     if(resultData == null)
                     {
@@ -1409,7 +1419,7 @@ namespace RawBayer2DNG
                     } else
                     {
 
-                        return new ParallelAssemblyOutput() { setInfo = inputData.setInfo,fileData=resultData };
+                        return new ParallelAssemblyOutput() { setInfo = inputData.setInfo,fileData=resultData,disposable=tiff };
                     }
 
                 }, 
@@ -1417,7 +1427,9 @@ namespace RawBayer2DNG
                 // File writer
                 //
                 (outputData,index) => {
-                    File.WriteAllBytes(outputData.setInfo.outputName,outputData.fileData);
+                    //File.WriteAllBytes(outputData.setInfo.outputName,outputData.fileData);
+                    Helpers.streamToFileAndDispose(outputData.setInfo.outputName,outputData.fileData);
+                    outputData.disposable.Dispose();
                     outputData.fileData = null;
                 },
                 // Options
@@ -1463,7 +1475,8 @@ namespace RawBayer2DNG
                         return;
                     }
 
-                    byte[] resultData = null;
+                    MemoryStream resultData = null;
+                    IDisposable tiff = null;
                     if (shotSettings.shots.Length == 1) // SDR (single image)
                     {
                         byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.shotIndizi[0], ref metaInfo, ref errorInfo);
@@ -1490,7 +1503,7 @@ namespace RawBayer2DNG
                             tmpBuff = DataFormatConverter.convert12paddedto16Inputto16bit(tmpBuff);
                         }
 
-                        resultData = ProcessRAW(tmpBuff, currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, currentImage.originalFilename);
+                        (resultData,tiff) = ProcessRAW(tmpBuff, currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, currentImage.originalFilename);
 
                     }
                     else // HDR
@@ -1527,11 +1540,12 @@ namespace RawBayer2DNG
                         // For debugging
                         //File.WriteAllText("debug.txt","Clipping point: "+shotSettings.clippingPoint+", feather "+shotSettings.featherMultiplier);
 
-                        resultData = ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, currentImage.originalFilename);
+                        (resultData, tiff) = ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, currentImage.originalFilename);
                     }
 
-                    File.WriteAllBytes(currentImage.outputName,resultData);
-
+                    //File.WriteAllBytes(currentImage.outputName,resultData);
+                    Helpers.streamToFileAndDispose(currentImage.outputName,resultData);
+                    tiff.Dispose();
 
                     _counter++;
                     var percentage = (double)_counter / _totalFiles * 100.0;

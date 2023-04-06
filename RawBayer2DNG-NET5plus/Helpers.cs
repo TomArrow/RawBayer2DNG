@@ -14,6 +14,17 @@ namespace RawBayer2DNG
     {
 
 
+        public static void streamToFileAndDispose(string path, Stream sourceStream)
+        {
+            sourceStream.Seek(0, SeekOrigin.Begin);
+            using(FileStream fs = new FileStream(path, FileMode.CreateNew))
+            {
+                sourceStream.CopyTo(fs);
+            }
+            sourceStream.Close();
+            sourceStream.Dispose();
+        }
+
         public static string findUnoccupiedFileName(string filename, string fileEnding, string countSeparator= "_")
         {
             if (File.Exists(filename + fileEnding))
