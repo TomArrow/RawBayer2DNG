@@ -9,7 +9,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JpegDecodingTests", "JpegDe
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RawBayer2DNG-NET5plus", "RawBayer2DNG-NET5plus\RawBayer2DNG-NET5plus.csproj", "{7698AA28-0C13-4490-82C4-A03D35AE330A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerformanceTests", "PerformanceTests\PerformanceTests.csproj", "{BFF71FAC-7D10-46EE-8D98-C756FBF1C631}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PerformanceTests", "PerformanceTests\PerformanceTests.csproj", "{BFF71FAC-7D10-46EE-8D98-C756FBF1C631}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ParallelAssemblyLine.NET", "lib\ParallelAssemblyLine.NET\ParallelAssemblyLine.NET\ParallelAssemblyLine.NET.csproj", "{C2807433-B194-48E2-9B0E-50AD5244C16B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -51,6 +53,14 @@ Global
 		{BFF71FAC-7D10-46EE-8D98-C756FBF1C631}.Release|Any CPU.Build.0 = Release|Any CPU
 		{BFF71FAC-7D10-46EE-8D98-C756FBF1C631}.Release|x64.ActiveCfg = Release|Any CPU
 		{BFF71FAC-7D10-46EE-8D98-C756FBF1C631}.Release|x64.Build.0 = Release|Any CPU
+		{C2807433-B194-48E2-9B0E-50AD5244C16B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C2807433-B194-48E2-9B0E-50AD5244C16B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C2807433-B194-48E2-9B0E-50AD5244C16B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C2807433-B194-48E2-9B0E-50AD5244C16B}.Debug|x64.Build.0 = Debug|Any CPU
+		{C2807433-B194-48E2-9B0E-50AD5244C16B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C2807433-B194-48E2-9B0E-50AD5244C16B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C2807433-B194-48E2-9B0E-50AD5244C16B}.Release|x64.ActiveCfg = Release|Any CPU
+		{C2807433-B194-48E2-9B0E-50AD5244C16B}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

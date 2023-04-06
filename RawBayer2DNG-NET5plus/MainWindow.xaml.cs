@@ -29,6 +29,8 @@ using System.Text.RegularExpressions;
 using System.Numerics;
 using System.Globalization;
 using PresetManager;
+using ParallelAssemblyLineNET;
+using System.Net.NetworkInformation;
 
 namespace RawBayer2DNG
 {
@@ -67,9 +69,13 @@ namespace RawBayer2DNG
         string targetFolder = null;
         string[] filesInSourceFolder = null;
         private int currentProgress;
+        private int _inputBufferStatus;
+        private int _outputBufferStatus;
+        private int _activeItemsStatus;
         private string currentStatus;
         private static int _counter = 0;
         private static int _totalFiles = 0;
+        private static int _threadCount = 0;
         private string _newFileName;
 
         //uint[] cropAmounts = new uint[4];
@@ -183,14 +189,15 @@ namespace RawBayer2DNG
                 //double[]  RGBamplify =  { rAmplify.Value, gAmplify.Value, bAmplify.Value };
                 double[] RGBamplify = { r2dSettings.redMultiplier, r2dSettings.greenMultiplier, r2dSettings.blueMultiplier };
 
-                ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, RGBamplify, r2dSettings.getCropAmounts(), metaInfo, errorInfo, Path.GetFileNameWithoutExtension(ofd.FileName));
-
+                byte[] resultData = ProcessRAW(File.ReadAllBytes(ofd.FileName), fileName, bayerPattern, inputFormat, RGBamplify, r2dSettings.getCropAmounts(), metaInfo, errorInfo, Path.GetFileNameWithoutExtension(ofd.FileName));
+                File.WriteAllBytes(fileName, resultData);
+                resultData = null;
             }
         }
 
 
 
-        private void ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, uint[] cropAmounts, ISSMetaInfo metaInfo, ISSErrorInfo errorInfo, string sourceFileNameForTIFFTag = "")
+        private byte[] ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, uint[] cropAmounts, ISSMetaInfo metaInfo, ISSErrorInfo errorInfo, string sourceFileNameForTIFFTag = "")
         {
 
 #if DEBUG
@@ -241,315 +248,326 @@ namespace RawBayer2DNG
 
             string fileName = targetFilename;
 
-            using (Tiff output = Tiff.Open(fileName, "w"))
-            {
-                // Basic TIFF functionality
-                output.SetField(TiffTag.IMAGEWIDTH, width);
-                output.SetField(TiffTag.IMAGELENGTH, height);
-                output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+            byte[] resultData = null;
+
+            using (MemoryStream ms = new MemoryStream()) { 
+            //using (Tiff output = Tiff.Open(fileName, "w"))
+                using (Tiff output = Tiff.ClientOpen("in-memory", "w", ms, new TiffStream()))
+                {
+                    // Basic TIFF functionality
+                    output.SetField(TiffTag.IMAGEWIDTH, width);
+                    output.SetField(TiffTag.IMAGELENGTH, height);
+                    output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
 
 
-                output.SetField(TiffTag.BITSPERSAMPLE, 16);
+                    output.SetField(TiffTag.BITSPERSAMPLE, 16);
 
-                //int totalRawDataSize = width * height * 2;
-                //
-                bool lossyGammaModeEnabled = false;
-                double lossyGammaModeGamma = 1;
-                int lossyGammaModeOutputBitDepth = 16;
+                    //int totalRawDataSize = width * height * 2;
+                    //
+                    bool lossyGammaModeEnabled = false;
+                    double lossyGammaModeGamma = 1;
+                    int lossyGammaModeOutputBitDepth = 16;
 
-                bool lossyLinLogModeEnabled = false;
-                double lossyLinLogModeParameterA = 1;
-                int lossyLinLogModeOutputBitDepth = 16;
+                    bool lossyLinLogModeEnabled = false;
+                    double lossyLinLogModeParameterA = 1;
+                    int lossyLinLogModeOutputBitDepth = 16;
 
-                // TODO Make lossy modes bake in the RGB sliders.
-                if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BIT)
-                {
-                }
-                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT)
-                {
-                    lossyGammaModeEnabled = true;
-                    lossyGammaModeOutputBitDepth = 10;
-                    lossyGammaModeGamma = Math.Log(1 / (Math.Pow(2, 10) - 1)) / Math.Log(1 / (Math.Pow(2, 16) - 1));
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithGamma(rawImageData, 10, lossyGammaModeGamma);
-                }
-                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT)
-                {
-                    lossyLinLogModeEnabled = true;
-                    lossyLinLogModeOutputBitDepth = 8;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16, 8);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
-                }
-                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO7BIT)
-                {
-                    lossyLinLogModeEnabled = true;
-                    lossyLinLogModeOutputBitDepth = 7;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16, 7);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
-                }
-                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT)
-                {
-                    lossyLinLogModeEnabled = true;
-                    lossyLinLogModeOutputBitDepth = 10;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16, 10);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
-                }
-                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO8BIT)
-                {
-                    lossyLinLogModeEnabled = true;
-                    lossyLinLogModeOutputBitDepth = 8;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 8);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
-                    output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                }
-                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT)
-                {
-                    lossyLinLogModeEnabled = true;
-                    lossyLinLogModeOutputBitDepth = 7;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 7);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
-                    output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                }
-                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT)
-                {
-                    lossyLinLogModeEnabled = true;
-                    lossyLinLogModeOutputBitDepth = 6;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 6);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
-                    output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                }
-                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT)
-                {
-                    lossyLinLogModeEnabled = true;
-                    lossyLinLogModeOutputBitDepth = 5;
-                    lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 5);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
-                    rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
-                    output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                }
-                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED)
-                {
-                    output.SetField(TiffTag.BITSPERSAMPLE, 12);
-                    rawImageData = DataFormatConverter.convert16BitIntermediateToTiffPacked12BitOutput(rawImageData);
-                }
-                else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BIT)
-                {
-                    rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
-                    output.SetField(TiffTag.BASELINEEXPOSURE, 4);
-                }
-
-
-                if (lossyGammaModeEnabled)
-                {
-
-                    UInt16 outputMaxValue = (UInt16)(Math.Pow(2, lossyGammaModeOutputBitDepth) - 1);
-                    UInt16[] linearizationTable = new UInt16[outputMaxValue + 1];
-
-
-                    double tmpValue;
-                    double invertedGamma = 1 / lossyGammaModeGamma;
-                    for (int i = 0; i <= outputMaxValue; i++)
+                    // TODO Make lossy modes bake in the RGB sliders.
+                    if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BIT)
                     {
-                        tmpValue = (double)i / (double)outputMaxValue;
-                        tmpValue = Math.Pow(tmpValue, invertedGamma) * (double)UInt16.MaxValue;
-                        linearizationTable[(Int16)i] = (UInt16)Math.Max(0, Math.Min(UInt16.MaxValue, Math.Round(tmpValue)));
+                    }
+                    else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHGAMMATO10BIT)
+                    {
+                        lossyGammaModeEnabled = true;
+                        lossyGammaModeOutputBitDepth = 10;
+                        lossyGammaModeGamma = Math.Log(1 / (Math.Pow(2, 10) - 1)) / Math.Log(1 / (Math.Pow(2, 16) - 1));
+                        rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithGamma(rawImageData, 10, lossyGammaModeGamma);
+                    }
+                    else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO8BIT)
+                    {
+                        lossyLinLogModeEnabled = true;
+                        lossyLinLogModeOutputBitDepth = 8;
+                        lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16, 8);
+                        rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
+                    }
+                    else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO7BIT)
+                    {
+                        lossyLinLogModeEnabled = true;
+                        lossyLinLogModeOutputBitDepth = 7;
+                        lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16, 7);
+                        rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
+                    }
+                    else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITBRIGHTCAPSULEDIN16BITWITHLINLOGTO10BIT)
+                    {
+                        lossyLinLogModeEnabled = true;
+                        lossyLinLogModeOutputBitDepth = 10;
+                        lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(16, 10);
+                        rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
+                    }
+                    else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO8BIT)
+                    {
+                        lossyLinLogModeEnabled = true;
+                        lossyLinLogModeOutputBitDepth = 8;
+                        lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 8);
+                        rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
+                        rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
+                        output.SetField(TiffTag.BASELINEEXPOSURE, 4);
+                    }
+                    else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO7BIT)
+                    {
+                        lossyLinLogModeEnabled = true;
+                        lossyLinLogModeOutputBitDepth = 7;
+                        lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 7);
+                        rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
+                        rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
+                        output.SetField(TiffTag.BASELINEEXPOSURE, 4);
+                    }
+                    else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO6BIT)
+                    {
+                        lossyLinLogModeEnabled = true;
+                        lossyLinLogModeOutputBitDepth = 6;
+                        lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 6);
+                        rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
+                        rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
+                        output.SetField(TiffTag.BASELINEEXPOSURE, 4);
+                    }
+                    else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BITWITHLINLOGTO5BIT)
+                    {
+                        lossyLinLogModeEnabled = true;
+                        lossyLinLogModeOutputBitDepth = 5;
+                        lossyLinLogModeParameterA = LinLogLutilityClassifiedV1.findAParameterByBitDepths(12, 5);
+                        rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
+                        rawImageData = DataFormatConverter.convert16bitIntermediateToDarkIn16bitWithLinLogV1_bayerPatternAwareDiffusion(rawImageData, lossyLinLogModeParameterA, bayerPattern, r2dSettings.linLogDithering, width);
+                        output.SetField(TiffTag.BASELINEEXPOSURE, 4);
+                    }
+                    else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED)
+                    {
+                        output.SetField(TiffTag.BITSPERSAMPLE, 12);
+                        rawImageData = DataFormatConverter.convert16BitIntermediateToTiffPacked12BitOutput(rawImageData);
+                    }
+                    else if (outputFormat == R2DSettings.DNGOutputDataFormat.BAYER12BITDARKCAPSULEDIN16BIT)
+                    {
+                        rawImageData = DataFormatConverter.convert16bitIntermediateTo12paddedto16bit(rawImageData);
+                        output.SetField(TiffTag.BASELINEEXPOSURE, 4);
                     }
 
-                    output.SetField(TiffTag.LINEARIZATIONTABLE, linearizationTable.Length, linearizationTable);
-                }
-                if (lossyLinLogModeEnabled)
-                {
 
-                    UInt16 outputMaxValue = (UInt16)(Math.Pow(2, lossyLinLogModeOutputBitDepth) - 1);
-                    UInt16[] linearizationTable = new UInt16[outputMaxValue + 1];
-
-                    for (int i = 0; i <= outputMaxValue; i++)
+                    if (lossyGammaModeEnabled)
                     {
 
-                        linearizationTable[(Int16)i] = (UInt16)Math.Max(0, Math.Min(UInt16.MaxValue, Math.Round(LinLogLutilityClassifiedV1.LogToLin(i, lossyLinLogModeParameterA))));
+                        UInt16 outputMaxValue = (UInt16)(Math.Pow(2, lossyGammaModeOutputBitDepth) - 1);
+                        UInt16[] linearizationTable = new UInt16[outputMaxValue + 1];
+
+
+                        double tmpValue;
+                        double invertedGamma = 1 / lossyGammaModeGamma;
+                        for (int i = 0; i <= outputMaxValue; i++)
+                        {
+                            tmpValue = (double)i / (double)outputMaxValue;
+                            tmpValue = Math.Pow(tmpValue, invertedGamma) * (double)UInt16.MaxValue;
+                            linearizationTable[(Int16)i] = (UInt16)Math.Max(0, Math.Min(UInt16.MaxValue, Math.Round(tmpValue)));
+                        }
+
+                        output.SetField(TiffTag.LINEARIZATIONTABLE, linearizationTable.Length, linearizationTable);
+                    }
+                    if (lossyLinLogModeEnabled)
+                    {
+
+                        UInt16 outputMaxValue = (UInt16)(Math.Pow(2, lossyLinLogModeOutputBitDepth) - 1);
+                        UInt16[] linearizationTable = new UInt16[outputMaxValue + 1];
+
+                        for (int i = 0; i <= outputMaxValue; i++)
+                        {
+
+                            linearizationTable[(Int16)i] = (UInt16)Math.Max(0, Math.Min(UInt16.MaxValue, Math.Round(LinLogLutilityClassifiedV1.LogToLin(i, lossyLinLogModeParameterA))));
+                        }
+
+                        output.SetField(TiffTag.LINEARIZATIONTABLE, linearizationTable.Length, linearizationTable);
                     }
 
-                    output.SetField(TiffTag.LINEARIZATIONTABLE, linearizationTable.Length, linearizationTable);
-                }
 
 
+                    // DNG Private data. Includes original files metadata for example, and error info if any errors occurred. 
+                    metaInfo.mergeErrors(errorInfo);
+                    const string DNGPRIVDATA_START = "RAWBAYER2DNG\0";
+                    byte[] dngPrivData = metaInfo.getMergedBinary(Encoding.UTF8.GetBytes(DNGPRIVDATA_START));
+                    output.SetField(TiffTag.DNGPRIVATEDATA, dngPrivData.Length, dngPrivData);
 
-                // DNG Private data. Includes original files metadata for example, and error info if any errors occurred. 
-                metaInfo.mergeErrors(errorInfo);
-                const string DNGPRIVDATA_START = "RAWBAYER2DNG\0";
-                byte[] dngPrivData = metaInfo.getMergedBinary(Encoding.UTF8.GetBytes(DNGPRIVDATA_START));
-                output.SetField(TiffTag.DNGPRIVATEDATA, dngPrivData.Length, dngPrivData);
-
-                //
-                if (r2dSettings.writeErrorReports)
-                {
-                    if (errorInfo.errors.Count > 0)
+                    //
+                    if (r2dSettings.writeErrorReports)
                     {
-                        string errorFileName = Helpers.findUnoccupiedFileName(fileName + ".errors", ".csv", ".");
-                        string errorsCSV = errorInfo.getHumanReadableErrorsCSV();
-                        File.WriteAllText(errorFileName, errorsCSV);
+                        if (errorInfo.errors.Count > 0)
+                        {
+                            string errorFileName = Helpers.findUnoccupiedFileName(fileName + ".errors", ".csv", ".");
+                            string errorsCSV = errorInfo.getHumanReadableErrorsCSV();
+                            File.WriteAllText(errorFileName, errorsCSV);
+                        }
                     }
-                }
 
 
 
-                output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
-                output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
-                output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
-                //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
+                    output.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
+                    output.SetField(TiffTag.PHOTOMETRIC, Photometric.MINISBLACK);
+                    output.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
+                    //output.SetField(TiffTag.COMPRESSION, Compression.LZW); //LZW doesn't work with DNG apparently
 
-                if (r2dSettings.compressDNGLegacy && outputFormat != R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED && !r2dSettings.compressDNGLosslessJPEG)
-                { // Sadly combining the ADOBE_DEFLATE compression with 12 bit packing breaks the resulting file.
-                    output.SetField(TiffTag.COMPRESSION, Compression.ADOBE_DEFLATE);
-                }
-                else
-                {
-                    output.SetField(TiffTag.COMPRESSION, Compression.NONE);
-                }
-
-
-                output.SetField(TiffTag.PLANARCONFIG, PlanarConfig.CONTIG);
-
-                float[] cam_xyz =
-                {
-                3.2404542f / (float)RGBAmplify[0], -1.5371385f / (float)RGBAmplify[0], -0.4985314f / (float)RGBAmplify[0],
-                    -0.9692660f / (float)RGBAmplify[1], 1.8760108f / (float)RGBAmplify[1], 0.0415560f / (float)RGBAmplify[1],
-                    0.0556434f / (float)RGBAmplify[2], -0.2040259f / (float)RGBAmplify[2], 1.0572252f / (float)RGBAmplify[2]
-            }; // my sRGB hack
-                //float[] cam_xyz =  { 0f, 1f,0f,0f,0f,1f,1f,0f,0f }; // my sRGB hack
-                float[] neutral = { 1f / (float)RGBAmplify[0], 1f / (float)RGBAmplify[1], 1f / (float)RGBAmplify[2] }; // my sRGB hack
-                int[] bpp = { 8, 8, 8 }; // my sRGB hack
-                short[] bayerpatterndimensions = { 2, 2 }; // my sRGB hack
-                //float[] neutral = { 0.807133f, 1.0f, 0.913289f };
-
-                //DNG 
-                output.SetField(TiffTag.SUBFILETYPE, 0);
-                output.SetField(TiffTag.MAKE, r2dSettings.metaMake);
-                output.SetField(TiffTag.MODEL, r2dSettings.metaModel);
-                output.SetField(TiffTag.SOFTWARE, r2dSettings.metaSoftware.Trim() == "" ? "RawBayer2DNG" : r2dSettings.metaSoftware + "(+RawBayer2DNG)");
-                output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
-                output.SetField(TiffTag.DNGBACKWARDVERSION, "\x1\x4\x0\x0");
-                output.SetField(TiffTag.UNIQUECAMERAMODEL, r2dSettings.metaUniqueCameraModel);
-                output.SetField(TiffTag.COLORMATRIX1, 9, cam_xyz);
-                output.SetField(TiffTag.ASSHOTNEUTRAL, 3, neutral);
-                output.SetField(TiffTag.CALIBRATIONILLUMINANT1, 21);
-                output.SetField(TiffTag.ORIGINALRAWFILENAME, sourceFileNameForTIFFTag);
-                output.SetField(TiffTag.PHOTOMETRIC, 32803);
-                output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                //output.SetField(TiffTag.EXIF_CFAPATTERN, 4, "\x1\x0\x2\x1");
-                output.SetField(TiffTag.EXIF_CFAPATTERN, 4, bayerPatternTag);
-                output.SetField(TIFFTAG_CFAREPEATPATTERNDIM, bayerpatterndimensions);
-                //output.SetField(TIFFTAG_CFAPATTERN, "\x1\x0\x2\x1"); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
-                output.SetField(TIFFTAG_CFAPATTERN,
-                    bayerPatternTag); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
-
-                // Maybe use later if necessary:
-                //output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
-                //output.SetField(TiffTag.BITSPERSAMPLE, 3, bpp);
-                //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
-                //output.SetField(TiffTag.WHITELEVEL, 1);
-
-                if (outputFormat != R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED && r2dSettings.compressDNGLosslessJPEG)
-                {
-                    if (r2dSettings.losslessJPEGTiling)
-                    {
-
-                        UInt16[] rawImageDataUInt16 = new UInt16[rawImageData.Length / 2];
-                        for (int i = 0; i < rawImageDataUInt16.Length; i++)
-                        {
-                            rawImageDataUInt16[i] = BitConverter.ToUInt16(rawImageData, i * 2);
-                        }
-
-                        int tilesHCount = (int)Math.Ceiling((double)width / (double)tileSize);
-                        int tilesVCount = (int)Math.Ceiling((double)height / (double)tileSize);
-                        UInt16[] tileData = new UInt16[tileSize * tileSize];
-
-                        byte[,][] encodedTile = new byte[tilesHCount, tilesVCount][];
-
-                        dng_stream whatever;
-
-                        for (int x = 0; x < tilesHCount; x++)
-                        {
-                            for (int y = 0; y < tilesVCount; y++)
-                            {
-                                tileData = new UInt16[tileSize * tileSize];
-
-                                for (int row = 0; row < (Math.Min(height, ((y + 1) * tileSize)) - (y * tileSize)); row++)
-                                {
-                                    Array.Copy(rawImageDataUInt16, (y * tileSize + row) * width + x * tileSize, tileData, row * tileSize, Math.Min(width, ((x + 1) * tileSize)) - x * tileSize);
-                                }
-
-                                // Tile is prepared now. Let's encode it.
-                                whatever = new dng_stream();
-                                DNGLosslessEncoder.EncodeLosslessJPEG(tileData, (uint)tileSize, (uint)tileSize / 2, 2, 16, tileSize, 2, whatever);
-
-                                encodedTile[x, y] = whatever.toByteArray();
-                                whatever = null;
-
-
-                                //encodedFileSizeHere += encodedTile.Length;
-
-                                //File.WriteAllBytes("encodedTest.jpg", whatever.toByteArray());
-
-                            }
-                        }
-
-                        output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
-                        output.SetField(TiffTag.TILELENGTH, tileSize);
-                        output.SetField(TiffTag.TILEWIDTH, tileSize);
-
-                        for (int x = 0; x < tilesHCount; x++)
-                        {
-                            for (int y = 0; y < tilesVCount; y++)
-                            {
-                                int tileNubmer = output.ComputeTile(x * tileSize, y * tileSize, 0, 0);
-                                output.WriteRawTile(tileNubmer, encodedTile[x, y], encodedTile[x, y].Length);
-                            }
-                        }
-                        encodedTile = null;
-                        rawImageDataUInt16 = null;
-                        /*
-
-                        dng_stream compressedJpegData = new dng_stream();
-                        DNGLosslessEncoder.EncodeLosslessJPEG(rawImageDataUInt16, (uint)height, (uint)width / 2, 2, 16, width, 2, compressedJpegData);
-                        byte[] compressedJpegDataByteArray = compressedJpegData.toByteArray();
-
-                        output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
-                        output.WriteRawStrip(0, compressedJpegDataByteArray, compressedJpegDataByteArray.Length);*/
-
+                    if (r2dSettings.compressDNGLegacy && outputFormat != R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED && !r2dSettings.compressDNGLosslessJPEG)
+                    { // Sadly combining the ADOBE_DEFLATE compression with 12 bit packing breaks the resulting file.
+                        output.SetField(TiffTag.COMPRESSION, Compression.ADOBE_DEFLATE);
                     }
                     else
                     {
-                        output.SetField(TiffTag.ROWSPERSTRIP, height);
-                        UInt16[] rawImageDataUInt16 = new UInt16[rawImageData.Length / 2];
-                        for (int i = 0; i < rawImageDataUInt16.Length; i++)
-                        {
-                            rawImageDataUInt16[i] = BitConverter.ToUInt16(rawImageData, i * 2);
-                        }
-
-                        dng_stream compressedJpegData = new dng_stream();
-                        DNGLosslessEncoder.EncodeLosslessJPEG(rawImageDataUInt16, (uint)height, (uint)width / 2, 2, 16, width, 2, compressedJpegData);
-                        rawImageDataUInt16 = null;
-                        byte[] compressedJpegDataByteArray = compressedJpegData.toByteArray();
-
-                        output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
-                        output.WriteRawStrip(0, compressedJpegDataByteArray, compressedJpegDataByteArray.Length);
-                        compressedJpegDataByteArray = null;
+                        output.SetField(TiffTag.COMPRESSION, Compression.NONE);
                     }
-                }
-                else
-                {
 
-                    output.SetField(TiffTag.ROWSPERSTRIP, height);
-                    output.WriteEncodedStrip(0, rawImageData, rawImageData.Length);
+
+                    output.SetField(TiffTag.PLANARCONFIG, PlanarConfig.CONTIG);
+
+                    float[] cam_xyz =
+                    {
+                    3.2404542f / (float)RGBAmplify[0], -1.5371385f / (float)RGBAmplify[0], -0.4985314f / (float)RGBAmplify[0],
+                        -0.9692660f / (float)RGBAmplify[1], 1.8760108f / (float)RGBAmplify[1], 0.0415560f / (float)RGBAmplify[1],
+                        0.0556434f / (float)RGBAmplify[2], -0.2040259f / (float)RGBAmplify[2], 1.0572252f / (float)RGBAmplify[2]
+                }; // my sRGB hack
+                    //float[] cam_xyz =  { 0f, 1f,0f,0f,0f,1f,1f,0f,0f }; // my sRGB hack
+                    float[] neutral = { 1f / (float)RGBAmplify[0], 1f / (float)RGBAmplify[1], 1f / (float)RGBAmplify[2] }; // my sRGB hack
+                    int[] bpp = { 8, 8, 8 }; // my sRGB hack
+                    short[] bayerpatterndimensions = { 2, 2 }; // my sRGB hack
+                    //float[] neutral = { 0.807133f, 1.0f, 0.913289f };
+
+                    //DNG 
+                    output.SetField(TiffTag.SUBFILETYPE, 0);
+                    output.SetField(TiffTag.MAKE, r2dSettings.metaMake);
+                    output.SetField(TiffTag.MODEL, r2dSettings.metaModel);
+                    output.SetField(TiffTag.SOFTWARE, r2dSettings.metaSoftware.Trim() == "" ? "RawBayer2DNG" : r2dSettings.metaSoftware + "(+RawBayer2DNG)");
+                    output.SetField(TiffTag.DNGVERSION, "\x1\x4\x0\x0");
+                    output.SetField(TiffTag.DNGBACKWARDVERSION, "\x1\x4\x0\x0");
+                    output.SetField(TiffTag.UNIQUECAMERAMODEL, r2dSettings.metaUniqueCameraModel);
+                    output.SetField(TiffTag.COLORMATRIX1, 9, cam_xyz);
+                    output.SetField(TiffTag.ASSHOTNEUTRAL, 3, neutral);
+                    output.SetField(TiffTag.CALIBRATIONILLUMINANT1, 21);
+                    output.SetField(TiffTag.ORIGINALRAWFILENAME, sourceFileNameForTIFFTag);
+                    output.SetField(TiffTag.PHOTOMETRIC, 32803);
+                    output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+                    //output.SetField(TiffTag.EXIF_CFAPATTERN, 4, "\x1\x0\x2\x1");
+                    output.SetField(TiffTag.EXIF_CFAPATTERN, 4, bayerPatternTag);
+                    output.SetField(TIFFTAG_CFAREPEATPATTERNDIM, bayerpatterndimensions);
+                    //output.SetField(TIFFTAG_CFAPATTERN, "\x1\x0\x2\x1"); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
+                    output.SetField(TIFFTAG_CFAPATTERN,
+                        bayerPatternTag); //0=Red, 1=Green,   2=Blue,   3=Cyan,   4=Magenta,   5=Yellow,   and   6=White
+
+                    // Maybe use later if necessary:
+                    //output.SetField(TiffTag.SAMPLESPERPIXEL, 1);
+                    //output.SetField(TiffTag.BITSPERSAMPLE, 3, bpp);
+                    //output.SetField(TiffTag.LINEARIZATIONTABLE, 256, linearizationTable);
+                    //output.SetField(TiffTag.WHITELEVEL, 1);
+
+                    if (outputFormat != R2DSettings.DNGOutputDataFormat.BAYER12BITTIFFPACKED && r2dSettings.compressDNGLosslessJPEG)
+                    {
+                        if (r2dSettings.losslessJPEGTiling)
+                        {
+
+                            UInt16[] rawImageDataUInt16 = new UInt16[rawImageData.Length / 2];
+                            for (int i = 0; i < rawImageDataUInt16.Length; i++)
+                            {
+                                rawImageDataUInt16[i] = BitConverter.ToUInt16(rawImageData, i * 2);
+                            }
+
+                            int tilesHCount = (int)Math.Ceiling((double)width / (double)tileSize);
+                            int tilesVCount = (int)Math.Ceiling((double)height / (double)tileSize);
+                            UInt16[] tileData = new UInt16[tileSize * tileSize];
+
+                            byte[,][] encodedTile = new byte[tilesHCount, tilesVCount][];
+
+                            dng_stream whatever;
+
+                            for (int x = 0; x < tilesHCount; x++)
+                            {
+                                for (int y = 0; y < tilesVCount; y++)
+                                {
+                                    tileData = new UInt16[tileSize * tileSize];
+
+                                    for (int row = 0; row < (Math.Min(height, ((y + 1) * tileSize)) - (y * tileSize)); row++)
+                                    {
+                                        Array.Copy(rawImageDataUInt16, (y * tileSize + row) * width + x * tileSize, tileData, row * tileSize, Math.Min(width, ((x + 1) * tileSize)) - x * tileSize);
+                                    }
+
+                                    // Tile is prepared now. Let's encode it.
+                                    whatever = new dng_stream();
+                                    DNGLosslessEncoder.EncodeLosslessJPEG(tileData, (uint)tileSize, (uint)tileSize / 2, 2, 16, tileSize, 2, whatever);
+
+                                    encodedTile[x, y] = whatever.toByteArray();
+                                    whatever = null;
+
+
+                                    //encodedFileSizeHere += encodedTile.Length;
+
+                                    //File.WriteAllBytes("encodedTest.jpg", whatever.toByteArray());
+
+                                }
+                            }
+
+                            output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
+                            output.SetField(TiffTag.TILELENGTH, tileSize);
+                            output.SetField(TiffTag.TILEWIDTH, tileSize);
+
+                            for (int x = 0; x < tilesHCount; x++)
+                            {
+                                for (int y = 0; y < tilesVCount; y++)
+                                {
+                                    int tileNubmer = output.ComputeTile(x * tileSize, y * tileSize, 0, 0);
+                                    output.WriteRawTile(tileNubmer, encodedTile[x, y], encodedTile[x, y].Length);
+                                }
+                            }
+                            encodedTile = null;
+                            rawImageDataUInt16 = null;
+                            /*
+
+                            dng_stream compressedJpegData = new dng_stream();
+                            DNGLosslessEncoder.EncodeLosslessJPEG(rawImageDataUInt16, (uint)height, (uint)width / 2, 2, 16, width, 2, compressedJpegData);
+                            byte[] compressedJpegDataByteArray = compressedJpegData.toByteArray();
+
+                            output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
+                            output.WriteRawStrip(0, compressedJpegDataByteArray, compressedJpegDataByteArray.Length);*/
+
+                        }
+                        else
+                        {
+                            output.SetField(TiffTag.ROWSPERSTRIP, height);
+                            UInt16[] rawImageDataUInt16 = new UInt16[rawImageData.Length / 2];
+                            for (int i = 0; i < rawImageDataUInt16.Length; i++)
+                            {
+                                rawImageDataUInt16[i] = BitConverter.ToUInt16(rawImageData, i * 2);
+                            }
+
+                            dng_stream compressedJpegData = new dng_stream();
+                            DNGLosslessEncoder.EncodeLosslessJPEG(rawImageDataUInt16, (uint)height, (uint)width / 2, 2, 16, width, 2, compressedJpegData);
+                            rawImageDataUInt16 = null;
+                            byte[] compressedJpegDataByteArray = compressedJpegData.toByteArray();
+
+                            output.SetField(TiffTag.COMPRESSION, Compression.JPEG);
+                            output.WriteRawStrip(0, compressedJpegDataByteArray, compressedJpegDataByteArray.Length);
+                            compressedJpegDataByteArray = null;
+                        }
+                    }
+                    else
+                    {
+
+                        output.SetField(TiffTag.ROWSPERSTRIP, height);
+                        output.WriteEncodedStrip(0, rawImageData, rawImageData.Length);
+                    }
+
+                    output.Close();
                 }
+
+                resultData = ms.ToArray();
             }
+            return resultData;
 #if DEBUG
         } catch (Exception e)
             {
                 MessageBox.Show($"Error processing file {targetFilename}: "+e.Message);
+                return null;
             }
 #endif
 
@@ -1100,6 +1118,42 @@ namespace RawBayer2DNG
                 }
             }
         }
+        public int InputBufferStatus
+        {
+            get { return _inputBufferStatus; }
+            private set
+            {
+                if (_inputBufferStatus != value)
+                {
+                    _inputBufferStatus = value;
+                    OnPropertyChanged("InputBufferStatus");
+                }
+            }
+        }
+        public int OutputBufferStatus
+        {
+            get { return _outputBufferStatus; }
+            private set
+            {
+                if (_outputBufferStatus != value)
+                {
+                    _outputBufferStatus = value;
+                    OnPropertyChanged("OutputBufferStatus");
+                }
+            }
+        }
+        public int ActiveItemsStatus
+        {
+            get { return _activeItemsStatus; }
+            private set
+            {
+                if (_activeItemsStatus != value)
+                {
+                    _activeItemsStatus = value;
+                    OnPropertyChanged("ActiveItemsStatus");
+                }
+            }
+        }
 
         public string CurrentStatus
         {
@@ -1121,6 +1175,19 @@ namespace RawBayer2DNG
             public string originalFilename;
         }
 
+
+        class ParallelAssemblyInput
+        {
+            public byte[][] imageData = null;
+            public SetInfo setInfo;
+            public ISSErrorInfo errorInfo = new ISSErrorInfo();
+            public ISSMetaInfo metaInfo = new ISSMetaInfo();
+        }
+        class ParallelAssemblyOutput
+        {
+            public byte[] fileData = null;
+            public SetInfo setInfo;
+        }
 
         private void worker_DoWork(object sender, DoWorkEventArgs e)
         {
@@ -1258,7 +1325,122 @@ namespace RawBayer2DNG
             if (threads == 0)
                 threads = Environment.ProcessorCount > 1 ? Environment.ProcessorCount / 2 : Environment.ProcessorCount;
 
-            Parallel.ForEach(dic,
+
+            _threadCount = threads;
+
+
+            if (!r2dSettings.oldThreading) {  // New threading code
+
+                ParallelAssemblyLineV2.Run<ParallelAssemblyInput, ParallelAssemblyOutput>(
+                //
+                // File reader
+                //
+                (index) =>
+                {
+                    if(index >= dic.Length)
+                    {
+                        return null;
+                    }
+                    else if (worker.CancellationPending == true)
+                    {
+                        e.Cancel = true;
+                        return null;
+                    }
+                    else
+                    {
+                        ParallelAssemblyInput inputData = new ParallelAssemblyInput() { setInfo = dic[index],imageData=new byte[shotSettings.shots.Length][] };
+                        int c = 0;
+                        foreach (int thisThereThatIndex in inputData.setInfo.shotIndizi)
+                        {
+
+                            inputData.imageData[c] = imageSequenceSource.getRawImageData(thisThereThatIndex, ref inputData.metaInfo, ref inputData.errorInfo);
+                            c++;
+                        }
+                        return inputData;
+                    }
+                }, 
+                //
+                // Processor
+                //
+                (inputData, index) =>
+                {
+
+                    int c = 0;
+                    foreach (int thisThereThatIndex in inputData.setInfo.shotIndizi)
+                    {
+
+                        if (inputFormat == RAWDATAFORMAT.BAYERRG12p)
+                        {
+                            inputData.imageData[c] = DataFormatConverter.convert12pInputto16bit(inputData.imageData[c]);
+                        }
+                        if (inputFormat == RAWDATAFORMAT.BAYERRG12pV2)
+                        {
+                            inputData.imageData[c] = DataFormatConverter.convert12pV2Inputto16bit(inputData.imageData[c]);
+                        }/*
+                                if (inputFormat == RAWDATAFORMAT.CINTEL10BIT)
+                                {
+                                    buffersForHDR[c] = DataFormatConverter.tryConvertCintel10Inputto16bit(buffersForHDR[c]);
+                                }*/
+                        if (inputFormat == RAWDATAFORMAT.BAYER10p1)
+                        {
+                            inputData.imageData[c] = DataFormatConverter.convert10p1Inputto16bit(inputData.imageData[c]);
+                        }
+                        if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
+                        {
+                            inputData.imageData[c] = DataFormatConverter.convert12paddedto16Inputto16bit(inputData.imageData[c]);
+                        }
+                        c++;
+                    }
+
+                    byte[] resultData = null;
+                    if (inputData.setInfo.shotIndizi.Length == 1) {
+                        // Normal
+                        resultData = ProcessRAW(inputData.imageData[0], inputData.setInfo.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, inputData.metaInfo, inputData.errorInfo, inputData.setInfo.originalFilename);
+                    }
+                    else
+                    {
+                        // HDR
+                        resultData = ProcessRAW(HDRMerge(inputData.imageData, shotSettings), inputData.setInfo.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, inputData.metaInfo, inputData.errorInfo, inputData.setInfo.originalFilename);
+                    }
+                    if(resultData == null)
+                    {
+                        throw new Exception("resultData was null");
+                    } else
+                    {
+
+                        return new ParallelAssemblyOutput() { setInfo = inputData.setInfo,fileData=resultData };
+                    }
+
+                }, 
+                //
+                // File writer
+                //
+                (outputData,index) => {
+                    File.WriteAllBytes(outputData.setInfo.outputName,outputData.fileData);
+                    outputData.fileData = null;
+                },
+                // Options
+                new ParallelAssemblyLineOptions() { 
+                    threadCount =threads, 
+                    inputThreads = r2dSettings.maxThreadsInput > 1 ? r2dSettings.maxThreadsInput : null, 
+                    outputThreads = r2dSettings.maxThreadsOutput > 1 ? r2dSettings.maxThreadsOutput : null, 
+                    useNormalTaskScheduler = r2dSettings.defaultTaskScheduler,
+                    threadCreationOptions = r2dSettings.defaultTaskSchedulerlongRunning ? TaskCreationOptions.LongRunning : default
+                },
+                // Status reports
+                (status) =>
+                {
+                    var percentage = (double)status.DigestedItems / _totalFiles * 100.0;
+                    worker?.ReportProgress((int)percentage,status);
+                }
+                
+                );
+
+                worker?.ReportProgress(100, null);
+            } 
+            else // Just the old classic Parallel.Foreach
+            {
+                Parallel.ForEach(dic,
                 new ParallelOptions { MaxDegreeOfParallelism = threads }, (currentImage, loopState) =>
                 // foreach (string srcFileName in filesInSourceFolder)
                 {
@@ -1280,6 +1462,7 @@ namespace RawBayer2DNG
                         return;
                     }
 
+                    byte[] resultData = null;
                     if (shotSettings.shots.Length == 1) // SDR (single image)
                     {
                         byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.shotIndizi[0], ref metaInfo, ref errorInfo);
@@ -1290,11 +1473,11 @@ namespace RawBayer2DNG
                         if (inputFormat == RAWDATAFORMAT.BAYERRG12pV2)
                         {
                             tmpBuff = DataFormatConverter.convert12pV2Inputto16bit(tmpBuff);
-                        }/*
-                        if (inputFormat == RAWDATAFORMAT.CINTEL10BIT)
-                        {
-                            tmpBuff = DataFormatConverter.tryConvertCintel10Inputto16bit(tmpBuff);
-                        }*/
+                        }
+                        //if (inputFormat == RAWDATAFORMAT.CINTEL10BIT)
+                        //{
+                        //    tmpBuff = DataFormatConverter.tryConvertCintel10Inputto16bit(tmpBuff);
+                        //}
                         //byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.shotIndizi[0]);
 
                         if (inputFormat == RAWDATAFORMAT.BAYER10p1)
@@ -1306,12 +1489,12 @@ namespace RawBayer2DNG
                             tmpBuff = DataFormatConverter.convert12paddedto16Inputto16bit(tmpBuff);
                         }
 
-                        ProcessRAW(tmpBuff, currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, currentImage.originalFilename);
+                        resultData = ProcessRAW(tmpBuff, currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, currentImage.originalFilename);
 
                     }
                     else // HDR
                     {
-                        byte[][] buffersForHDR = new byte[3][];
+                        byte[][] buffersForHDR = new byte[shotSettings.shots.Length][];
                         int c = 0;
                         foreach (int thisThereThatIndex in currentImage.shotIndizi)
                         {
@@ -1324,11 +1507,11 @@ namespace RawBayer2DNG
                             if (inputFormat == RAWDATAFORMAT.BAYERRG12pV2)
                             {
                                 buffersForHDR[c] = DataFormatConverter.convert12pV2Inputto16bit(buffersForHDR[c]);
-                            }/*
-                            if (inputFormat == RAWDATAFORMAT.CINTEL10BIT)
-                            {
-                                buffersForHDR[c] = DataFormatConverter.tryConvertCintel10Inputto16bit(buffersForHDR[c]);
-                            }*/
+                            }
+                           // if (inputFormat == RAWDATAFORMAT.CINTEL10BIT)
+                           // {
+                            //    buffersForHDR[c] = DataFormatConverter.tryConvertCintel10Inputto16bit(buffersForHDR[c]);
+                            //}
                             if (inputFormat == RAWDATAFORMAT.BAYER10p1)
                             {
                                 buffersForHDR[c] = DataFormatConverter.convert10p1Inputto16bit(buffersForHDR[c]);
@@ -1343,8 +1526,10 @@ namespace RawBayer2DNG
                         // For debugging
                         //File.WriteAllText("debug.txt","Clipping point: "+shotSettings.clippingPoint+", feather "+shotSettings.featherMultiplier);
 
-                        ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, currentImage.originalFilename);
+                        resultData = ProcessRAW(HDRMerge(buffersForHDR, shotSettings), currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, currentImage.originalFilename);
                     }
+
+                    File.WriteAllBytes(currentImage.outputName,resultData);
 
 
                     _counter++;
@@ -1353,16 +1538,52 @@ namespace RawBayer2DNG
 
                 });
 
-            worker?.ReportProgress(100);
+                worker?.ReportProgress(100,null);
+            }
+
+
         }
+
+        //DateTime lastFullStatusUpdate = DateTime.Now;
+        private static long _lastItemsProcessed = 0;
+
+        const int UIStatusUpdateIntervalMilliseconds = 50;
 
         private void worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
             // pbStatus.Value = e.ProgressPercentage;
+            //bool progressChanged = CurrentProgress != e.ProgressPercentage;
             CurrentProgress = e.ProgressPercentage;
-            txtStatus.Text = $"Processed {_counter} out of {_totalFiles}";
+            if(e.UserState != null)
+            {
+                ParallelAssemblyLineStatus status = (ParallelAssemblyLineStatus)e.UserState;
+                // Rate limit this to not overburden the UI with millions of updates per second
+                //if ((DateTime.Now - lastFullStatusUpdate).TotalMilliseconds > UIStatusUpdateIntervalMilliseconds)
+                if (_lastItemsProcessed != status.DigestedItems)
+                {
 
-            if (currentProgress == 100) txtStatus.Text = "Processing complete.";
+                    txtStatus.Text = $"Processed {status.DigestedItems} out of {_totalFiles}";
+                }
+                    InputBufferStatus = (int)((double)status.InputBufferSize / (double)status.InputBufferSizeMax * 100.0);
+                    OutputBufferStatus = (int)((double)status.OutputBufferSize / (double)status.OutputBufferSizeMax * 100.0);
+                    ActiveItemsStatus = (int)((double)status.ProcessingItems / (double)_threadCount * 100.0);
+                    //lastFullStatusUpdate = DateTime.Now;
+                    _lastItemsProcessed = status.DigestedItems;
+                
+                //txtStatus.Text = $"Processed {_counter} out of {_totalFiles}";
+            } else
+            {
+                InputBufferStatus = 0;
+                OutputBufferStatus = 0;
+                ActiveItemsStatus = 0;
+                _lastItemsProcessed = 0;
+            }
+
+            if (currentProgress == 100)
+            {
+                txtStatus.Text = "Processing complete.";
+                _lastItemsProcessed = 0;
+            }
 
             //this.Dispatcher.BeginInvoke(new Action(() => { pbStatus.Value = e.ProgressPercentage; }));
         }

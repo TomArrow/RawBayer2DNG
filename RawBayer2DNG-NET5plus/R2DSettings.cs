@@ -183,6 +183,22 @@ namespace RawBayer2DNG
         [Control("Threads")]
         public int maxThreads = Environment.ProcessorCount;
         [Category("Processing")]
+        [Control("ThreadsInput")]
+        public int maxThreadsInput = 1;
+        [Category("Processing")]
+        [Control("ThreadsOutput")]
+        public int maxThreadsOutput = 1;
+        [Category("Processing")]
+        [Control("oldThreadingCheck")]
+        public bool oldThreading = false;
+        [Category("Processing")]
+        [Control("standardTaskSchedulerCheck")]
+        public bool defaultTaskScheduler = false;
+        [Category("Processing")]
+        [Control("longRunningCheck")]
+        public bool defaultTaskSchedulerlongRunning = true;
+
+        [Category("Processing")]
         [Control("cropLeft_txt")]
         public int cropLeft = 0;
         [Category("Processing")]

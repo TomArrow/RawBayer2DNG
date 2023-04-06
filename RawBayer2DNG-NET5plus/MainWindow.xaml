@@ -12,7 +12,7 @@
             <RowDefinition Height="45"></RowDefinition>
             <RowDefinition></RowDefinition>
             <RowDefinition Height="350"></RowDefinition>
-            <RowDefinition Height="20">
+            <RowDefinition Height="40">
             </RowDefinition>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
@@ -303,11 +303,42 @@
             <CheckBox ToolTip="Will write an error log file for each file that encounters errors during conversion" x:Name="writeErrorReports" IsChecked="True"  Margin="2">Write error reports</CheckBox>
             <CheckBox ToolTip="Will dump human readable metadata (where available) alongside the result images." IsEnabled="False" x:Name="writeMetaDataHumanReadable"  IsChecked="True"  Margin="2">Dump human readable metadata</CheckBox>
 
+            <GroupBox Header="Threading">
+                <TabControl>
+                    <TabItem Header="Normal settings">
+                        <StackPanel>
+                            <WrapPanel>
+                                <TextBlock x:Name="txtMaxThreads">Threads ( CPUs):</TextBlock>
+                                <TextBox x:Name="Threads" MinWidth="30" TextAlignment="Right">4</TextBox>
+                            </WrapPanel>
+                            <GroupBox Header="New threading">
+                                <StackPanel>
+                                    <WrapPanel>
+                                        <TextBlock x:Name="txtMaxInputuThreads">Threads (Input I/O):</TextBlock>
+                                        <TextBox x:Name="ThreadsInput" MinWidth="30" TextAlignment="Right">1</TextBox>
+                                    </WrapPanel>
+                                    <WrapPanel>
+                                        <TextBlock x:Name="txtMaxOutputuThreads">Threads (Output I/O):</TextBlock>
+                                        <TextBox x:Name="ThreadsOutput" MinWidth="30" TextAlignment="Right">1</TextBox>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Advanced">
+                        <StackPanel>
+                            <CheckBox x:Name="oldThreadingCheck" ToolTip="Run via classical Parallel.ForEach loop. Does not work for streaming/watching folders. Can be faster in some circumstances.">Old threading when possible</CheckBox>
+                            <GroupBox Header="New threading">
+                                <StackPanel>
+                                    <CheckBox x:Name="standardTaskSchedulerCheck" ToolTip="When using new threading, don't use the specialized threading code internally but use the normal C# Task scheduler via Task.Run. Can try to compare performance.">Default task scheduler</CheckBox>
+                                    <CheckBox x:Name="longRunningCheck" IsEnabled="{Binding ElementName=standardTaskSchedulerCheck,Path=IsChecked}" ToolTip="When using the default task scheduler, we can start the processing tasks as so-called 'long-running' tasks. This can be good or bad for performance sometimes, you can try it.">Long-running mode</CheckBox>
+                                </StackPanel>
+                            </GroupBox>
 
-            <WrapPanel>
-                <TextBlock x:Name="txtMaxThreads">Threads ( CPUs)</TextBlock>
-                <TextBox x:Name="Threads" MinWidth="30" TextAlignment="Right">4</TextBox>
-            </WrapPanel>
+                        </StackPanel>
+                    </TabItem>
+                </TabControl>
+            </GroupBox>
             <Label Padding="0" Margin="2">Rename to (optional):</Label>
             <TextBox x:Name="Rename" MinWidth="50" Margin="2"></TextBox>
 
@@ -334,6 +365,16 @@
         </StackPanel>
 
         <TextBlock x:Name="txtStatus" Grid.Row="3" Grid.ColumnSpan="3">Idle.</TextBlock>
-        <ProgressBar x:Name="pbStatus" Height="20"  Grid.Row="3" Grid.Column="3" Grid.ColumnSpan="2" Value="{Binding CurrentProgress, Mode=OneWay}"/>
+        <StackPanel Grid.Row="3" Grid.Column="3" Grid.ColumnSpan="2">
+            <WrapPanel Margin="0">
+                <Label Margin="0 0 2 0" Padding="1">InBuf</Label>
+                <ProgressBar Width="80" x:Name="inputBufferStatus" Height="20"  Value="{Binding InputBufferStatus, Mode=OneWay}"/>
+                <Label Margin="5 0 2 0" Padding="1">OutBuf</Label>
+                <ProgressBar Width="80" x:Name="outputBufferStatus" Height="20"  Value="{Binding OutputBufferStatus, Mode=OneWay}"/>
+                <Label Margin="5 0 2 0" Padding="1">Active</Label>
+                <ProgressBar Width="80" x:Name="activeItemsStatus" Height="20"  Value="{Binding ActiveItemsStatus, Mode=OneWay}"/>
+            </WrapPanel>
+            <ProgressBar x:Name="pbStatus" Height="20"  Value="{Binding CurrentProgress, Mode=OneWay}"/>
+        </StackPanel>
     </Grid>
 </Window>
