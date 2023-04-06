@@ -24,6 +24,7 @@
   <ItemGroup>
     <PackageReference Include="BitMiracle.LibTiff.NET" Version="2.4.649" />
     <PackageReference Include="JpegLibrary" Version="0.4.32" />
+    <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="2.3.2" />
     <PackageReference Include="Ookii.Dialogs.Wpf" Version="5.0.1" />
     <PackageReference Include="PresetManager" Version="0.0.1.5" />
   </ItemGroup>

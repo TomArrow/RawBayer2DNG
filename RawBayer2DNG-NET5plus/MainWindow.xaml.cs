@@ -31,6 +31,7 @@ using System.Globalization;
 using PresetManager;
 using ParallelAssemblyLineNET;
 using System.Net.NetworkInformation;
+using Microsoft.IO;
 
 namespace RawBayer2DNG
 {
@@ -83,6 +84,8 @@ namespace RawBayer2DNG
         R2DSettings r2dSettings = new R2DSettings();
         bool fullSettingsToGUIWriteInProgress = false;
 
+
+        static RecyclableMemoryStreamManager msm = new RecyclableMemoryStreamManager();
 
 
         ImageSequenceSource imageSequenceSource;
@@ -199,7 +202,7 @@ namespace RawBayer2DNG
 
 
 
-        private (MemoryStream,Tiff) ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, uint[] cropAmounts, ISSMetaInfo metaInfo, ISSErrorInfo errorInfo, string sourceFileNameForTIFFTag = "")
+        private (Stream,Tiff) ProcessRAW(byte[] rawImageData, string targetFilename, byte[,] bayerPattern, RAWDATAFORMAT inputFormat, double[] RGBAmplify, uint[] cropAmounts, ISSMetaInfo metaInfo, ISSErrorInfo errorInfo, string sourceFileNameForTIFFTag = "")
         {
 
 #if DEBUG
@@ -253,7 +256,9 @@ namespace RawBayer2DNG
             byte[] resultData = null;
 
             //using (MemoryStream ms = new MemoryStream(rawImageData.Length+100000)) { // It's just a guess. This should be enough for uncompressed data and a bit of header. Want to avoid reallocation. 
-            MemoryStream ms = new MemoryStream(rawImageData.Length + 100000);
+            //MemoryStream ms = new MemoryStream(rawImageData.Length + 100000);
+            var ms = msm.GetStream(targetFilename); // This was actually a noticable performance improvement compared to MemoryStream. Maybe use ArrayPool for the input data copied from an unbuffered FileStream for more gains?
+
 
                 //using (Tiff output = Tiff.Open(fileName, "w"))
                 //using (Tiff output = Tiff.ClientOpen("in-memory", "w", ms, new TiffStream()))
@@ -1402,7 +1407,7 @@ namespace RawBayer2DNG
                         c++;
                     }
 
-                    MemoryStream resultData = null;
+                    Stream resultData = null;
                     IDisposable tiff = null;
                     if (inputData.setInfo.shotIndizi.Length == 1) {
                         // Normal
@@ -1475,7 +1480,7 @@ namespace RawBayer2DNG
                         return;
                     }
 
-                    MemoryStream resultData = null;
+                    Stream resultData = null;
                     IDisposable tiff = null;
                     if (shotSettings.shots.Length == 1) // SDR (single image)
                     {
