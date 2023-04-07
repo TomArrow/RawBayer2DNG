@@ -1739,6 +1739,10 @@ namespace RawBayer2DNG
 
         private void btnCancel_Click(object sender, RoutedEventArgs e)
         {
+            if(imageSequenceSource is ImageSequenceSourceStreaming)
+            {
+                ((ImageSequenceSourceStreaming)imageSequenceSource).signalEnd();
+            }
             worker.CancelAsync();
         }
 

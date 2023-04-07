@@ -12,7 +12,7 @@ using static RawBayer2DNG.ImageSequenceSource;
 
 namespace RawBayer2DNG.ImageSequenceSources
 {
-    internal class RAWSequenceFolderWatchSource : ImageSequenceSource
+    internal class RAWSequenceFolderWatchSource : ImageSequenceSource, ImageSequenceSourceStreaming
     {
         public int width;
         public int height;
@@ -153,6 +153,12 @@ namespace RawBayer2DNG.ImageSequenceSources
             {
                 return "undefined file [index " + index + "]";
             }
+        }
+
+        public void signalEnd()
+        {
+            endReached = true;
+            are.Set();
         }
     }
 }

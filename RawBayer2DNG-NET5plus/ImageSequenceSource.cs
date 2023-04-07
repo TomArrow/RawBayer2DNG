@@ -269,6 +269,11 @@ namespace RawBayer2DNG
     {
         abstract public int getImageCount();
     }
+    
+    interface ImageSequenceSourceStreaming
+    {
+        abstract public void signalEnd();
+    }
 
     abstract class ImageSequenceSource
     {
