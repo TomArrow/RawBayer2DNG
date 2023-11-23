@@ -32,6 +32,7 @@ using PresetManager;
 using ParallelAssemblyLineNET;
 using System.Net.NetworkInformation;
 using Microsoft.IO;
+using System.Diagnostics;
 
 namespace RawBayer2DNG
 {
@@ -982,6 +983,8 @@ namespace RawBayer2DNG
             int[] indiziForMerge = new int[shotSettings.shots.Length];
             byte[][] buffersForMerge = new byte[shotSettings.shots.Length][];
 
+            bool errorsFound = false;
+
             // Check if all necessary shots exist and add the indizi to an array.
             int thatIndex;
             for (int i = 0; i < shotSettings.shots.Length; i++)
@@ -1016,9 +1019,18 @@ namespace RawBayer2DNG
                     }
                     if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                     {
-                        buffersForMerge[i] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForMerge[i]);
+                        buffersForMerge[i] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForMerge[i], r2dSettings.errorCheck && !errorsFound, ref errorsFound);
+                    }
+                    if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT && r2dSettings.errorCheck && !errorsFound)
+                    {
+                        errorsFound = DataFormatConverter.errorCheck12bitBrightIn16Bit(buffersForMerge[i], imageSequenceSource.getWidth()*2);
                     }
                 }
+            }
+
+            if (errorsFound)
+            {
+                MessageBox.Show("Error found in image 12 bit in 16 bit encoding.");
             }
 
             //string selectedRawFile = filesInSourceFolder[index];
@@ -1175,6 +1187,7 @@ namespace RawBayer2DNG
             _counter = 0;
             _newFileName = r2dSettings.outputSequenceCustomNaming;
             //_newFileName = Rename.Text;
+            worker = new BackgroundWorker();
             worker.WorkerReportsProgress = true;
             worker.WorkerSupportsCancellation = true;
             worker.DoWork += worker_DoWork;
@@ -1299,6 +1312,7 @@ namespace RawBayer2DNG
             public Stream fileData = null;
             public IDisposable disposable = null;
             public SetInfo setInfo;
+            public bool errorsFound = false;
         }
 
         private void worker_DoWork(object sender, DoWorkEventArgs e)
@@ -1456,7 +1470,13 @@ namespace RawBayer2DNG
             CurrentProgress = 0;
             _threadCount = threads;
 
-            if (!r2dSettings.oldThreading || streaming) {  // New threading code
+            if (shotSettings.shots.Length != 1 && streaming)
+            {
+                MessageBox.Show("HDR and streaming cannot be combined at this time.");
+                return;
+            }
+
+            if (shotSettings.shots.Length == 1 && (!r2dSettings.oldThreading || streaming)) {  // New threading code
 
                 ParallelAssemblyLineV2.Run<ParallelAssemblyInput, ParallelAssemblyOutput>(
                 //
@@ -1508,7 +1528,7 @@ namespace RawBayer2DNG
                 //
                 (inputData, index) =>
                 {
-
+                    bool errorsFound = false;
                     int c = 0;
                     foreach (int thisThereThatIndex in inputData.setInfo.shotIndizi)
                     {
@@ -1531,7 +1551,11 @@ namespace RawBayer2DNG
                         }
                         if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                         {
-                            inputData.imageData[c] = DataFormatConverter.convert12paddedto16Inputto16bit(inputData.imageData[c]);
+                            inputData.imageData[c] = DataFormatConverter.convert12paddedto16Inputto16bit(inputData.imageData[c], r2dSettings.errorCheck && !errorsFound, ref errorsFound);
+                        }
+                        if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT && r2dSettings.errorCheck && !errorsFound)
+                        {
+                            errorsFound = DataFormatConverter.errorCheck12bitBrightIn16Bit(inputData.imageData[c], imageSequenceSource.getWidth() * 2);
                         }
                         c++;
                     }
@@ -1553,7 +1577,7 @@ namespace RawBayer2DNG
                     } else
                     {
 
-                        return new ParallelAssemblyOutput() { setInfo = inputData.setInfo,fileData=resultData,disposable=tiff };
+                        return new ParallelAssemblyOutput() { setInfo = inputData.setInfo,fileData=resultData,disposable=tiff, errorsFound = errorsFound };
                     }
 
                 }, 
@@ -1562,6 +1586,11 @@ namespace RawBayer2DNG
                 //
                 (outputData,index) => {
                     //File.WriteAllBytes(outputData.setInfo.outputName,outputData.fileData);
+                    if (outputData.errorsFound)
+                    {
+                        File.WriteAllText($"{outputData.setInfo.outputName}.ERRORED","12 bit in 16 bit packing error.");
+                    }
+                    Debug.WriteLine(outputData.setInfo.outputName);
                     Helpers.streamToFileAndDispose(outputData.setInfo.outputName,outputData.fileData);
                     outputData.disposable.Dispose();
                     outputData.fileData = null;
@@ -1611,6 +1640,9 @@ namespace RawBayer2DNG
 
                     Stream resultData = null;
                     IDisposable tiff = null;
+
+                    bool errorsFound = false;
+
                     if (shotSettings.shots.Length == 1) // SDR (single image)
                     {
                         byte[] tmpBuff = imageSequenceSource.getRawImageData(currentImage.shotIndizi[0], ref metaInfo, ref errorInfo);
@@ -1634,7 +1666,11 @@ namespace RawBayer2DNG
                         }
                         if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                         {
-                            tmpBuff = DataFormatConverter.convert12paddedto16Inputto16bit(tmpBuff);
+                            tmpBuff = DataFormatConverter.convert12paddedto16Inputto16bit(tmpBuff,r2dSettings.errorCheck && !errorsFound,ref errorsFound);
+                        }
+                        if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT && r2dSettings.errorCheck && !errorsFound)
+                        {
+                            errorsFound = DataFormatConverter.errorCheck12bitBrightIn16Bit(tmpBuff, imageSequenceSource.getWidth() * 2);
                         }
 
                         (resultData,tiff) = ProcessRAW(tmpBuff, currentImage.outputName, bayerPattern, inputFormat, RGBamplify, cropAmountsAtBegin, metaInfo, errorInfo, currentImage.originalFilename);
@@ -1666,7 +1702,11 @@ namespace RawBayer2DNG
                             }
                             if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                             {
-                                buffersForHDR[c] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForHDR[c]);
+                                buffersForHDR[c] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForHDR[c], r2dSettings.errorCheck && !errorsFound, ref errorsFound);
+                            }
+                            if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT && r2dSettings.errorCheck && !errorsFound)
+                            {
+                                errorsFound = DataFormatConverter.errorCheck12bitBrightIn16Bit(buffersForHDR[c], imageSequenceSource.getWidth() * 2);
                             }
                             c++;
                         }
@@ -1678,6 +1718,10 @@ namespace RawBayer2DNG
                     }
 
                     //File.WriteAllBytes(currentImage.outputName,resultData);
+                    if (errorsFound)
+                    {
+                        File.WriteAllText($"{currentImage.outputName}.ERRORED", "12 bit in 16 bit packing error.");
+                    }
                     Helpers.streamToFileAndDispose(currentImage.outputName,resultData);
                     tiff.Dispose();
 
@@ -2102,6 +2146,8 @@ namespace RawBayer2DNG
             int[] indiziForMerge = new int[shotSettings.shots.Length];
             byte[][] buffersForMerge = new byte[shotSettings.shots.Length][];
 
+            bool errorsFound = false;
+
             // Check if all necessary shots exist and add the indizi to an array.
             int thatIndex;
             for (int i = 0; i < shotSettings.shots.Length; i++)
@@ -2136,9 +2182,18 @@ namespace RawBayer2DNG
                     }
                     if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                     {
-                        buffersForMerge[i] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForMerge[i]);
+                        buffersForMerge[i] = DataFormatConverter.convert12paddedto16Inputto16bit(buffersForMerge[i], r2dSettings.errorCheck && !errorsFound, ref errorsFound);
+                    }
+                    if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT && r2dSettings.errorCheck && !errorsFound)
+                    {
+                        errorsFound = DataFormatConverter.errorCheck12bitBrightIn16Bit(buffersForMerge[i], imageSequenceSource.getWidth() * 2);
                     }
                 }
+            }
+
+            if (errorsFound)
+            {
+                MessageBox.Show("Error found in image 12 bit in 16 bit encoding.");
             }
 
             //string selectedRawFile = filesInSourceFolder[index];

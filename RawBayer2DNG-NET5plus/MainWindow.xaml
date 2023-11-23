@@ -290,6 +290,7 @@
                     </WrapPanel>
                 </StackPanel>
             </GroupBox>
+            <CheckBox ToolTip="Checks for simple errors. For example, for 12 bit images in a 16 bit container it checks that the correct 12 bits are used. If not, the file name is saved into erroredImages.txt" x:Name="errorCheckCheck" IsChecked="False" Margin="2">Check for errors</CheckBox>
             <CheckBox ToolTip="lossless compression" x:Name="compressDNG" IsChecked="False" Margin="2">Compress DNG (16 bit formats)</CheckBox>
             <GroupBox Header="Lossless JPEG">
                 <StackPanel>

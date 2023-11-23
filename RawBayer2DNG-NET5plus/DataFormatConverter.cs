@@ -157,20 +157,86 @@ namespace RawBayer2DNG
 
             return output;
         }
-        public static byte[] convert12paddedto16Inputto16bit(byte[] input)
+
+        const byte errorCheck12BitPaddedTo16 = 0b1111_0000;
+
+        public static byte[] convert12paddedto16Inputto16bit(byte[] input, bool errorCheck, ref bool errorFound)
         {
             int inputlengthBytes = input.Length;
 
             int tmpValue;
-            for (long i = 0; i < inputlengthBytes; i += 2)
+            if (errorCheck)
             {
-                tmpValue = ((input[i] | input[i + 1] << 8) << 4) & UInt16.MaxValue;// combine into one 16 bit int and shift 4 bits to the left
-                input[i] = (byte)(tmpValue & byte.MaxValue);
-                input[i + 1] = (byte)((tmpValue >> 8) & byte.MaxValue);
+                // Separate loop because C# doesn't unwrap ifs.
+                for (long i = 0; i < inputlengthBytes; i += 2)
+                {
+                    if (0 < (errorCheck12BitPaddedTo16 & input[i + 1]))
+                    {
+                        errorFound = true;
+                    }
+                    tmpValue = ((input[i] | input[i + 1] << 8) << 4) & UInt16.MaxValue;// combine into one 16 bit int and shift 4 bits to the left
+                    input[i] = (byte)(tmpValue & byte.MaxValue);
+                    input[i + 1] = (byte)((tmpValue >> 8) & byte.MaxValue);
+                }
+            } else
+            {
+                for (long i = 0; i < inputlengthBytes; i += 2)
+                {
+                    tmpValue = ((input[i] | input[i + 1] << 8) << 4) & UInt16.MaxValue;// combine into one 16 bit int and shift 4 bits to the left
+                    input[i] = (byte)(tmpValue & byte.MaxValue);
+                    input[i + 1] = (byte)((tmpValue >> 8) & byte.MaxValue);
+                }
             }
 
             return input;
         }
+
+        const byte errorCheck12BitBrightIn16 = 0b0000_1111;
+
+        public static bool errorCheck12bitBrightIn16Bit(byte[] input, int stride)
+        {
+            int inputlengthBytes = input.Length;
+
+            long colorIndex;
+            int tmpValue, tmpValue2;
+            float tmpDiff;
+            int[] lastValue = new int[4];
+            int[] lastValue2 = new int[4];
+            long byteInLine = 0; 
+            double totalDiff = 0, totalDiff2 = 0;
+            for (long i = 0; i < inputlengthBytes; i += 2)
+            {
+                byteInLine =  i % stride;
+                colorIndex = ((i/2L) % 2L) + 2* ((i/stride)%2);
+                if (0 < (errorCheck12BitBrightIn16 & input[i]))
+                {
+                    return true;
+                }
+                tmpValue = (input[i] | input[i + 1] << 8);// combine into one 16 bit int and shift 4 bits to the left
+                tmpValue2 = (tmpValue << 4) & UInt16.MaxValue;
+                tmpDiff = (float)tmpValue / (float)lastValue[colorIndex];
+                totalDiff += (byteInLine < 4 || float.IsInfinity(tmpDiff) || float.IsNaN(tmpDiff) || tmpDiff == 0) ? 0 : ( tmpDiff < 1.0f ? 1.0f/tmpDiff: tmpDiff); // tmpValue - lastValue[colorIndex];
+                tmpDiff = (float)tmpValue2 / (float)lastValue2[colorIndex];
+                totalDiff2 += (byteInLine < 4 || float.IsInfinity(tmpDiff) || float.IsNaN(tmpDiff) || tmpDiff == 0) ? 0 : (tmpDiff < 1.0f ? 1.0f / tmpDiff : tmpDiff);//tmpValue2 - lastValue2[colorIndex];
+                lastValue[colorIndex] = tmpValue;
+                lastValue2[colorIndex] = tmpValue2;
+            }
+            return (totalDiff/totalDiff2) > 2.0f;
+        }
+
+        /*public static bool weirdErrorFix12bitBrightIn16Bit(byte[] input)
+        {
+            int inputlengthBytes = input.Length;
+
+            int tmpValue;
+            for (long i = 0; i < inputlengthBytes-2; i += 2)
+            {
+                tmpValue = ((input[i] | input[i + 1] << 8 | input[i + 3] & 0b1111_0000 ) << 4) & UInt16.MaxValue;// combine into one 16 bit int and shift 4 bits to the left
+                input[i] = (byte)(tmpValue & byte.MaxValue);
+                input[i + 1] = (byte)((tmpValue >> 8) & byte.MaxValue);
+            }
+            return false;
+        }*/
 
         public static byte[] convert16bitIntermediateTo12paddedto16bit(byte[] input)
         {
