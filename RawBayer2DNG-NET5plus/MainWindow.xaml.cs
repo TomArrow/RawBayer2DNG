@@ -1307,12 +1307,18 @@ namespace RawBayer2DNG
             public ISSErrorInfo errorInfo = new ISSErrorInfo();
             public ISSMetaInfo metaInfo = new ISSMetaInfo();
         }
+        [Flags]
+        enum OutputErrors
+        {
+            Error_12BitIn16BitPackingError = 1,
+            Error_AnomalousImageMetrics = 2,
+        }
         class ParallelAssemblyOutput
         {
             public Stream fileData = null;
             public IDisposable disposable = null;
             public SetInfo setInfo;
-            public bool errorsFound = false;
+            public OutputErrors errorsFound = 0;
         }
 
         private void worker_DoWork(object sender, DoWorkEventArgs e)
@@ -1528,7 +1534,8 @@ namespace RawBayer2DNG
                 //
                 (inputData, index) =>
                 {
-                    bool errorsFound = false;
+                    bool found12Bitin16BitPackingError = false;
+                    bool foundAnomalousMetricsError = false;
                     int c = 0;
                     foreach (int thisThereThatIndex in inputData.setInfo.shotIndizi)
                     {
@@ -1551,11 +1558,15 @@ namespace RawBayer2DNG
                         }
                         if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITDARKCAPSULEDIN16BIT)
                         {
-                            inputData.imageData[c] = DataFormatConverter.convert12paddedto16Inputto16bit(inputData.imageData[c], r2dSettings.errorCheck && !errorsFound, ref errorsFound);
+                            inputData.imageData[c] = DataFormatConverter.convert12paddedto16Inputto16bit(inputData.imageData[c], r2dSettings.errorCheck && !found12Bitin16BitPackingError, ref found12Bitin16BitPackingError);
                         }
-                        if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT && r2dSettings.errorCheck && !errorsFound)
+                        if (imageSequenceSource.getRawDataFormat() == RAWDATAFORMAT.BAYER12BITBRIGHTCAPSULEDIN16BIT && r2dSettings.errorCheck && !found12Bitin16BitPackingError)
                         {
-                            errorsFound = DataFormatConverter.errorCheck12bitBrightIn16Bit(inputData.imageData[c], imageSequenceSource.getWidth() * 2);
+                            found12Bitin16BitPackingError = DataFormatConverter.errorCheck12bitBrightIn16Bit(inputData.imageData[c], imageSequenceSource.getWidth() * 2);
+                        }
+                        if (r2dSettings.errorCheck2 && !foundAnomalousMetricsError)
+                        {
+                            foundAnomalousMetricsError = DataFormatConverter.errorCheckImageMetrics(inputData.imageData[c],imageSequenceSource.getWidth(),imageSequenceSource.getHeight(), imageSequenceSource.getWidth() * 2);
                         }
                         c++;
                     }
@@ -1576,8 +1587,16 @@ namespace RawBayer2DNG
                         throw new Exception("resultData was null");
                     } else
                     {
-
-                        return new ParallelAssemblyOutput() { setInfo = inputData.setInfo,fileData=resultData,disposable=tiff, errorsFound = errorsFound };
+                        OutputErrors outputErrors = 0;
+                        if (found12Bitin16BitPackingError)
+                        {
+                            outputErrors |= OutputErrors.Error_12BitIn16BitPackingError;
+                        }
+                        if (foundAnomalousMetricsError)
+                        {
+                            outputErrors |= OutputErrors.Error_AnomalousImageMetrics;
+                        }
+                        return new ParallelAssemblyOutput() { setInfo = inputData.setInfo,fileData=resultData,disposable=tiff, errorsFound = outputErrors };
                     }
 
                 }, 
@@ -1586,9 +1605,18 @@ namespace RawBayer2DNG
                 //
                 (outputData,index) => {
                     //File.WriteAllBytes(outputData.setInfo.outputName,outputData.fileData);
-                    if (outputData.errorsFound)
+                    if (outputData.errorsFound > 0)
                     {
-                        File.WriteAllText($"{outputData.setInfo.outputName}.ERRORED","12 bit in 16 bit packing error.");
+                        StringBuilder sb = new StringBuilder();
+                        if (outputData.errorsFound.HasFlag(OutputErrors.Error_12BitIn16BitPackingError))
+                        {
+                            sb.AppendLine("12 bit in 16 bit packing error.");
+                        }
+                        if (outputData.errorsFound.HasFlag(OutputErrors.Error_AnomalousImageMetrics))
+                        {
+                            sb.AppendLine("Anomalous/suspicious image metrics. Possible corruption.");
+                        }
+                        File.WriteAllText($"{outputData.setInfo.outputName}.ERRORED",sb.ToString());
                     }
                     Debug.WriteLine(outputData.setInfo.outputName);
                     Helpers.streamToFileAndDispose(outputData.setInfo.outputName,outputData.fileData);

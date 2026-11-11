@@ -123,6 +123,9 @@ namespace RawBayer2DNG
         [Control("errorCheckCheck")]
         public bool errorCheck = false;
         [Category("DNGOutput")]
+        [Control("errorCheck2Check")]
+        public bool errorCheck2 = false;
+        [Category("DNGOutput")]
         [Control("compressDNGLosslessJPEG")]
         public bool compressDNGLosslessJPEG = true;
         [Category("DNGOutput")]

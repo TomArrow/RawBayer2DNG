@@ -224,6 +224,58 @@ namespace RawBayer2DNG
             return (totalDiff/totalDiff2) > 2.0f;
         }
 
+        const long metricsBlockSize = 16;
+        public static bool errorCheckImageMetrics(byte[] input, int width, int height, int stride)
+        {
+            int inputlengthBytes = input.Length;
+
+            // we check 16x16 blocks
+            if(height*stride < input.Length)
+            {
+                return true; // automatically an error
+            }
+
+            int blockWidth = width / (int)metricsBlockSize;
+            int blockHeight = height / (int)metricsBlockSize;
+
+            Int64 value1, value2;
+            // Int32[] deltas = new Int32[16*16];
+            Int64 sum=0, count=0;
+            //for (long yb = 0; yb < blockHeight; yb++)
+            //{
+            //    for (long xb = 0; xb < blockWidth; xb++)
+            //    {
+            //        long index = 0;
+            //        for(long y = yb*metricsBlockSize; y < ((yb+1)*metricsBlockSize)-2; y++)
+            //        {
+            //            for(long x = xb*metricsBlockSize; x < ((xb+1)*metricsBlockSize)-2; x++)
+            //            {
+            //                value1 = input[y * stride + x * 2] | (input[y * stride + x * 2 + 1] << 8);
+            //                value2 = input[(y+2) * stride + (x+2) * 2] | (input[(y+2) * stride + (x+2) * 2 + 1] << 8);
+
+            //                sum += Math.Abs(value1-value2);
+            //                count++;
+            //            }
+            //        }
+            //    }
+            //}
+
+            for(int y = 0; y < height-2; y++)
+            {
+                for(int x = 0; x < width-2; x++)
+                {
+                    value1 = input[y * stride + x * 2] | (input[y * stride + x * 2 + 1] << 8);
+                    value2 = input[(y+2) * stride + (x+2) * 2] | (input[(y+2) * stride + (x+2) * 2 + 1] << 8);
+
+                    sum += Math.Abs(value1-value2);
+                    count++;
+                }
+            }
+
+            sum /= count;
+            return sum > 2048; // means an average delta of a color to itself that (in 12 bit equivalent) is greater than 128. The typical value for a usual image is around 600-700
+        }
+
         /*public static bool weirdErrorFix12bitBrightIn16Bit(byte[] input)
         {
             int inputlengthBytes = input.Length;
